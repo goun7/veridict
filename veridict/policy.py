@@ -90,9 +90,12 @@ class PolicyEngine:
         critical_bad = any(
             per_claim[c.claim_id]["value"] in ("REFUTED", "ESCALATED", "INCONCLUSIVE")
             for c in claims if c.critical_class in declaration.criticality)
+        # GATE/HYBRID block on ANY refuted claim verdict: a gate that lets a
+        # refuted machine claim through is not a gate (§6 fail-closed).
+        any_refuted = any(per_claim[c.claim_id]["value"] == "REFUTED" for c in claims)
         # decision (§6: separate evidence from decision)
         blocking = (declaration.mode in ("GATE", "HYBRID")
-                    and (critical_bad or flags))
+                    and (critical_bad or any_refuted or flags))
         blocked = bool(blocking)
         decision_kind = ("gate.blocked" if blocked else
                          "watch.observed" if declaration.mode == "WATCH" else "policy.passed")

@@ -44,11 +44,12 @@ class ScriptedProvider:
 
 class OpenAICompatProvider:
     """Any OpenAI-compatible chat endpoint; expects strict-JSON opinion back."""
-    def __init__(self, family: str, identity: str, version: str = "0.1.0"):
+    def __init__(self, family: str, identity: str, version: str = "0.1.0",
+                 base_url: str | None = None):
         self.family = family
         self.identity = identity
         self.version = version
-        self.base_url = os.environ["VERIDICT_JURY_URL"]
+        self.base_url = base_url or os.environ["VERIDICT_JURY_URL"]
         self.api_key = os.environ.get("VERIDICT_JURY_KEY", "")
         self.model = os.environ.get("VERIDICT_JURY_MODEL", "gpt-4o-mini")
 
