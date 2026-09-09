@@ -77,11 +77,16 @@ class PolicyEngine:
                                         for e in evidence_by_claim.get(c.claim_id, []))]
         coverage = (len(covered) / len(mc)) if mc else 1.0
         flags: list[str] = []
-        if coverage < declaration.thresholds.min_w1_coverage:
-            flags.append("coverage-below-threshold")
-        # Per-claim verdicts are computed ONCE and reused for the blocking rule.
+        # Per-claim verdicts are computed ONCE and reused for the blocking rule;
+        # they finalize before the flags list so the decision record carries the
+        # full flag set (divergence-split is a first-class flag).
         per_claim = {c.claim_id: self._per_claim(c, evidence_by_claim, declaration)
                      for c in claims}
+        if coverage < declaration.thresholds.min_w1_coverage:
+            flags.append("coverage-below-threshold")
+        for cid, per in per_claim.items():
+            if per["divergence"] == "SPLIT":
+                flags.append(f"divergence-split:{cid}")
         critical_bad = any(
             per_claim[c.claim_id]["value"] in ("REFUTED", "ESCALATED", "INCONCLUSIVE")
             for c in claims if c.critical_class in declaration.criticality)
