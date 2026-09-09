@@ -94,3 +94,33 @@ def test_meta_claim_registered_when_budget_allows(tmp_path):
     preds = [e["payload"]["predicate"] for e in led.entries
              if e["entry_type"] == "claim.registered"]
     assert any(p.startswith("coverage-of") for p in preds)
+
+
+def test_refuted_meta_claim_blocks_gate(tmp_path):
+    # Adapted per audit batch guidance: both jurors refute meta summaries so the
+    # meta verdict is REFUTED (a single refuter yields SPLIT -> INCONCLUSIVE),
+    # and the suite passes ("from calc import f") so no top-level claim is
+    # REFUTED — the REFUTED verdicts are attributable to the meta claims.
+    task = _task(tmp_path, intent=("MACHINE: f evaluates the expression safely",))
+    (tmp_path / "calc.py").write_text(
+        "def f(x):\n    try:\n        return eval(x)\n    except:\n        return None\n")
+    (tmp_path / "test_calc.py").write_text(
+        "from calc import f\n\ndef test_f():\n    assert f('1+1') == 2\n")
+    led = Ledger()
+    ks = KeyStore(led)
+    kid = ks.generate_and_enroll("core")
+    jury = Jury([ScriptedProvider(family="stub-a", identity="a-1",
+                                  default=Opinion("SUPPORTS", 0.8, "ok"),
+                                  fn=lambda s: Opinion("REFUTES", 0.9, "uncovered")
+                                  if "coverage-of" in s else Opinion("SUPPORTS", 0.8, "ok")),
+                 ScriptedProvider(family="stub-b", identity="b-1",
+                                  default=Opinion("SUPPORTS", 0.8, "ok"),
+                                  fn=lambda s: Opinion("REFUTES", 0.9, "uncovered")
+                                  if "coverage-of" in s else Opinion("SUPPORTS", 0.8, "ok"))])
+    pol = PolicyDeclaration(policy_id="p-meta", mode="GATE", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1 / 3)
+    result = AuditOrchestrator(led, pol, jury, ks, kid).run(task)
+    assert result["outcome"].blocked is True
+    assert any(v["value"] == "REFUTED"
+               for v in result["outcome"].per_claim.values())
+    assert any(c["verdict_value"] == "REFUTED" for c in result["cert"]["claims"])

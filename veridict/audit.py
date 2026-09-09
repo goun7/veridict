@@ -92,6 +92,7 @@ class AuditOrchestrator:
         # Meta-claims (rule R2), one level, depth-budgeted (§7.2 #2).
         adjudications = [adjudicate(c, evidence_by_claim[c.claim_id], self.policy)
                          for c in claims]
+        meta_claims: list = []
         for c, a in zip(claims, adjudications):
             for meta in a.meta_claims:
                 meta_claim = ClaimExtractor().make_claim(
@@ -100,6 +101,7 @@ class AuditOrchestrator:
                     summary=f"meta: does machine evidence cover {meta['subject']}?",
                     verifiability="DOCTRINAL", falsifiable_by=("jury",),
                     critical_class=c.critical_class)
+                meta_claims.append(meta_claim)
                 self.ledger.append("claim.registered", extractor_author,
                                    meta_claim.to_dict())
                 jury_items, abst = self.jury.evaluate(meta_claim, digest)
@@ -119,11 +121,16 @@ class AuditOrchestrator:
                      "dossier_summary": "see risk_notes", "risk_notes": a.risk_notes})
 
         engine = PolicyEngine(self.ledger)
-        outcome = engine.apply(claims, evidence_by_claim, self.policy, engine_author)
+        # Meta-claims are adjudicated + ledgered, so they must also reach the
+        # policy engine and the certificate — a REFUTED meta-claim that never
+        # reaches GATE is a silent fail-open (§6 fail-closed).
+        outcome = engine.apply(claims + meta_claims, evidence_by_claim,
+                               self.policy, engine_author)
 
         issuer = CertificateIssuer(self.ledger, self.keystore, self.key_id)
         cert = issuer.issue(
-            task=task, artifact_digest=digest, policy=self.policy, claims=claims,
+            task=task, artifact_digest=digest, policy=self.policy,
+            claims=claims + meta_claims,
             adjudications=adjudications, evidence_by_claim=evidence_by_claim,
             jury_families=sorted({p.family for p in self.jury.providers}),
             disclosure_level=disclosure_level,

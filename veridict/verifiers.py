@@ -57,7 +57,9 @@ class StaticAnalyzerVerifier:
         for rel in iter_python_files(task.artifact_path):
             path = os.path.join(task.artifact_path, rel)
             try:
-                tree = ast.parse(open(path, encoding="utf-8").read(), filename=rel)
+                with open(path, encoding="utf-8") as fh:
+                    source = fh.read()
+                tree = ast.parse(source, filename=rel)
             except SyntaxError as exc:
                 findings.append(f"syntax-error:{rel}:{exc.lineno}")
                 continue

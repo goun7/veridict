@@ -19,6 +19,15 @@ DEFAULT_POLICY = PolicyDeclaration(
     thresholds=Thresholds(), divergence_tolerance=1 / 3)
 
 
+class _Parser(argparse.ArgumentParser):
+    """Usage errors exit 1 (invalid input), not argparse's 2 (which collides
+    with the gate-blocked exit code)."""
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        print(f"veridict: error: {message}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def _build_jury() -> tuple[Jury, list[str]]:
     """Assemble >=2-family jury from env; pad with scripted stubs (warned)."""
     warnings: list[str] = []
@@ -88,7 +97,7 @@ def _cmd_quality_sheet(args) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="veridict")
+    p = _Parser(prog="veridict")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("audit")
     a.add_argument("--task", required=True)
@@ -107,8 +116,18 @@ def main(argv=None) -> int:
     q.add_argument("--corpus", required=True)
     q.add_argument("--out", required=True)
     q.set_defaults(func=_cmd_quality_sheet)
-    args = p.parse_args(argv)
-    return args.func(args)
+    # argparse raises SystemExit on usage errors / --help; convert to a return
+    # code so in-process callers (and `sys.exit(main())`) see exit 1, not a
+    # raised exception. Dispatch errors below never raise SystemExit.
+    try:
+        args = p.parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 0
+    try:
+        return args.func(args)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        print(f"veridict: error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

@@ -77,3 +77,22 @@ def test_verify_rejects_tampered_certificate(tmp_path):
     with open(cp, "w") as f:
         json.dump(cert, f)
     assert verify_certificate(lp, cp)["valid"] is False
+
+
+def test_verify_rejects_missing_certificate_entry(tmp_path):
+    cert, lp, cp = _run(tmp_path)
+    with open(lp) as f:
+        lines = [l for l in f.read().splitlines()
+                 if '"certificate.issued"' not in l]
+    with open(lp, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    assert verify_certificate(lp, cp)["valid"] is False
+
+
+def test_verify_invalid_on_garbled_ledger(tmp_path):
+    cert, lp, cp = _run(tmp_path)
+    with open(lp, "a") as f:
+        f.write('{"seq": 99, "trunc\n')
+    report = verify_certificate(lp, cp)
+    assert report["valid"] is False
+    assert report["chain_valid"] is False
