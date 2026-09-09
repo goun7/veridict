@@ -124,6 +124,68 @@ def test_session_bad_stance_is_abstain():
     assert run_session(s, _claim_stub("x"), "digest") is None
 
 
+def test_w2_ceiling_mapping():
+    m = _session_manifest(max_tier="W2", evidence_class="WATCHER_REPORT")
+    s = WatcherSession(m, lambda summary, digest: ("SUPPORTS", 0.8, "ok"))
+    ev = run_session(s, _claim_stub("x"), "d")
+    assert ev.tier == "W2" and ev.reproducibility["deterministic"] is False
+
+
+def test_body_tamper_fails_all_checks():
+    reg, led = _registry()
+    reg.register(_manifest())
+    led.entries[-1]["payload"]["manifest"]["name"] = "Evil"
+    report = ManifestRegistry.verify_manifest(led, "sec-1")
+    assert report["valid"] is False
+    assert not report["signature_valid"]      # body tamper breaks the signature
+
+
+def test_confidence_clamped():
+    s = WatcherSession(_session_manifest(), lambda summary, digest: ("SUPPORTS", 7.3, "wild"))
+    ev = run_session(s, _claim_stub("x"), "d")
+    assert ev.confidence == 1.0
+    s2 = WatcherSession(_session_manifest(), lambda summary, digest: ("SUPPORTS", -2, "low"))
+    assert run_session(s2, _claim_stub("x"), "d").confidence == 0.0
+
+
+def test_reregistration_latest_wins():
+    reg, led = _registry()
+    reg.register(_manifest(name="First"))
+    reg.register(_manifest(name="Second"))
+    assert ManifestRegistry.get_manifest(led, "sec-1").name == "Second"
+
+
+def test_malformed_fn_output_is_abstain():
+    # Hardening: unpack + float() live inside the try — a malformed fn return
+    # must abstain, not crash the audit (§5.4).
+    short = WatcherSession(_session_manifest(), lambda summary, digest: ("SUPPORTS", 0.8))
+    assert run_session(short, _claim_stub("x"), "d") is None
+    non_numeric = WatcherSession(_session_manifest(),
+                                 lambda summary, digest: ("SUPPORTS", "high", "r"))
+    assert run_session(non_numeric, _claim_stub("x"), "d") is None
+
+
+def test_malformed_manifest_body_reports_error():
+    # Hardening: a structurally malformed (not merely tampered) body must
+    # surface as an error line, not a KeyError crash.
+    reg, led = _registry()
+    reg.register(_manifest())
+    led.entries[-1]["payload"]["manifest"].pop("capabilities")
+    report = ManifestRegistry.verify_manifest(led, "sec-1")
+    assert report["valid"] is False
+    assert any("invalid manifest" in e for e in report["errors"])
+
+
+def test_run_session_passes_artifact_path_reference():
+    # §5.3: "claim + artifact references" — an artifact REFERENCE (the path) is
+    # legitimate session input; blindness means no other producers' outputs.
+    seen = []
+    s = WatcherSession(_session_manifest(),
+                       lambda summary, ref: seen.append(ref) or ("SUPPORTS", 0.8, "ok"))
+    run_session(s, _claim_stub("x"), "d", artifact_path="/artifacts/repo")
+    assert seen == ["/artifacts/repo"]
+
+
 def _claim_stub(summary):
     from veridict.schemas import Claim
     return Claim(claim_id="cx", task_id="t", subject="s", predicate="p", scope="r",

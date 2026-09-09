@@ -122,8 +122,10 @@ class ManifestRegistry:
             errors.append("signature: no enrolled key verifies the manifest body")
         try:
             WatcherManifest.from_dict(body)   # re-validate invariants post-tamper
-        except ValueError as exc:
-            errors.append(f"invalid manifest: {exc}")
+        except (ValueError, KeyError, TypeError) as exc:
+            # A structurally MALFORMED body (not just a tampered one) must
+            # surface as an error line — never crash the verifier.
+            errors.append(f"invalid manifest: {type(exc).__name__}: {exc}")
         return {"valid": not errors, "signature_valid": sig_ok, "errors": errors}
 
 
@@ -132,7 +134,9 @@ class WatcherSession:
 
     The session is the authority boundary: whatever the fn returns is clamped
     to the manifest's max_tier ceiling and evidence_class before it can
-    become an evidence item (§5.3). fn sees ONLY (claim_summary, digest).
+    become an evidence item (§5.3). fn sees (claim_summary, artifact REFERENCE)
+    — the path when the caller supplies one, else the digest — and NOTHING of
+    any other producer's output (blindness, §5.3).
     """
 
     def __init__(self, manifest: WatcherManifest, doctrine_fn) -> None:
@@ -150,23 +154,28 @@ class WatcherSession:
 _CEILING_TIER = {"W1b": "W1b", "W2": "W2", "W3": "W3"}  # never W1a — §5.3 ceiling
 
 
-def run_session(session: WatcherSession, claim: Claim,
-                artifact_digest: str) -> EvidenceItem | None:
-    """Blind single-watcher run. Abstain (None) on error/None/bad output (§5.4)."""
+def run_session(session: WatcherSession, claim: Claim, artifact_digest: str,
+                artifact_path: str | None = None) -> EvidenceItem | None:
+    """Blind single-watcher run. Abstain (None) on error/None/bad output (§5.4).
+
+    The fn receives (claim.summary, artifact REFERENCE): the artifact path when
+    the caller supplies one, else the digest — "claim + artifact references"
+    (§5.3). Blindness means no other producers' outputs, not reference-freeness.
+    """
     try:
-        out = session.doctrine_fn(claim.summary, artifact_digest)
+        out = session.doctrine_fn(claim.summary, artifact_path or artifact_digest)
+        if out is None:
+            return None
+        stance, confidence, rationale = out
+        conf = max(0.0, min(1.0, float(confidence)))
     except Exception:            # noqa: BLE001 — a crashing watcher must abstain, never crash the audit
         return None
-    if out is None:
-        return None
-    stance, confidence, rationale = out
     if stance not in ("SUPPORTS", "REFUTES"):
         return None
     cap = session.manifest.capabilities
     m = session.manifest
     tier = _CEILING_TIER[cap["max_tier"]]
     evidence_class = cap["evidence_classes"][0]
-    conf = max(0.0, min(1.0, float(confidence)))
     return EvidenceItem(
         evidence_id=sha256_hex(f"{EID_SALT}|{claim.claim_id}|{m.watcher_id}")[:24],
         claim_id=claim.claim_id, evidence_class=evidence_class, tier=tier,

@@ -16,6 +16,7 @@ from .policy import PolicyDeclaration, PolicyEngine
 from .schemas import ActorRef, TaskManifest
 from .utils import canonical_json, iter_python_files, sha256_hex
 from .verifiers import StaticAnalyzerVerifier, TestExecutorVerifier
+from .watchers import run_session
 
 ESCALATION_ROUTE = "human-risk-owner"   # §6.1: the human is the risk owner
 
@@ -37,12 +38,13 @@ def artifact_digest(root: str) -> str:
 
 class AuditOrchestrator:
     def __init__(self, ledger: Ledger, policy: PolicyDeclaration, jury: Jury,
-                 keystore: KeyStore, key_id: str) -> None:
+                 keystore: KeyStore, key_id: str, watchers: tuple = ()) -> None:
         self.ledger = ledger
         self.policy = policy
         self.jury = jury
         self.keystore = keystore
         self.key_id = key_id
+        self.watchers = tuple(watchers)
 
     def run(self, task: TaskManifest, disclosure_level: str = "REDACTED") -> dict:
         start = time.time()
@@ -79,6 +81,21 @@ class AuditOrchestrator:
                     kind="jury", identity=ev.producer["identity"],
                     version=ev.producer["version"]), ev.to_dict())
             items.extend(jury_items)
+            # Watcher routing (§5.3): third-party producers join the same
+            # per-claim evidence set. TOP-LEVEL claims only — meta-claims are
+            # internal depth-budget checks and get no watcher routing in v0.
+            for session in self.watchers:
+                if not session.matches(c):
+                    continue
+                watcher_ev = run_session(session, c, digest,
+                                         artifact_path=task.artifact_path)
+                if watcher_ev is None:
+                    abstentions.append(session.manifest.watcher_id)
+                    continue
+                self.ledger.append("evidence.recorded", ActorRef(
+                    kind="watcher", identity=watcher_ev.producer["identity"],
+                    version=watcher_ev.producer["version"]), watcher_ev.to_dict())
+                items.append(watcher_ev)
             evidence_by_claim[c.claim_id] = items
 
         for c in claims:
