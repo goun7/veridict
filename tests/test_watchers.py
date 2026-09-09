@@ -1,0 +1,131 @@
+import pytest
+
+from veridict.jury import Opinion
+from veridict.ledger import Ledger
+from veridict.keys import KeyStore
+from veridict.watchers import (ManifestRegistry, WatcherManifest, WatcherSession,
+                               run_session)
+
+
+def _manifest(**over):
+    base = dict(
+        watcher_id="sec-1", name="Security Watcher", version="0.1.0",
+        producer={"identity": "sec-watcher", "maintainer": "example-org"},
+        capabilities={"evidence_classes": ("STATIC_ANALYSIS",), "max_tier": "W1b",
+                      "subscribes_to": ("payments", "security")},
+        resource_class={"timeout_seconds": 30, "cost_budget": 1.0,
+                        "sandbox_level": "none"},
+        integrity={"code_hash": "a" * 64, "update_policy": "manual"})
+    base.update(over)
+    return WatcherManifest(**base)
+
+
+def _registry(ledger=None):
+    led = ledger or Ledger()
+    ks = KeyStore(led)
+    kid = ks.generate_and_enroll("watcher-registry")
+    return ManifestRegistry(led, ks, kid), led
+
+
+def test_manifest_roundtrip():
+    m = _manifest()
+    assert WatcherManifest.from_dict(m.to_dict()) == m
+    assert len(m.manifest_digest()) == 64
+
+
+def test_w1a_ceiling_forbidden():
+    with pytest.raises(ValueError):
+        _manifest(capabilities={"evidence_classes": ("TEST_EXECUTION",),
+                                "max_tier": "W1a", "subscribes_to": ("*",)})
+
+
+def test_bad_evidence_class_rejected():
+    with pytest.raises(ValueError):
+        _manifest(capabilities={"evidence_classes": ("TELEPATHY",),
+                                "max_tier": "W2", "subscribes_to": ("*",)})
+
+
+def test_anonymous_producer_rejected():
+    with pytest.raises(ValueError):
+        _manifest(producer={"identity": "", "maintainer": ""})
+
+
+def test_register_and_verify(tmp_path=None):
+    reg, led = _registry()
+    entry = reg.register(_manifest())
+    assert entry["entry_type"] == "watcher.registered"
+    report = ManifestRegistry.verify_manifest(led, "sec-1")
+    assert report["valid"] is True, report["errors"]
+    assert report["signature_valid"] is True
+    got = ManifestRegistry.get_manifest(led, "sec-1")
+    assert got == _manifest()
+
+
+def test_tampered_manifest_fails_verification():
+    reg, led = _registry()
+    reg.register(_manifest())
+    led.entries[-1]["payload"]["name"] = "Evil Watcher"   # retroactive edit
+    report = ManifestRegistry.verify_manifest(led, "sec-1")
+    assert report["valid"] is False
+
+
+def test_unknown_watcher_verify_fails():
+    reg, led = _registry()
+    report = ManifestRegistry.verify_manifest(led, "ghost")
+    assert report["valid"] is False
+    assert ManifestRegistry.get_manifest(led, "ghost") is None
+
+
+def _session_manifest(max_tier="W1b", evidence_class="STATIC_ANALYSIS"):
+    return _manifest(capabilities={"evidence_classes": (evidence_class,),
+                                   "max_tier": max_tier, "subscribes_to": ("*",)})
+
+
+def test_session_produces_ceiling_respecting_evidence():
+    m = _session_manifest(max_tier="W1b")
+    s = WatcherSession(m, lambda summary, digest: ("REFUTES", 0.9, "shell=True found"))
+    ev = run_session(s, _claim_stub("x is safe"), "digest")
+    assert ev is not None
+    assert ev.tier == "W1b" and ev.stance == "REFUTES"
+    assert ev.producer["kind"] == "watcher" and ev.producer["family"] == "sec-1"
+    assert ev.evidence_class == "STATIC_ANALYSIS"
+    assert ev.reproducibility["deterministic"] is True
+
+
+def test_w3_doctrinal_watcher():
+    m = _session_manifest(max_tier="W3", evidence_class="WATCHER_REPORT")
+    s = WatcherSession(m, lambda summary, digest: ("SUPPORTS", 0.6, "compliant"))
+    ev = run_session(s, _claim_stub("api usage is idiomatic"), "digest")
+    assert ev.tier == "W3" and ev.evidence_class == "WATCHER_REPORT"
+    assert ev.reproducibility["deterministic"] is False
+
+
+def test_session_blind_input_only():
+    seen = []
+    s = WatcherSession(_session_manifest(), lambda summary, digest: seen.append((summary, digest)) or ("SUPPORTS", 0.8, "ok"))
+    run_session(s, _claim_stub("some claim"), "digest")
+    assert seen == [("some claim", "digest")]
+
+
+def test_session_error_is_abstain():
+    def boom(summary, digest):
+        raise RuntimeError("watcher crashed")
+    s = WatcherSession(_session_manifest(), boom)
+    assert run_session(s, _claim_stub("x"), "digest") is None
+
+
+def test_session_none_is_abstain():
+    s = WatcherSession(_session_manifest(), lambda summary, digest: None)
+    assert run_session(s, _claim_stub("x"), "digest") is None
+
+
+def test_session_bad_stance_is_abstain():
+    s = WatcherSession(_session_manifest(), lambda summary, digest: ("MAYBE", 0.5, "eh"))
+    assert run_session(s, _claim_stub("x"), "digest") is None
+
+
+def _claim_stub(summary):
+    from veridict.schemas import Claim
+    return Claim(claim_id="cx", task_id="t", subject="s", predicate="p", scope="r",
+                 summary=summary, derived_from="digest", verifiability="DOCTRINAL",
+                 falsifiable_by=("watcher",), critical_class=None)
