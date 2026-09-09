@@ -13,8 +13,9 @@ watch / hybrid), and a signed certificate that anyone can verify offline.
 
 ## Status
 
-Phase 0 — Paper. Design approved section-by-section with the founder; implementation
-planning for Phase 1 (the smallest honest core that can produce a certificate) comes next.
+Phase 1 core implemented: ledger, claim extraction, W1a/W1b verifiers, blind jury,
+divergence detector, R0–R4 ladder, 4-mode policy engine, signed certificates with
+offline replay verification, canary protocol v0. Self-audit: `python scripts/dogfood.py`.
 
 ## Model
 
