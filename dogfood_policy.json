@@ -1,0 +1,9 @@
+{
+  "policy_id": "dogfood-hybrid-v0.1",
+  "mode": "HYBRID",
+  "criticality": [],
+  "thresholds": {"min_jury_families": 2, "divergence_tolerance": 0.3333333333333333,
+                  "min_w1_coverage": 0.8, "meta_claim_depth_budget": 2},
+  "divergence_tolerance": 0.3333333333333333,
+  "disclosure_level": "REDACTED"
+}
