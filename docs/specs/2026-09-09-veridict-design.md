@@ -123,11 +123,13 @@ The ledger has one record unit — the **Ledger Entry**. Everything (actor outpu
 
 ```
 LedgerEntry {
+  schema_version:  contract schema version (mandatory — see below)
   seq:             monotonically increasing sequence number
   entry_type:      task.started | actor.output | claim.registered |
                    evidence.recorded | verdict.computed | divergence.flagged |
                    policy.decision | escalation.requested | escalation.resolved |
-                   certificate.issued | checkpoint.anchored
+                   certificate.issued | checkpoint.anchored |
+                   key.enrolled | key.revoked
   author:          { kind: actor | claim_extractor | verifier | jury | watcher |
                           divergence_detector | policy_engine | adjudicator,
                      identity, version }
@@ -138,6 +140,8 @@ LedgerEntry {
 ```
 
 **Hash-chain semantics:**
+
+- **`schema_version` is mandatory on every entry and every payload contract** (Claim, EvidenceItem, Verdict, PolicyDeclaration, AuditCertificate). An unverifiable schema cannot be replayed over time: readers must be able to pin which contract generation they are validating against. Rule: a contract change increments the version; a replay verifier either understands that version or reports `UNKNOWN_SCHEMA` — never guesses.
 
 - `entry_hash[n]` includes the previous entry's hash: any single-byte retroactive edit invalidates the entire chain from that point. Verification = replaying the chain from genesis.
 - **The audited artifact is pinned by hash at ingestion.** `actor.output` entries carry the hash and location of the output, not a mutable copy. "Was this really what was audited?" is structurally closed.
@@ -195,10 +199,12 @@ Verdict {
 ```
 AuditCertificate {
   cert_id
+  schema_version: certificate contract generation
   subject:        { audited artifact hashes, task_id, actor identity }
   policy_mode:    CERTIFICATE | GATE | WATCH | HYBRID
   claims:         [ { claim_id, verdict.value, evidence_ids[] } ]
   jury_composition: participating model families + diversity statement
+  disclosure_level: LOCAL_ONLY | REDACTED | FULL   (§7.7 privacy contract)
   divergence_summary + risk_level + score
   ledger_anchor:  { checkpoint entry id, chain hash }
   signatures:     system key (+ optional external notary)
@@ -480,6 +486,35 @@ Four concrete mechanisms:
 
 Cryptographic primitives hold (hash/signatures) · ≥1 independent jury family is reachable per audit · ≥1 human is reachable for R3 on GATE-critical paths (otherwise fail-safe blocks) · the anchor service (if used) is available. When an assumption breaks, the system does not silently continue — it enters a **visible, degraded-trust mode**.
 
+### 7.6 Audit-Quality Measurement — the Canary Protocol
+
+A system that claims to audit must be able to **measure its own audit quality**. Veridict ships with a continuous canary protocol:
+
+- **Seeded-defect corpus:** a maintained corpus of artifacts with known planted defects (subtle logic bugs, missing edge-case handling, injected vulnerabilities) plus clean controls, each tagged with defect class and ground truth. Corpus items and ground truth are versioned and ledger-recorded.
+- **Blind injection:** canary artifacts flow through real audits indistinguishably from production traffic (blind to fleet and jury); catch-rate per defect class is measured continuously.
+- **Published metrics:** every certificate schema family carries an attached, periodically published **Quality Sheet**: per-class catch rate, false-positive rate, divergence-calibration (does SPLIT actually predict downstream-proven error?), and human-escalation accuracy. Published numbers are themselves ledger-anchored.
+- **Regression tripwire:** a drop in catch-rate for any defect class is treated as a production incident — the fleet/jury composition change that caused it is identifiable from the ledger, because rotation and producer versions are recorded.
+
+Without the canary protocol, "we audit AI" is a claim; with it, it is a measurement. This protocol is a Phase 1 exit criterion (§8, criterion ⑥).
+
+### 7.7 Privacy Contract — Auditing Without Leaking
+
+If jury models and watchers are third-party services, the audited material leaves the operator's boundary — the single largest enterprise objection. The contract:
+
+- **Redaction-before-dispatch (default):** claims and artifact references are redacted/pseudonymized before reaching external producers — secrets, credentials, PII, and proprietary identifiers are stripped; verifiers receive what the *claim* requires, not the whole artifact.
+- **Tiered disclosure policy (policy data, signed):** per policy declaration, artifact classes map to disclosure levels — `LOCAL_ONLY` (built-in verifiers only; nothing leaves), `REDACTED` (default; redacted views to jury/watchers), `FULL` (explicit operator opt-in, ledger-recorded). Juror/watcher manifests declare their data-handling class; the router enforces disclosure levels at dispatch.
+- **Local-jury mode:** air-gapped/high-sensitivity deployments may run the W2 layer on locally hosted model families; heterogeneity requirement is unchanged, the diversity statement documents local composition.
+- **Residual truth (honest):** redaction can degrade audit quality (a redacted view may hide the very defect). Certificates carry a `disclosure_level` field; a REDACTED certificate states that its verdicts are bounded by what was disclosed. Privacy and audit depth trade off **visibly**, in the ledger — consistent with §7.4 item 6.
+
+### 7.8 Key and Identity Management
+
+m-of-n signatures (§7.2) are only as strong as the identity system behind them:
+
+- **Identity registry:** every producer, operator, and signer holds a registered identity (key + role + authority scope) recorded in the ledger at registration; anonymous producers are structurally impossible (consistent with §4.2, §5.3).
+- **Rotation:** signing keys rotate on a policy-defined schedule; rotation events are ledger entries; old keys verify history, only the current key signs.
+- **Revocation:** compromised identities are revoked via a ledger-recorded revocation entry; revocation takes effect for *future* entries, and a revoked producer's evidence written before revocation is flagged (not deleted — append-only) and surfaces in certificates through producer status.
+- **Threshold governance:** the m-of-n signer set and its change procedure are themselves policy data — changing the signer set is a signed, ledger-visible event.
+
 ---
 
 ## 8. Roadmap
@@ -487,7 +522,7 @@ Cryptographic primitives hold (hash/signatures) · ≥1 independent jury family 
 | Phase | Content | Exit criteria (measurable) |
 |---|---|---|
 | **Phase 0 — Paper** | This document + name + license decision | Document approved; git repository initialized |
-| **Phase 1 — Core (B spine)** | Ledger + hash chain; claim extractor (hybrid, §5.5); built-in verifiers (test execution + reproducible run + static analysis); mini-jury (2–3 families, blind); divergence detector; policy engine (4 modes); ladder R0–R4; signed certificate + **offline verifier CLI** | ① The system **audits its own v0.1 and receives a certificate** (mandatory dogfooding, §7.3) ② An independent party verifies the certificate via replay ③ ≥1 real AI-generated PR audited end-to-end ④ All five tier rules proven by tests ⑤ GATE latency target met (§6.5) |
+| **Phase 1 — Core (B spine)** | Ledger + hash chain; claim extractor (hybrid, §5.5); built-in verifiers (test execution + reproducible run + static analysis); mini-jury (2–3 families, blind); divergence detector; policy engine (4 modes); ladder R0–R4; signed certificate + **offline verifier CLI**; **canary protocol v0** (seeded-defect corpus + blind injection + Quality Sheet, §7.6) | ① The system **audits its own v0.1 and receives a certificate** (mandatory dogfooding, §7.3) ② An independent party verifies the certificate via replay ③ ≥1 real AI-generated PR audited end-to-end ④ All five tier rules proven by tests ⑤ GATE latency target met (§6.5) ⑥ Canary Quality Sheet published with non-trivial catch-rates on the seeded corpus |
 | **Phase 2 — Watcher Layer (C synthesis)** | WatcherManifest signing + session isolation; 3 example watchers (security/cost/compliance); calibration ledger; deliberation round; **dossier generator** (R3) | ① An external watcher runs a blind session ② Full turn completed: SPLIT → dossier → human decision → ledger return ③ Calibration data accumulating |
 | **Phase 3 — Platform + Standard** | Watcher marketplace; hosted enterprise layer; **spec v1.0 standard publication**; community governance; formal verification of the core (stretch) | ① A third party implements an independent verifier from the spec ② First external production deployment ③ ≥10 active watcher manifests |
 
@@ -524,13 +559,65 @@ Runner-up names, preserved for the record: **Attestor** (rooted security term; g
 
 ---
 
+## 10.5 Prior Art and Differentiation
+
+Veridict is early, not first — honest positioning against the nearest neighbors:
+
+| Prior art | What it solves | Where Veridict differs |
+|---|---|---|
+| **SLSA / in-toto** | Supply-chain integrity: signed provenance of *build steps and artifacts* | Veridict audits the *semantic correctness of AI-produced output* (claims about behavior), not just the chain of custody; provenance is a necessary substrate, not the product |
+| **SARIF** | Interchange format for security *findings* | Veridict defines the interchange for *evidence-weighted audit verdicts* across all claim classes, with a weight hierarchy and divergence semantics — findings are inputs to W1b, not the certificate |
+| **LLM-as-judge literature** | Using models to evaluate outputs | Single-judge doctrine is exactly what Veridict's structure rejects: blind heterogeneous juries, evidence tiers, strict rule that doctrine can never overturn machine evidence |
+| **CI quality gates / policy-as-code (OPA)** | Blocking builds on rule evaluation | Rules evaluate *declarations*; Veridict evaluates *claims against evidence* with an adjudication ladder and human-risk-owner escalation |
+| **Formal verification** | Proving correctness against a spec | A W1a evidence class inside Veridict's fleet, applied where applicable — not a whole-system answer |
+| **AI governance frameworks (NIST AI RMF, ISO 42001, EU AI Act)** | Management-level requirements (logging, human oversight, risk) | Veridict is a *technical protocol* that makes those requirements mechanically satisfiable — tamper-evident logs, evidence-weighted verdicts, digestible human escalation; a compliance target, not a competitor |
+
+**The open niche:** no prior system combines (a) a tamper-evident evidence ledger for AI output, (b) a weighted evidence hierarchy where machine evidence dominates model doctrine, (c) heterogeneous blind juries with divergence-as-information, (d) policy-selectable audit intensity, and (e) offline-verifiable certificates. Veridict's claim to precedence is this combination plus the protocol-first standardization strategy — not any single primitive.
+
+---
+
+## 10.6 Glossary
+
+| Term | Definition |
+|---|---|
+| **Actor** | The executor AI under audit; writes nothing to the ledger except via submitted output |
+| **Evidence Ledger** | Append-only, hash-chained register; the single source of proof |
+| **Claim** | A falsifiable statement about what should be true of the audited output |
+| **Claim Extractor** | Fleet producer converting outputs into claims; governed per §5.5 |
+| **EvidenceItem** | One piece of evidence: class, tier, producer, stance, reproducibility |
+| **Tier (W1a/W1b/W2/W3)** | Evidence weight classes; strict ordering per §4.3 |
+| **Verdict** | Per-claim outcome: VERIFIED / REFUTED / INCONCLUSIVE + divergence |
+| **Divergence** | Disagreement among verifiers; information and risk signal, not error |
+| **Verifier Fleet** | Built-in verifiers + heterogeneous jury + watchers |
+| **Jury** | ≥2 distinct model families giving blind, independent doctrine (W2) |
+| **Watcher** | Third-party pluggable auditor bound by WatcherManifest (W1b(cert)/W3) |
+| **Meta-claim** | A claim interrogating another claim's evidence (depth-budgeted) |
+| **Policy Engine** | Selects audit intensity (Certificate/Gate/Watch/Hybrid) from signed policy data |
+| **Adjudication Ladder** | Five rungs R0–R4 resolving claims up to the human risk owner |
+| **Dossier** | Human-digestible ledger view for R3 decisions |
+| **AuditCertificate** | Signed, offline-verifiable deliverable with scope limits and disclosure level |
+| **Canary Protocol** | Seeded-defect blind measurement of audit quality (§7.6) |
+| **Quality Sheet** | Published catch-rate/false-positive metrics from the canary protocol |
+| **TCB** | Trusted computing base: the deliberately small, boring core (§7.3) |
+
+---
+
 ## 11. Integrity Scan Addenda (Design-Review Close-Out)
 
-Three gaps were caught in the final integrity scan and resolved in-place:
+Three gaps were caught in the first integrity scan and resolved in-place:
 
 1. **Long-running tasks** → checkpoint/compaction contract added (§4.5).
 2. **Claim Extractor identity** → governed as a fleet producer with deterministic+LLM hybrid implementation and re-extraction auditing (§5.5).
 3. **Latency targets** → GATE < 30 min p95, WATCH < 5 min, as Phase 1 exit criteria (§6.5).
+
+A second, perfectionist scan closed six further gaps:
+
+4. **Schema versioning** → `schema_version` mandatory on every entry/contract; replay verifiers never guess (§4.1).
+5. **Audit-quality measurement** → Canary Protocol with seeded-defect corpus, blind injection, published Quality Sheet; Phase 1 exit criterion ⑥ (§7.6).
+6. **Privacy contract** → redaction-before-dispatch, tiered disclosure levels, local-jury mode; `disclosure_level` on certificates (§7.7).
+7. **Key and identity management** → identity registry, rotation, revocation, threshold governance as ledger events (§7.8, `key.enrolled`/`key.revoked`).
+8. **Prior-art positioning** → differentiation against SLSA/in-toto, SARIF, LLM-as-judge, OPA-style gates, formal verification, and governance frameworks (§10.5).
+9. **Glossary** → normative terminology record for the standard-track spec (§10.6).
 
 ---
 
