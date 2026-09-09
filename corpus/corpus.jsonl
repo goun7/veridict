@@ -1,0 +1,4 @@
+{"id": "canary-sign-error", "path": "corpus/artifacts/case-sign-error", "defect_class": "sign-error", "ground_truth": "DEFECT", "intent": ["MACHINE: add computes the sum of two numbers"], "criticality": []}
+{"id": "canary-uncovered-edge", "path": "corpus/artifacts/case-uncovered-edge", "defect_class": "uncovered-edge", "ground_truth": "DEFECT", "intent": ["MACHINE: divide never crashes on zero denominator"], "criticality": []}
+{"id": "canary-uncovered-edge-uncatchable", "path": "corpus/artifacts/case-uncovered-edge-uncatchable", "defect_class": "uncovered-edge", "ground_truth": "DEFECT", "intent": []}
+{"id": "canary-clean", "path": "corpus/artifacts/case-clean", "defect_class": "clean", "ground_truth": "CLEAN", "intent": [], "criticality": []}
