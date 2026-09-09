@@ -22,16 +22,25 @@ def _slug(text: str) -> str:
 class ClaimExtractor:
     def extract(self, task: TaskManifest, artifact_digest: str) -> list[Claim]:
         claims: list[Claim] = []
+        seen: set[str] = set()
         for line in task.intent_lines:
             m = _LINE.match(line)
             if not m:
                 raise ValueError(f"invalid intent line: {line!r}")
             kind, cls, body = m.group(1), m.group(2), m.group(3)
-            claims.append(self.make_claim(
+            claim = self.make_claim(
                 task, artifact_digest, subject="intent", predicate=_slug(body),
                 summary=body, verifiability="MACHINE_CHECKABLE" if kind == "MACHINE"
                 else "DOCTRINAL", falsifiable_by=("test_execution", "static_analysis")
-                if kind == "MACHINE" else ("jury",), critical_class=cls))
+                if kind == "MACHINE" else ("jury",), critical_class=cls)
+            # Belt-and-braces: the summary-keyed id makes accidental duplicates
+            # (identical intent line submitted twice) collide on purpose.
+            if claim.claim_id in seen:
+                raise ValueError(
+                    f"duplicate claim_id {claim.claim_id} — identical intent "
+                    "line submitted twice")
+            seen.add(claim.claim_id)
+            claims.append(claim)
         if task.has_existing_tests:
             claims.append(self.make_claim(
                 task, artifact_digest, subject="repo",
@@ -49,7 +58,11 @@ class ClaimExtractor:
     def make_claim(self, task: TaskManifest, digest: str, subject: str, predicate: str,
                    summary: str, verifiability: str, falsifiable_by: tuple[str, ...],
                    critical_class: str | None) -> Claim:
-        claim_id = sha256_hex(f"{task.task_id}|{predicate}|{verifiability}")[:16]
+        # Key on the exact intent text, not the truncated slug: two distinct
+        # long intents can share an 8-word predicate, and a predicate-keyed id
+        # would merge them into one claim (verify would then REJECT honest
+        # certificates and a GATE could evade a REFUTES).
+        claim_id = sha256_hex(f"{task.task_id}|{summary}|{verifiability}")[:16]
         return Claim(
             claim_id=claim_id, task_id=task.task_id, subject=subject,
             predicate=predicate, scope="repo", summary=summary,

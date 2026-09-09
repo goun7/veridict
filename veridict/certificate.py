@@ -8,7 +8,7 @@ import json
 
 from .keys import KeyStore
 from .ladder import adjudicate
-from .ledger import Ledger
+from .ledger import ChainError, Ledger
 from .policy import PolicyDeclaration, Thresholds
 from .schemas import ActorRef, Claim, EvidenceItem, SCHEMA_VERSION
 from .utils import canonical_json, sha256_hex
@@ -89,7 +89,11 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
     errors: list[str] = []
     with open(cert_path, encoding="utf-8") as f:
         cert = json.load(f)
-    led = Ledger.load(ledger_path)
+    try:
+        led = Ledger.load(ledger_path)
+    except ChainError as exc:
+        return {"valid": False, "chain_valid": False, "signature_valid": False,
+                "verdicts_match": False, "errors": [f"chain: {exc}"]}
     chain_ok, chain_msg = led.verify_chain()
     if not chain_ok:
         errors.append(f"chain: {chain_msg}")
@@ -116,6 +120,18 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
             led.entries[cp_seq]["entry_type"] != "checkpoint.anchored" or \
             led.entries[cp_seq]["payload"]["chain_hash"] != anchor.get("chain_hash"):
         errors.append("anchor: checkpoint does not match ledger")
+
+    # Issuance check: the ledger must contain the certificate.issued entry the
+    # anchor claims to cover — a checkpoint without its issuance entry means
+    # the certificate was never actually issued into this chain.
+    if isinstance(cp_seq, int):
+        issued_ok = any(
+            e["entry_type"] == "certificate.issued"
+            and e["payload"].get("cert_id") == cert.get("cert_id")
+            and e["seq"] >= cp_seq
+            for e in led.entries)
+        if not issued_ok:
+            errors.append("certificate: no matching certificate.issued entry in ledger")
 
     # Recompute verdicts from ledger evidence and compare.
     verdicts_match = True

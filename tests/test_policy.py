@@ -64,3 +64,10 @@ def test_hybrid_blocks_like_gate():
     out = PolicyEngine(led).apply([_claim()], {"c1": [_ev(stance="REFUTES")]}, decl,
                                   ActorRef(kind="system", identity="core", version="0"))
     assert out.blocked is True
+
+def test_inconclusive_machine_claim_flags_gate():
+    led = Ledger()
+    out = PolicyEngine(led).apply([_claim()], {"c1": [_ev(tier="W1b", stance="REFUTES")]},
+                                  DECL, ActorRef(kind="system", identity="core", version="0"))
+    assert out.blocked is True
+    assert any(f.startswith("inconclusive-unresolved:") for f in out.flags)

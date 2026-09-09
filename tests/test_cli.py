@@ -56,3 +56,14 @@ def test_audit_gate_blocked_exits_2(tmp_path):
                "--ledger", str(tmp_path / "led2.jsonl"),
                "--cert-out", str(tmp_path / "cert2.json")])
     assert rc == 2
+
+
+def test_usage_error_exits_1(capsys):
+    assert main(["bogus-subcommand"]) == 1
+
+
+def test_verify_missing_files_exits_1(tmp_path, capsys):
+    rc = main(["verify", "--ledger", str(tmp_path / "nope.jsonl"),
+               "--cert", str(tmp_path / "nope.json")])
+    assert rc == 1
+    assert "error" in capsys.readouterr().err

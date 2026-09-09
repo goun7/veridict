@@ -66,3 +66,9 @@ def test_forged_consistent_entry_detected_by_payload_hash():
 def test_empty_ledger_verifies():
     ok, msg = Ledger().verify_chain()
     assert ok and msg == "ok"
+
+def test_load_raises_chain_error_on_truncated_line(tmp_path):
+    p = tmp_path / "bad.jsonl"
+    p.write_text('{"seq": 0, "trunc')
+    with pytest.raises(ChainError):
+        Ledger.load(str(p))

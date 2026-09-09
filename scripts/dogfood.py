@@ -16,6 +16,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> dict:
+    if os.environ.get("VERIDICT_DOGFOOD_ACTIVE"):
+        raise RuntimeError("dogfood() re-entered — refusing recursive self-audit")
+    os.environ["VERIDICT_DOGFOOD_ACTIVE"] = "1"
     policy_path = os.path.join(run_root, "dogfood_policy.json")
     if os.path.exists(policy_path):
         with open(policy_path, encoding="utf-8") as f:

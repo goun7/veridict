@@ -46,3 +46,14 @@ def test_claim_ids_deterministic():
 def test_invalid_line_raises():
     with pytest.raises(ValueError):
         ClaimExtractor().extract(_task(["FREEFORM: no tag"]), "digest")
+
+def test_distinct_long_intents_get_distinct_claim_ids():
+    a = ClaimExtractor().extract(_task(["DOCTRINE: the module handles concurrent writes without losing data on crash recovery"]), "d")
+    b = ClaimExtractor().extract(_task(["DOCTRINE: the module handles concurrent writes without losing data on restart only"]), "d")
+    assert a[0].claim_id != b[0].claim_id
+
+
+def test_identical_intent_lines_rejected():
+    import pytest
+    with pytest.raises(ValueError):
+        ClaimExtractor().extract(_task(["MACHINE: x equals y", "MACHINE: x equals y"]), "d")

@@ -87,6 +87,13 @@ class PolicyEngine:
         for cid, per in per_claim.items():
             if per["divergence"] == "SPLIT":
                 flags.append(f"divergence-split:{cid}")
+        # A MACHINE_CHECKABLE claim that stays INCONCLUSIVE leaves GATE/HYBRID
+        # with zero signal — flag it so the fail-closed decision sees it
+        # (WATCH never blocks on flags: unchanged).
+        for c in claims:
+            if (c.verifiability == "MACHINE_CHECKABLE"
+                    and per_claim[c.claim_id]["value"] == "INCONCLUSIVE"):
+                flags.append(f"inconclusive-unresolved:{c.claim_id}")
         critical_bad = any(
             per_claim[c.claim_id]["value"] in ("REFUTED", "ESCALATED", "INCONCLUSIVE")
             for c in claims if c.critical_class in declaration.criticality)

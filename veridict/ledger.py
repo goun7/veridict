@@ -80,8 +80,14 @@ class Ledger:
     def load(cls, path: str) -> "Ledger":
         led = cls()
         with open(path, encoding="utf-8") as f:
-            for line in f:
+            for lineno, line in enumerate(f, start=1):
                 line = line.strip()
-                if line:
-                    led.entries.append(json.loads(line))
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ChainError(f"malformed ledger line {lineno}: "
+                                     "line is not valid JSON") from exc
+                led.entries.append(entry)
         return led
