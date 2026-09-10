@@ -111,11 +111,12 @@ def classify_divergence(evidence: list[dict], tolerance: float) -> str:
 
 def adjudicate_spec(claim: dict, evidence: list[dict],
                     criticality: list, tolerance: float) -> str:
-    """§7, top-down."""
+    """§7, top-down (includes the D3-errata doctrinal-consensus R4)."""
     if not evidence:
         return "INCONCLUSIVE"                                   # R4-first
     w1a = [e for e in evidence if e["tier"] == "W1a"]
     w1b = [e for e in evidence if e["tier"] == "W1b"]
+    w2plus = [e for e in evidence if e["tier"] in ("W2", "W3")]
     divergence = classify_divergence(evidence, tolerance)
     if (claim["verifiability"] == "MACHINE_CHECKABLE" and w1a
             and all(e["stance"] == "SUPPORTS" for e in w1a)
@@ -126,15 +127,18 @@ def adjudicate_spec(claim: dict, evidence: list[dict],
             return "REFUTED"                                    # R1
         if any(e["stance"] == "REFUTES" for e in w1b):
             return "VERIFIED"                                   # R1 (R2 signal)
-        if any(e["stance"] == "REFUTES" for e in evidence
-               if e["tier"] in ("W2", "W3")):
-            return "VERIFIED"                                   # R1
         return "VERIFIED"                                       # R1
     if any(e["stance"] == "REFUTES" for e in w1b):
         return "INCONCLUSIVE"                                   # R2
     if claim.get("critical_class") in criticality and divergence == "SPLIT":
         return "ESCALATED"                                      # R3
-    return "INCONCLUSIVE"                                       # R4
+    if w2plus and any(e["tier"] == "W2" for e in w2plus):       # R4
+        if divergence == "SPLIT":
+            return "INCONCLUSIVE"                               # non-critical split
+        if all(e["stance"] == "SUPPORTS" for e in w2plus):
+            return "VERIFIED"                                   # doctrinal consensus
+        return "REFUTED"            # any doctrinal REFUTES — fail-closed
+    return "INCONCLUSIVE"           # W3-only / remaining cases — no silent pass
 
 
 def verify_certificate(ledger_path: str, cert_path: str) -> dict:
