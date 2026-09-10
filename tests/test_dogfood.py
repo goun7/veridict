@@ -39,6 +39,9 @@ def test_dogfood_phase2_receipt_block(dogfood_out):
     assert p2["dossier_issued"] is True       # receipt ②: full turn
     assert p2["escalation_resolved"] is True  # receipt ②: human decision returned
     assert p2["fail_safe_used"] is False
+    # T26: the three examples pass the conformance kit (§5.5 certification bar)
+    assert p2["conformance"] == {"example-security": True, "example-cost": True,
+                                 "example-compliance": True}
     # the segment must leave the MAIN contract exactly as before
     assert out["cert"]["risk_level"] == "low"
     assert out["outcome"].blocked is False

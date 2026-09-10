@@ -67,3 +67,16 @@ def test_verify_missing_files_exits_1(tmp_path, capsys):
                "--cert", str(tmp_path / "nope.json")])
     assert rc == 1
     assert "error" in capsys.readouterr().err
+
+
+def test_quality_sheet_reports_stub_jury_context(tmp_path):
+    import json
+
+    from veridict.cli import main
+
+    out = tmp_path / "sheet.json"
+    rc = main(["quality-sheet", "--corpus", "corpus/corpus.jsonl",
+               "--out", str(out)])
+    assert rc == 0
+    sheet = json.loads(out.read_text())
+    assert "stub jury" in sheet["jury_context"]

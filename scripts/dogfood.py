@@ -29,6 +29,7 @@ from veridict.ledger import Ledger                              # noqa: E402
 from veridict.policy import (                                   # noqa: E402
     PolicyDeclaration, Thresholds, load_policy)
 from veridict.schemas import TaskManifest                       # noqa: E402
+from veridict.conformance import run_conformance_suite            # noqa: E402
 from veridict.watchers import ManifestRegistry                  # noqa: E402
 from watchers.compliance_watcher import SESSION as COMP_SESSION  # noqa: E402
 from watchers.cost_watcher import SESSION as COST_SESSION       # noqa: E402
@@ -98,7 +99,8 @@ def _escalation_jury() -> Jury:
     ])
 
 
-def _run_phase2_segment(ledger: Ledger, fixture_root: str) -> list[str]:
+def _run_phase2_segment(ledger: Ledger,
+                        fixture_root: str) -> tuple[list[str], dict]:
     """Run the Phase 2 exit-criteria segment into `ledger`; return the
     registered watcher ids. Fails loudly (RuntimeError) if any receipt is
     missing — a self-audit must not silently degrade its own evidence."""
@@ -106,7 +108,17 @@ def _run_phase2_segment(ledger: Ledger, fixture_root: str) -> list[str]:
     key_id = keystore.generate_and_enroll("dogfood-segment")
     registry = ManifestRegistry(ledger, keystore, key_id)
     watcher_ids: list[str] = []
+    conformance: dict[str, bool] = {}
     for session in (SEC_SESSION, COST_SESSION, COMP_SESSION):
+        # §5.5 certification precondition: an external watcher must pass the
+        # conformance kit BEFORE it can be listed — dogfood holds its own
+        # examples to the same bar.
+        kit = run_conformance_suite(session)
+        conformance[kit["watcher_id"]] = kit["conformant"]
+        if not kit["conformant"]:
+            raise RuntimeError(f"phase2 segment: watcher {kit['watcher_id']} "
+                               f"failed conformance: "
+                               f"{[c for c in kit['checks'] if not c['passed']]}")
         entry = registry.register(session.manifest)
         wid = entry["payload"]["manifest"]["watcher_id"]
         report = ManifestRegistry.verify_manifest(ledger, wid)
@@ -166,11 +178,12 @@ def _run_phase2_segment(ledger: Ledger, fixture_root: str) -> list[str]:
     if not ledger.query("escalation.resolved"):
         raise RuntimeError("phase2 segment: escalation.resolved missing — "
                            "receipt ② broken")
-    return watcher_ids
+    return watcher_ids, conformance
 
 
-def _phase2_summary(ledger: Ledger, watcher_ids: list[str]) -> dict:
-    """Phase 2 receipt block over the FINAL dogfood ledger state."""
+def _phase2_summary(ledger: Ledger, watcher_ids: list[str],
+                    conformance: dict[str, bool]) -> dict:
+    """Phase 2/3 receipt block over the FINAL dogfood ledger state."""
     return {
         "watchers_registered": watcher_ids,
         "watcher_evidence": sum(1 for e in ledger.query("evidence.recorded")
@@ -180,6 +193,7 @@ def _phase2_summary(ledger: Ledger, watcher_ids: list[str]) -> dict:
         "dossier_issued": bool(ledger.query("dossier.issued")),
         "escalation_resolved": bool(ledger.query("escalation.resolved")),
         "fail_safe_used": bool(ledger.query("policy.fail_safe")),
+        "conformance": conformance,
     }
 
 
@@ -198,7 +212,7 @@ def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> di
     ledger = Ledger()
     with tempfile.TemporaryDirectory(
             prefix="veridict-dogfood-phase2-") as segment_root:
-        watcher_ids = _run_phase2_segment(ledger, segment_root)
+        watcher_ids, conformance = _run_phase2_segment(ledger, segment_root)
     # Main self-audit LAST (same ledger, same append-only chain): the main
     # certificate anchors the final state, and its verdicts are recomputed at
     # verify time only from its own claims — segment claims/artifacts use
@@ -219,7 +233,7 @@ def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> di
     verification = verify_certificate(ledger_path, cert_path)
     return {**result, "verification": verification,
             "ledger_path": ledger_path, "cert_path": cert_path,
-            "phase2": _phase2_summary(orch.ledger, watcher_ids)}
+            "phase2": _phase2_summary(orch.ledger, watcher_ids, conformance)}
 
 
 if __name__ == "__main__":

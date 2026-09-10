@@ -200,3 +200,46 @@ def _claim_stub(summary):
     return Claim(claim_id="cx", task_id="t", subject="s", predicate="p", scope="r",
                  summary=summary, derived_from="digest", verifiability="DOCTRINAL",
                  falsifiable_by=("watcher",), critical_class=None)
+
+
+def _manifest_with_timeout(seconds):
+    m = _session_manifest()
+    return WatcherManifest(**{**m.to_dict(), "resource_class": {
+        "timeout_seconds": seconds, "cost_budget": 0, "sandbox_level": "none"}})
+
+
+def test_session_timeout_abstains():
+    import time
+
+    def slow(summary, ref):
+        time.sleep(2.0)
+        return ("SUPPORTS", 0.8, "late")
+
+    s = WatcherSession(_manifest_with_timeout(1), slow)
+    assert run_session(s, _claim_stub("x"), "d") is None
+
+
+def test_session_without_timeout_runs_inline():
+    import threading
+
+    seen = {}
+
+    def note_thread(summary, ref):
+        seen["thread"] = threading.current_thread()
+        return ("SUPPORTS", 0.8, "ok")
+
+    s = WatcherSession(_manifest_with_timeout(0), note_thread)
+    assert run_session(s, _claim_stub("x"), "d") is not None
+    assert seen["thread"] is threading.current_thread()
+
+
+def test_session_manifest_timeout_used_when_caller_omits():
+    import time
+
+    def slow(summary, ref):
+        time.sleep(2.0)
+        return ("SUPPORTS", 0.8, "late")
+
+    s = WatcherSession(_manifest_with_timeout(1), slow)
+    # no explicit timeout_seconds argument — manifest deadline applies
+    assert run_session(s, _claim_stub("x"), "d") is None
