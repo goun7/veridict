@@ -1,0 +1,62 @@
+{
+  "cert_id": "f275ea934c575d9bdfdc1511",
+  "claims": [
+    {
+      "claim_id": "0d8f9f68e771008b",
+      "divergence": "UNANIMOUS",
+      "evidence_ids": [
+        "bb6425145261ef999592239f",
+        "8dbd904bf6220d609859e41a",
+        "656e6aa8d0c4a92e6bfd0c77"
+      ],
+      "verdict_value": "VERIFIED"
+    }
+  ],
+  "disclosure_level": "REDACTED",
+  "divergence_summary": {
+    "0d8f9f68e771008b": "UNANIMOUS"
+  },
+  "issued_at_task": "vector-1",
+  "jury_composition": {
+    "families": [
+      "model-family-1",
+      "model-family-2"
+    ]
+  },
+  "ledger_anchor": {
+    "chain_hash": "e6c585d1ee957fef82377ee9b775f810f61852a3ccf15579ecc23efd3edf31aa",
+    "checkpoint_seq": 5
+  },
+  "policy_mode": "GATE",
+  "policy_ref": {
+    "criticality": [],
+    "mode": "GATE",
+    "policy_id": "vector-policy",
+    "thresholds": {
+      "divergence_tolerance": 0.3333333333333333,
+      "meta_claim_depth_budget": 2,
+      "min_jury_families": 2,
+      "min_w1_coverage": 0.8
+    }
+  },
+  "risk_level": "low",
+  "schema_version": "1.0.0",
+  "scope_limits": [
+    "claim coverage is heuristic, not exhaustive",
+    "claim coverage is heuristic, not exhaustive"
+  ],
+  "score": 1.0,
+  "signatures": [
+    {
+      "algorithm": "ed25519",
+      "key_id": "56475aa75463474c",
+      "sig_b64": "iSCYlKxmFez/lyOPN7u4xC53x6Xmq9DAF+2R2PFTp3q+4Iy2Y9ZyW6Nhu0YKZXKuabPP2PbLdNNXW7RvS+4oAA=="
+    }
+  ],
+  "subject": {
+    "actor_identity": "ai-dev",
+    "artifact_digest": "vector-digest",
+    "task_id": "vector-1"
+  },
+  "verify_instructions": "veridict verify --ledger <ledger.jsonl> --cert <cert.json>"
+}
