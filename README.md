@@ -29,6 +29,14 @@ conformance kit (`veridict/conformance.py`, 10 checks C1–C10) is the
 certification precondition: dogfood holds its own example watchers to it.
 Self-audit: `python scripts/dogfood.py`.
 
+Phase 3 substrate in place: spec v1.0.0-draft (`docs/specs/`), governance
+docs, and the marketplace manifest index (`veridict index`). The chain format
+binds every stored field including timestamps; deterministic fuzz properties
+pin serialization and tamper detection. Phase 3 exit criteria that remain
+open are external by nature: an independent verifier implemented from the
+spec, a first external production deployment, and ≥10 active watcher
+manifests.
+
 ## Model
 
 Open-core: spec + ledger core + offline verifier are Apache-2.0 (planned);

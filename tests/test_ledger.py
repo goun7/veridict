@@ -59,7 +59,8 @@ def test_forged_consistent_entry_detected_by_payload_hash():
     led.entries[0]["payload"] = {"task_id": "evil"}
     led.entries[0]["entry_hash"] = _entry_hash(
         GENESIS, led.entries[0]["payload"], led.entries[0]["entry_type"],
-        led.entries[0]["seq"], led.entries[0]["author"])
+        led.entries[0]["seq"], led.entries[0]["author"], led.entries[0]["ts"],
+        led.entries[0]["schema_version"])
     ok, msg = led.verify_chain()
     assert not ok and "payload hash mismatch" in msg
 
@@ -72,3 +73,13 @@ def test_load_raises_chain_error_on_truncated_line(tmp_path):
     p.write_text('{"seq": 0, "trunc')
     with pytest.raises(ChainError):
         Ledger.load(str(p))
+
+
+def test_retroactive_ts_edit_detected():
+    """Fuzz-caught gap, now normative (standard §2.3): the entry-hash preimage
+    binds the timestamp — a retroactive ts edit must break the chain."""
+    led = Ledger()
+    led.append("task.started", AUTH, {"task_id": "t1"})
+    led.entries[0]["ts"] = 0.0
+    ok, msg = led.verify_chain()
+    assert not ok and "entry hash mismatch" in msg
