@@ -90,9 +90,19 @@ def _cmd_verify(args) -> int:
 
 
 def _cmd_quality_sheet(args) -> int:
+    import os
+
     from .canary import CanaryRunner, build_orchestrator   # lazy: keeps `verify` offline-clean
     sheet = CanaryRunner(lambda task, disclosure: build_orchestrator(
         DEFAULT_POLICY).run(task, disclosure)).run(args.corpus)
+    # R5 honesty note: the CLI cannot reach the seeded provider-overrides path
+    # (programmatic only), so a plain-CLI sheet runs on unseeded stub jurors.
+    # State that IN the sheet — caught_total: 0 from stubs is a build fact,
+    # not a quality verdict.
+    if not (os.environ.get("VERIDICT_JURY_URL") or os.environ.get("VERIDICT_JURY_URL2")):
+        sheet["jury_context"] = ("stub jury (no VERIDICT_JURY_URL* seeded) — "
+                                 "catches require seeded provider overrides; "
+                                 "see tests/test_canary.py")
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(sheet, f, indent=2, sort_keys=True)
     print(json.dumps(sheet["per_class"], indent=2))

@@ -168,12 +168,23 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
                 continue
             ev_by_claim.setdefault(e["payload"]["claim_id"], []).append(
                 EvidenceItem.from_dict(e["payload"]))
+        known_evidence_ids = {e["payload"]["evidence_id"]
+                              for e in led.query("evidence.recorded")}
         for c in cert["claims"]:
             claim = claims_by_id.get(c["claim_id"])
             if claim is None:
                 errors.append(f"claims: {c['claim_id']} not registered in ledger")
                 verdicts_match = False
                 continue
+            # T25.2 defense-in-depth: the cert's evidence references are part of
+            # the certification claim — a signed cert citing evidence the ledger
+            # does not contain must not verify, even when the recomputed verdict
+            # happens to agree (the anchor pin already binds the prefix; this is
+            # the independent, human-auditable check).
+            for eid in c.get("evidence_ids", []):
+                if eid not in known_evidence_ids:
+                    errors.append(f"evidence: cert references unknown evidence {eid}")
+                    verdicts_match = False
             recomputed = adjudicate(claim, ev_by_claim.get(c["claim_id"], []), pol)
             if recomputed.value != c["verdict_value"]:
                 errors.append(f"verdict mismatch for {c['claim_id']}: "

@@ -7,6 +7,7 @@ orchestrator (which records them as evidence.recorded).
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 
 from .keys import KeyStore
@@ -155,15 +156,31 @@ _CEILING_TIER = {"W1b": "W1b", "W2": "W2", "W3": "W3"}  # never W1a — §5.3 ce
 
 
 def run_session(session: WatcherSession, claim: Claim, artifact_digest: str,
-                artifact_path: str | None = None) -> EvidenceItem | None:
+                artifact_path: str | None = None,
+                timeout_seconds: float | None = None) -> EvidenceItem | None:
     """Blind single-watcher run. Abstain (None) on error/None/bad output (§5.4).
 
     The fn receives (claim.summary, artifact REFERENCE): the artifact path when
     the caller supplies one, else the digest — "claim + artifact references"
     (§5.3). Blindness means no other producers' outputs, not reference-freeness.
+    Deadline (§5.3 resource_class): the manifest's timeout_seconds applies when
+    the caller passes none; expiry → abstain (a slow watcher is not a refuting
+    one). With no deadline the fn runs inline on the calling thread.
     """
+    deadline = timeout_seconds
+    if deadline is None:
+        deadline = session.manifest.resource_class.get("timeout_seconds") or 0
     try:
-        out = session.doctrine_fn(claim.summary, artifact_path or artifact_digest)
+        if deadline and deadline > 0:
+            executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                future = executor.submit(session.doctrine_fn, claim.summary,
+                                         artifact_path or artifact_digest)
+                out = future.result(timeout=deadline)
+            finally:
+                executor.shutdown(wait=False)   # never join a hung watcher
+        else:
+            out = session.doctrine_fn(claim.summary, artifact_path or artifact_digest)
         if out is None:
             return None
         stance, confidence, rationale = out

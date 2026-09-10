@@ -24,7 +24,9 @@ W1a-contradicted producers, a deliberation round after a split, escalation
 dossiers with human decision return and the R4 fail-safe. Dogfood v0.2 exercises
 all three Phase 2 exit criteria end-to-end: external watchers running blind
 sessions, a full turn from critical split to dossier to human resolution, and
-calibration accumulating across audit passes on the same ledger.
+calibration accumulating across audit passes on the same ledger. The watcher
+conformance kit (`veridict/conformance.py`, 10 checks C1–C10) is the
+certification precondition: dogfood holds its own example watchers to it.
 Self-audit: `python scripts/dogfood.py`.
 
 ## Model

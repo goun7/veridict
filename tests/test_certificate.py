@@ -7,6 +7,7 @@ from veridict.ladder import adjudicate
 from veridict.ledger import Ledger
 from veridict.policy import PolicyDeclaration, Thresholds
 from veridict.schemas import TaskManifest
+from veridict.utils import canonical_json
 
 
 def _fixture(tmp_path, code, test):
@@ -96,3 +97,39 @@ def test_verify_invalid_on_garbled_ledger(tmp_path):
     report = verify_certificate(lp, cp)
     assert report["valid"] is False
     assert report["chain_valid"] is False
+
+
+def test_verify_rejects_unknown_evidence_reference(tmp_path):
+    """T25.2: a validly-signed, chain-consistent cert that references evidence
+    ids absent from the ledger must NOT verify — evidence references are part
+    of the certification claim (defense-in-depth over the anchor pin)."""
+    task = _fixture(tmp_path, "def add(a, b):\n    return a + b\n",
+                    "def test_add():\n    assert add(1, 1) == 2\n")
+    led = Ledger()
+    ks = KeyStore(led)
+    kid = ks.generate_and_enroll("veridict-core")
+    pol = PolicyDeclaration(policy_id="p1", mode="CERTIFICATE", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1 / 3)
+    claims = ClaimExtractor().extract(task, "digest")
+    for c in claims:
+        led.append("claim.registered", SYSTEM_AUTHOR, c.to_dict())
+    adjs = [adjudicate(c, [], pol) for c in claims]          # no evidence -> INCONCLUSIVE
+    cert = CertificateIssuer(led, ks, kid).issue(
+        task=task, artifact_digest="digest", policy=pol, claims=claims,
+        adjudications=adjs, evidence_by_claim={c.claim_id: [] for c in claims},
+        jury_families=["stub-a", "stub-b"], disclosure_level="REDACTED",
+        scope_limits=["claim coverage is heuristic, not exhaustive"])
+    cert = json.loads(json.dumps(cert))          # detach from the ledger's stored copy
+    cert["claims"][0]["evidence_ids"] = ["does-not-exist-000000"]
+    body = dict(cert)
+    body.pop("signatures")
+    cert["signatures"] = [{"key_id": kid, "algorithm": "ed25519",
+                           "sig_b64": ks.sign(kid, canonical_json(body).encode("utf-8"))}]
+    lp, cp = str(tmp_path / "ledger.jsonl"), str(tmp_path / "cert.json")
+    led.save(lp)
+    with open(cp, "w") as f:
+        json.dump(cert, f)
+    report = verify_certificate(lp, cp)
+    assert report["valid"] is False, report
+    assert any("unknown evidence" in e for e in report["errors"]), report["errors"]
+    assert report["signature_valid"] is True    # isolate: signature fine, reference missing
