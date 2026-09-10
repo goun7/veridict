@@ -15,7 +15,13 @@ def _audit_fn():
                  "divide never crashes on zero denominator",
                  "sum_to sums 1..n inclusive",
                  "top_scores returns scores sorted descending",
-                 "set_age rejects ages outside 0..130"}
+                 "set_age rejects ages outside 0..130",
+                 "increment is safe under concurrent callers",
+                 "read_config closes the file handle it opens",
+                 "find_user never interpolates raw input into SQL",
+                 "parse_strict never ignores malformed input"}
+    # deliberately NOT refutable: hash_password (crypto-misuse honest miss),
+    # parse_iso_utc (offset-stomp honest miss), and both clean summaries
     overrides = {
         "stub-a": lambda summary: Opinion("REFUTES", 0.9, "defect spotted")
         if summary in refutable else Opinion("SUPPORTS", 0.8, "ok"),
@@ -41,17 +47,25 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert by_id["canary-missing-validation"] is True
     assert by_id["canary-clean-normalize"] is False              # no false positive
     assert by_id["canary-parse-date-miss"] is False              # honest miss
+    assert by_id["canary-race-condition"] is True
+    assert by_id["canary-resource-leak"] is True
+    assert by_id["canary-sql-injection"] is True
+    assert by_id["canary-exception-swallowing"] is True
+    assert by_id["canary-crypto-misuse"] is False                # honest miss
+    assert by_id["canary-clean-uuid"] is False                   # no false positive
     assert sheet["per_class"]["uncovered-edge"] == {"caught": 1, "total": 2}
     assert sheet["per_class"]["logic-error"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["contract-violation"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["missing-validation"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["parse-date"] == {"caught": 0, "total": 1}
     assert sheet["false_positives"] == 0
-    assert sheet["caught_total"] == 5
+    assert sheet["per_class"]["race-condition"] == {"caught": 1, "total": 1}
+    assert sheet["per_class"]["crypto-misuse"] == {"caught": 0, "total": 1}
+    assert sheet["caught_total"] == 9
 
 
 def test_quality_sheet_persists(tmp_path):
     sheet = CanaryRunner(_audit_fn()).run("corpus/corpus.jsonl")
     out = tmp_path / "sheet.json"
     out.write_text(json.dumps(sheet))
-    assert json.loads(out.read_text())["caught_total"] == 5
+    assert json.loads(out.read_text())["caught_total"] == 9
