@@ -25,16 +25,22 @@ class ProviderError(Exception):
 
 
 class ScriptedProvider:
-    """Deterministic provider for tests/offline CI runs."""
+    """Deterministic provider for tests/offline CI runs.
+
+    `revise` (optional) is the §4.4.3 deliberation hook: it receives the OTHER
+    providers' first-round opinions (identity-labeled dicts) and returns a
+    revised Opinion. Without it, the provider keeps its first-round opinion.
+    """
     def __init__(self, family: str, identity: str, default: Opinion,
                  responses: dict[str, Opinion] | None = None, version: str = "0.1.0",
-                 fn=None):
+                 fn=None, revise=None):
         self.family = family
         self.identity = identity
         self.version = version
         self.default = default
         self.responses = responses or {}
         self.fn = fn
+        self.revise = revise
 
     def doctrine(self, claim_summary: str, artifact_digest: str) -> Opinion:
         if self.fn is not None:
@@ -94,12 +100,52 @@ class Jury:
             except ProviderError:
                 abstained.append(p.identity)         # abstain ≠ refute: no evidence item
                 continue
-            author = ActorRef(kind="jury", identity=p.identity, version=p.version).to_dict()
-            author["family"] = p.family
-            items.append(EvidenceItem(
-                evidence_id=sha256_hex(f"{EID_SALT}|{claim.claim_id}|{p.identity}")[:24],
-                claim_id=claim.claim_id, evidence_class="JURY_OPINION", tier="W2",
-                producer=author, artifact_ref=artifact_digest,
-                reproducibility={"deterministic": False, "rerun_recipe": None},
-                stance=op.stance, confidence=op.confidence))
+            items.append(self._build_item(claim, artifact_digest, p, op))
         return items, abstained
+
+    def _build_item(self, claim: Claim, artifact_digest: str, provider,
+                    opinion: Opinion, round_salt: str = EID_SALT) -> EvidenceItem:
+        author = ActorRef(kind="jury", identity=provider.identity,
+                          version=provider.version).to_dict()
+        author["family"] = provider.family
+        return EvidenceItem(
+            evidence_id=sha256_hex(f"{round_salt}|{claim.claim_id}"
+                                   f"|{provider.identity}")[:24],
+            claim_id=claim.claim_id, evidence_class="JURY_OPINION", tier="W2",
+            producer=author, artifact_ref=artifact_digest,
+            reproducibility={"deterministic": False, "rerun_recipe": None},
+            stance=opinion.stance, confidence=opinion.confidence)
+
+    def deliberate(self, claim: Claim, artifact_digest: str,
+                   first_items: list[EvidenceItem],
+                   tolerance: float) -> tuple[list[EvidenceItem], list[str]]:
+        """Cross-visible revision round (§4.4.3) — the ONE blindness exception.
+
+        Only called after a first-round SPLIT. Each provider sees the OTHER
+        first-round opinions (identity-labeled, self excluded) and may revise;
+        without a revise hook the provider keeps its first-round opinion. The
+        first-round items stay in the ledger untouched.
+        """
+        by_identity = {p.identity: p for p in self.providers}
+        packets: dict[str, list[dict]] = {
+            p.identity: [{"identity": it.producer["identity"],
+                          "family": it.producer.get("family"),
+                          "stance": it.stance, "confidence": it.confidence,
+                          "rationale": ""}
+                         for it in first_items
+                         if it.producer["identity"] != p.identity]
+            for p in self.providers}
+        revised: list[EvidenceItem] = []
+        abstained: list[str] = []
+        for p in self.providers:
+            try:
+                first = next(it for it in first_items
+                             if it.producer["identity"] == p.identity)
+                op = p.revise(packets[p.identity]) if p.revise is not None \
+                    else Opinion(first.stance, first.confidence, "")
+            except (StopIteration, ProviderError):
+                abstained.append(p.identity)
+                continue
+            revised.append(self._build_item(claim, artifact_digest, p, op,
+                                            round_salt=f"{EID_SALT}-r2"))
+        return revised, abstained

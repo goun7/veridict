@@ -26,6 +26,7 @@ class PolicyDeclaration:
     thresholds: Thresholds
     divergence_tolerance: float
     disclosure_level: str = "REDACTED"   # LOCAL_ONLY | REDACTED | FULL
+    deliberation_rounds: int = 1    # §4.4.3: revision rounds after a SPLIT; 0 disables
 
     @property
     def meta_claim_depth_budget(self) -> int:
@@ -39,7 +40,11 @@ class PolicyDeclaration:
 
 
 def load_policy(src) -> PolicyDeclaration:
-    """Load policy from a JSON file path or a plain dict (policy-is-data)."""
+    """Load policy from a JSON file path or a plain dict (policy-is-data).
+
+    Tolerant of old policy files: new knobs (e.g. deliberation_rounds) fall
+    back to their declared defaults when absent.
+    """
     if isinstance(src, str):
         with open(src, encoding="utf-8") as f:
             data = json.loads(f.read())
@@ -50,7 +55,8 @@ def load_policy(src) -> PolicyDeclaration:
         policy_id=data["policy_id"], mode=data["mode"],
         criticality=tuple(data["criticality"]), thresholds=th,
         divergence_tolerance=data["divergence_tolerance"],
-        disclosure_level=data.get("disclosure_level", "REDACTED"))
+        disclosure_level=data.get("disclosure_level", "REDACTED"),
+        deliberation_rounds=data.get("deliberation_rounds", 1))
 
 
 @dataclass(frozen=True)
