@@ -81,6 +81,18 @@ spec-only verifier. The remaining exit criteria are external by nature:
 Current work tracks the [`docs/plans/`](docs/plans/) series; the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
+## Contributing
+
+Start with the issue tracker — the tracker is seeded with the project's own
+exit criteria:
+
+- **[Independent verifier from the standard alone](https://github.com/goun7/veridict/issues/1)** (exit criterion ①) — write a verifier without reading our code; where you and the reference disagree, either the standard is ambiguous or someone is wrong, and both findings earn errata credit.
+- **[Good-first issues](https://github.com/labels/good-first-issue)** — e.g. canary corpus expansion (self-contained, tests included as reference).
+- **[Errata proposals](https://github.com/goun7/veridict/issues/new?template=standard_errata.md)** — a normative sentence that is wrong, ambiguous, or unimplementable. Accepted errata land in §14.2 with credit.
+
+All work is governed by the receipts culture: tests and regenerated
+evidence over claims. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Model
 
 Open-core: the standard, the ledger core, and the offline verifier are
