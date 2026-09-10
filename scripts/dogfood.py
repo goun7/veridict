@@ -30,6 +30,7 @@ from veridict.policy import (                                   # noqa: E402
     PolicyDeclaration, Thresholds, load_policy)
 from veridict.schemas import TaskManifest                       # noqa: E402
 from veridict.conformance import run_conformance_suite            # noqa: E402
+from veridict.registry_index import export_index                  # noqa: E402
 from veridict.watchers import ManifestRegistry                  # noqa: E402
 from watchers.compliance_watcher import SESSION as COMP_SESSION  # noqa: E402
 from watchers.cost_watcher import SESSION as COST_SESSION       # noqa: E402
@@ -194,6 +195,7 @@ def _phase2_summary(ledger: Ledger, watcher_ids: list[str],
         "escalation_resolved": bool(ledger.query("escalation.resolved")),
         "fail_safe_used": bool(ledger.query("policy.fail_safe")),
         "conformance": conformance,
+        "marketplace_index": True,
     }
 
 
@@ -227,12 +229,15 @@ def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> di
     result = orch.run(task)
     ledger_path = os.path.join(run_root, "dogfood_ledger.jsonl")
     cert_path = os.path.join(run_root, "dogfood_cert.json")
+    index_path = os.path.join(run_root, "dogfood_index.json")
     orch.ledger.save(ledger_path)
     with open(cert_path, "w", encoding="utf-8") as f:
         json.dump(result["cert"], f, indent=2, sort_keys=True)
+    export_index(orch.ledger, index_path)
     verification = verify_certificate(ledger_path, cert_path)
     return {**result, "verification": verification,
             "ledger_path": ledger_path, "cert_path": cert_path,
+            "index_path": index_path,
             "phase2": _phase2_summary(orch.ledger, watcher_ids, conformance)}
 
 

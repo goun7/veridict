@@ -134,6 +134,21 @@ def _cmd_resolve(args) -> int:
     return 0
 
 
+def _cmd_index(args) -> int:
+    from .registry_index import build_index, validate_index   # offline-safe
+    ledger = Ledger.load(args.ledger)
+    idx = build_index(ledger)
+    if args.validate:
+        report = validate_index(idx, ledger)
+        print(json.dumps(report))
+        return 0 if report["valid"] else 1
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(idx, f, indent=2, sort_keys=True)
+    print(json.dumps(idx, indent=2))
+    return 0
+
+
 def main(argv=None) -> int:
     p = _Parser(prog="veridict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -166,6 +181,11 @@ def main(argv=None) -> int:
     res.add_argument("--decided-by", required=True)
     res.add_argument("--note")
     res.set_defaults(func=_cmd_resolve)
+    idx = sub.add_parser("index")
+    idx.add_argument("--ledger", required=True)
+    idx.add_argument("--out")
+    idx.add_argument("--validate", action="store_true")
+    idx.set_defaults(func=_cmd_index)
     # argparse raises SystemExit on usage errors / --help; convert to a return
     # code so in-process callers (and `sys.exit(main())`) see exit 1, not a
     # raised exception. Dispatch errors below never raise SystemExit.
