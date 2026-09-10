@@ -56,7 +56,7 @@ v1.0.0 registers: `key.enrolled`, `task.started`, `actor.output`,
 `deliberation.rounded`, `calibration.updated`, `escalation.requested`,
 `dossier.issued`, `escalation.resolved`, `policy.fail_safe`,
 `policy.decision`, `watch.observed`, `policy.passed`, `checkpoint.anchored`,
-`certificate.issued`, `watcher.registered`.
+`certificate.issued`, `watcher.registered`, `watcher.revoked`.
 
 2.5 **Policy-is-data.** Every policy decision MUST embed the `policy_digest`
 of the declaration that produced it. Decisions are reproducible from
@@ -149,12 +149,24 @@ from that run — an abstaining watcher MUST NOT block, refute, or flag.
 6.5 **Resource contract.** A declared `timeout_seconds > 0` MUST be enforced
 (deadline → abstain). A hung watcher must never block the audit.
 
-6.6 **Registration.** Registration is a `watcher.registered` entry whose
+6.6 **Registration and revocation.** Registration is a `watcher.registered`
+entry whose
 payload binds `{manifest, manifest_digest, signature{key_id, algorithm,
 sig_b64}}`, the signature taken over the canonical manifest body with a key
 enrolled in the SAME ledger (offline parity). Latest registration wins;
 verification MUST re-check entry integrity, digest-vs-body, signature, and
 the manifest invariants.
+
+**Revocation** is a signed `watcher.revoked` entry naming the watcher and
+the digest of the revoked manifest. Lifecycle resolution is latest-entry-
+wins: the most recent `watcher.registered` or `watcher.revoked` entry for a
+watcher determines whether it is active. Revocation is FORWARD-LOOKING:
+evidence recorded before the revocation stays in the ledger (append-only —
+no deletion), and certificates anchored before the revocation remain valid;
+a conforming orchestrator MUST consult the registry and MUST NOT route
+claims to a revoked watcher (a revoked watcher is not a participant — its
+silence records neither evidence nor abstention); a marketplace index MUST
+NOT list watchers whose lifecycle status is revoked.
 
 6.7 **Conformance kit (certification precondition).** A watcher MUST pass the
 v1.0.0 kit before marketplace listing: C1 manifest invariants; C2 W1a

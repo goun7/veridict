@@ -140,7 +140,8 @@ def _run_phase2_segment(ledger: Ledger,
         cal_orch = AuditOrchestrator(
             ledger, _segment_policy("dogfood-v0.2-segment", "HYBRID"),
             _calibration_jury(), keystore, key_id,
-            watchers=(SEC_SESSION, COST_SESSION, COMP_SESSION))
+            watchers=(SEC_SESSION, COST_SESSION, COMP_SESSION),
+            registry=ledger)   # §6.6: the self-audit consults its own registry
         cal_orch.run(_segment_task(task_id, fixture_cal))
 
     # Receipt ②: full turn — critical SPLIT → ESCALATED → dossier.issued →
@@ -152,7 +153,7 @@ def _run_phase2_segment(ledger: Ledger,
     esc_orch = AuditOrchestrator(
         ledger, _segment_policy("dogfood-v0.2-escalation", "CERTIFICATE",
                                 criticality=("payments",)),
-        _escalation_jury(), keystore, key_id)
+        _escalation_jury(), keystore, key_id, registry=ledger)
     esc_orch.run(_segment_task(
         "dogfood-v0.2-escalation", fixture_esc,
         intent_lines=("DOCTRINE(payments): payment totals are computed with "

@@ -24,6 +24,10 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   ladder's R4 doctrinal-consensus semantics are normative in the standard
   (§7 + errata §14.2); `resolve_dossier`/`apply_fail_safe` refuse fabricated
   dossier ids; dossier return payloads carry ISO-8601 string timestamps.
+- Watcher revocation (§6.6): signed `watcher.revoked` entries, latest-entry-
+  wins lifecycle, orchestrator routing skips revoked watchers (not a
+  participant — no evidence, no abstention), marketplace index excludes
+  them, and certificates anchored before revocation stay valid
 - 177 tests.
 
 ## 0.2.0 — 2026-09-10 (Phase 2 — watcher layer)
