@@ -19,7 +19,8 @@ not on our servers.
 |---|---|---|---|
 | **Watcher certification** | $0 (review time only) | after ≥10 community manifests | We are PAID TO REJECT. Income depends on failing bad watchers — the incentive aligns with the no-silent-pass invariant instead of against it |
 | **Enterprise adoption support** | $0 | immediately on first inbound inquiry | Consulting on embedding Veridict in a company's CI: policy tuning, audit pipelines, verifier integration |
-| **Sponsorships** (GitHub Sponsors) | $0 | now | Goodwill tap; funds nothing load-bearing until interest gates pass |
+| **Crypto donations** (wallet address in FUNDING.yml) | $0 | ACTIVE RAIL (decision 2026-09-10) | Chosen over GitHub Sponsors for now — Sponsors is supported for Turkey but the maintainer prefers deferring the payout/tax setup; honest note: the tax character of income does not change with the rail, revisit declaration with a professional when amounts matter |
+| **GitHub Sponsors** | $0 | deferred — supported for Turkey, account not opened | FUNDING.yml already carries the handle; activates when the maintainer enables it |
 | **Hosted platform / SaaS** | HIGH (servers, ops) | **gated** — see below | The deferred prize: hosted registries, continuous dogfood, dashboards. Only worth building when demand exists |
 | **Certification authority** (formal body) | MEDIUM | long-term | The endgame: Veridict-as-standard needs an issuer of watcher certificates, the way TLS needs CAs |
 
