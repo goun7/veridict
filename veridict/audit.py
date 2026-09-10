@@ -131,16 +131,18 @@ class AuditOrchestrator:
             abstentions.extend(delib_abst)
             for ev in revised_items:
                 self._record(ev, "jury")
-            items = [i for i in evidence_by_claim[c.claim_id]
-                     if i.producer["kind"] != "jury"] + revised_items
-            evidence_by_claim[c.claim_id] = items
+            # adjudication basis becomes post-deliberation: watcher evidence
+            # stays, first-round jury items are superseded by the revised set
+            post_delib = ([i for i in evidence_by_claim[c.claim_id]
+                           if i.producer["kind"] != "jury"] + revised_items)
+            evidence_by_claim[c.claim_id] = post_delib
             self.ledger.append("deliberation.rounded", ADJUDICATOR_AUTHOR, {
                 "claim_id": c.claim_id,
                 "first_round": [{"evidence_id": e.evidence_id, "stance": e.stance}
                                 for e in jury_first],
                 "revised": [{"evidence_id": e.evidence_id, "stance": e.stance}
                             for e in revised_items],
-                "consensus": compute_divergence(items,
+                "consensus": compute_divergence(post_delib,
                                                 self.policy.divergence_tolerance)})
             deliberated.add(c.claim_id)
 

@@ -16,10 +16,15 @@ class ChainError(Exception):
 
 
 def _entry_hash(prev_hash: str, payload: dict, entry_type: str, seq: int,
-                author: dict) -> str:
+                author: dict, ts: float, schema_version: str) -> str:
+    # The preimage binds EVERY stored field (standard §2.3): payload (via its
+    # digest), routing, ordering, authorship, timestamp, and format version.
+    # The fuzz property (tests/test_fuzz_ledger.py) caught v0's unbound ts —
+    # a retroactive timestamp edit used to leave the chain "valid"; an audit
+    # ledger whose timestamps are editable is not one.
     return sha256_hex("|".join([
         prev_hash, payload_digest(payload), entry_type, str(seq),
-        canonical_json(author),
+        canonical_json(author), canonical_json(ts), schema_version,
     ]))
 
 
@@ -31,6 +36,7 @@ class Ledger:
         seq = len(self.entries)
         prev_hash = self.entries[-1]["entry_hash"] if self.entries else GENESIS
         author_d = author.to_dict()
+        ts = time.time()
         entry = {
             "schema_version": SCHEMA_VERSION,
             "seq": seq,
@@ -38,9 +44,10 @@ class Ledger:
             "entry_type": entry_type,
             "author": author_d,
             "payload": payload,
-            "ts": time.time(),
+            "ts": ts,
             "payload_hash": payload_digest(payload),
-            "entry_hash": _entry_hash(prev_hash, payload, entry_type, seq, author_d),
+            "entry_hash": _entry_hash(prev_hash, payload, entry_type, seq,
+                                      author_d, ts, SCHEMA_VERSION),
         }
         self.entries.append(entry)
         return entry
@@ -51,7 +58,8 @@ class Ledger:
             # A retroactive payload edit stales BOTH stored hashes; report both
             # so the message names every invalidated invariant at this seq.
             payload_ok = e["payload_hash"] == payload_digest(e["payload"])
-            expect = _entry_hash(prev, e["payload"], e["entry_type"], e["seq"], e["author"])
+            expect = _entry_hash(prev, e["payload"], e["entry_type"], e["seq"],
+                                 e["author"], e["ts"], e["schema_version"])
             entry_ok = e["entry_hash"] == expect
             if not payload_ok and not entry_ok:
                 return False, (f"payload hash mismatch and entry hash mismatch "
