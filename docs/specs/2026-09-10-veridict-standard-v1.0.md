@@ -262,7 +262,12 @@ MUST be able to distinguish "passed clean" from "passed with an unresolved
 machine claim".
 
 10.3 WATCH mode records `watch.observed` and never blocks; the flags are
-still recorded.
+computed identically. *Errata (§14.2):* v1.0.0 defines WATCH as a policy
+mode over the same evidence ledger — it does NOT specify a streaming/realtime
+transport; flag latency budgets for a stream (design §6.5) are a v1.1
+candidate, deferred behind a demonstrated need; the `divergence.flagged`
+and `inconclusive-unresolved` flags computed for WATCH claims are still
+recorded as ledger entries, only the blocking consequence is absent.
 
 ## 11. Certificates and offline replay
 
