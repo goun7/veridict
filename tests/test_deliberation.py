@@ -193,3 +193,56 @@ def test_verify_ignores_post_checkpoint_deliberation_entries(tmp_path):
     report = verify_certificate(lp, cp)
     assert report["valid"] is False, report
     assert report["verdicts_match"] is False
+
+
+def test_split_with_hookless_real_provider_does_not_crash(tmp_path):
+    """Audit D1: OpenAICompatProvider has no `revise` attribute — a first-round
+    SPLIT must degrade to keep-opinion, not crash the audit."""
+    class Hookless:
+        family = "b"
+        identity = "b-1"
+        version = "0.1.0"
+
+        def doctrine(self, claim, digest):
+            return Opinion("REFUTES", 0.9, "doubt")
+
+    providers = [ScriptedProvider(family="a", identity="a-1",
+                                  default=Opinion("SUPPORTS", 0.8, "ok"),
+                                  fn=lambda s: Opinion("SUPPORTS", 0.8, "ok")),
+                 Hookless()]
+    led = Ledger()
+    result = _orch(led, providers=providers).run(_task(tmp_path))
+    cid = _intent_cid(led)
+    round_entries = [e for e in led.entries if e["entry_type"] == "deliberation.rounded"
+                     and e["payload"]["claim_id"] == cid]
+    assert round_entries, "split must still open a deliberation round"
+    # hookless provider kept its first-round REFUTES — no silent flip
+    stances = [it.stance for it in evidence_by_claim(led, cid)
+               if it.producer["identity"] == "b-1"]
+    assert "REFUTES" in stances
+
+
+def evidence_by_claim(led, cid):
+    from veridict.schemas import EvidenceItem
+    return [EvidenceItem.from_dict(e["payload"]) for e in led.entries
+            if e["entry_type"] == "evidence.recorded"
+            and e["payload"]["claim_id"] == cid]
+
+
+def test_erroring_revise_keeps_opinion_never_erases_refute(tmp_path):
+    """Audit D2: a flaky revision endpoint must NOT erase the producer's
+    first-round REFUTES (fail-open). Keep-opinion keeps the split honest."""
+    def exploding(opinions):
+        raise RuntimeError("flaky endpoint")
+
+    led = Ledger()
+    result = _orch(led, providers=_split_providers(b_revise=exploding)).run(
+        _task(tmp_path))
+    cid = _intent_cid(led)
+    stances_b = [it.stance for it in evidence_by_claim(led, cid)
+                 if it.producer["identity"] == "b-1"]
+    assert "REFUTES" in stances_b, "b's refutation must survive deliberation"
+    # the claim must NOT come out clean-verified while b still refutes
+    claim_verdict = next(c["verdict_value"] for c in result["cert"]["claims"]
+                         if c["claim_id"] == cid)
+    assert claim_verdict in ("INCONCLUSIVE", "ESCALATED", "REFUTED"), claim_verdict

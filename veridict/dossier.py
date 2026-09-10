@@ -8,7 +8,7 @@ or the window expires into the R4 fail-safe.
 """
 from __future__ import annotations
 
-import time
+from datetime import datetime, timezone
 
 from .ledger import Ledger
 from .schemas import ActorRef, Claim, EvidenceItem
@@ -126,27 +126,38 @@ def resolve_dossier(ledger: Ledger, dossier_id: str, decision: str,
     """Human decision return (§6.1): append `escalation.resolved`.
 
     The human is the risk owner — the ledger records WHO decided, WHICH of the
-    4 options, and the risk note they accepted under. Unknown decisions are
-    rejected before anything is written.
+    4 options, and the risk note they accepted under. Unknown decisions and
+    unknown dossiers are rejected before anything is written (a resolution
+    for a dossier that was never issued would fabricate human authority).
     """
     if decision not in DECISIONS:
         raise ValueError(f"unknown decision: {decision!r} — expected one of "
                          f"{DECISIONS}")
+    if not any(e["payload"].get("dossier_id") == dossier_id
+               for e in ledger.query("dossier.issued")):
+        raise ValueError(f"unknown dossier_id: {dossier_id!r} — no "
+                         f"dossier.issued entry carries it")
     return ledger.append(
         "escalation.resolved",
         ActorRef(kind="human", identity=decided_by, version="user"),
         {"dossier_id": dossier_id, "decision": decision, "decided_by": decided_by,
-         "risk_note": risk_note, "ts": time.time()})
+         "risk_note": risk_note,
+         "ts": datetime.now(timezone.utc).isoformat()})
 
 
 def apply_fail_safe(ledger: Ledger, dossier_id: str, actor: ActorRef) -> dict:
     """R4 fail-safe (§6.1): window expired / no human — never a silent pass.
 
     Appends `policy.fail_safe` with the fixed consequence: the GATE stays
-    blocked, the CERTIFICATE is stamped unresolved.
+    blocked, the CERTIFICATE is stamped unresolved. Refuses unknown dossiers
+    for the same fabricated-authority reason as resolve_dossier.
     """
+    if not any(e["payload"].get("dossier_id") == dossier_id
+               for e in ledger.query("dossier.issued")):
+        raise ValueError(f"unknown dossier_id: {dossier_id!r} — no "
+                         f"dossier.issued entry carries it")
     return ledger.append(
         "policy.fail_safe", actor,
         {"dossier_id": dossier_id,
          "consequence": "gate_stays_blocked_or_certificate_stamped_unresolved",
-         "ts": time.time()})
+         "ts": datetime.now(timezone.utc).isoformat()})

@@ -142,11 +142,24 @@ class Jury:
             try:
                 first = next(it for it in first_items
                              if it.producer["identity"] == p.identity)
-                op = p.revise(packets[p.identity]) if p.revise is not None \
-                    else Opinion(first.stance, first.confidence, first.rationale)
-            except (StopIteration, ProviderError):
+            except StopIteration:
+                # no first-round item to revise — abstain (erases nothing:
+                # this producer contributed no first-round opinion)
                 abstained.append(p.identity)
                 continue
+            keep = Opinion(first.stance, first.confidence, first.rationale)
+            revise = getattr(p, "revise", None)
+            if revise is None:
+                op = keep
+            else:
+                try:
+                    op = revise(packets[p.identity])
+                except Exception:
+                    # §9.2: an erroring revision hook degrades to
+                    # keep-opinion. Abstaining here would silently erase the
+                    # producer's first-round REFUTES from the superseded
+                    # basis — a fail-open the standard forbids.
+                    op = keep
             revised.append(self._build_item(claim, artifact_digest, p, op,
                                             round_salt=f"{EID_SALT}-r2"))
         return revised, abstained

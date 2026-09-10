@@ -17,6 +17,13 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   LICENSE (Apache-2.0), CONTRIBUTING, GOVERNANCE.
 - Marketplace manifest index: build/validate/export/load + CLI `index`.
 - CLI quality-sheet embeds stub-jury context note (R5 honesty).
+- Fresh-eyes Phase 2/3 integration audit fixes: a revision hook that is
+  absent or errors now degrades to keep-opinion (was: abstain-erase — a
+  flaky endpoint could silently erase a first-round REFUTES, fail-open);
+  providers without a `revise` attribute no longer crash the audit; the
+  ladder's R4 doctrinal-consensus semantics are normative in the standard
+  (§7 + errata §14.2); `resolve_dossier`/`apply_fail_safe` refuse fabricated
+  dossier ids; dossier return payloads carry ISO-8601 string timestamps.
 - 177 tests.
 
 ## 0.2.0 — 2026-09-10 (Phase 2 — watcher layer)
