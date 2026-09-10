@@ -14,16 +14,25 @@ costs $0. Capital-bearing items are gated in the commercial doc, not here.
 - [x] T5 `docs/commercial-model.md`: revenue streams ranked by fit and
       capital need, interest gates G1–G3, anti-corruption guardrails
 - [x] T6 packaging: version 0.3.0 aligned with CHANGELOG
-- [ ] T7 fuzz expansion: EvidenceItem schema roundtrip + orchestrator
+- [x] T7 fuzz expansion: EvidenceItem schema roundtrip + orchestrator
       end-to-end property (random fixture → audit → verify → recompute)
-- [ ] T8 WATCH-mode honesty: standard note that v1.0.0 WATCH is a policy
+- [x] T8 WATCH-mode honesty: standard note that v1.0.0 WATCH is a policy
       mode only (no streaming component) OR implement the stream — decide
       by effort, errata is the default
-- [ ] T9 multi-signer federation: two independent KeyStores on one ledger,
+- [x] T9 multi-signer federation: two independent KeyStores on one ledger,
       cross-verify, plus test
 - [ ] T10 launch story: public write-up from
-      `docs/notes/2026-09-10-agent-coordination-incident.md` (draft in
-      docs/notes, publish on G1 gate)
+      `docs/notes/2026-09-10-agent-coordination-incident.md` (publish on
+      G1 gate — ≥500 stars or ≥3 external contributors; the note is ready,
+      publishing is a human-judgment + community-timing act)
+
+## Receipt (2026-09-10)
+
+- CI run 34494198131: GREEN on 3.12/3.13/3.14 — suite ×2, dogfood receipt,
+  offline verify, canary 2/0, latency budget all pass on GitHub's runners
+- 190 tests green locally (both invocation styles)
+- cross-implementation fuzz (T7) caught spec_verifier R4 drift on its first
+  run and the fix is pinned — the property suite now guards BOTH verifiers
 
 Exit criteria: CI green on GitHub (not just locally), T7–T9 merged,
  receipts table in README still regenerating truthfully.
