@@ -44,6 +44,7 @@ def test_dogfood_phase2_receipt_block(dogfood_out):
     # T26: the three examples pass the conformance kit (§5.5 certification bar)
     assert p2["conformance"] == {"example-security": True, "example-cost": True,
                                  "example-compliance": True}
+    assert p2["revocation_enforced"] is True  # §6.6 receipt: self-revocation enforced
     # T28: marketplace index exported from the dogfood ledger and it validates
     assert p2["marketplace_index"] is True
     assert os.path.exists(out["index_path"])

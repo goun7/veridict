@@ -30,7 +30,7 @@ from veridict.policy import (                                   # noqa: E402
     PolicyDeclaration, Thresholds, load_policy)
 from veridict.schemas import TaskManifest                       # noqa: E402
 from veridict.conformance import run_conformance_suite            # noqa: E402
-from veridict.registry_index import export_index                  # noqa: E402
+from veridict.registry_index import build_index, export_index                  # noqa: E402
 from veridict.watchers import ManifestRegistry                  # noqa: E402
 from watchers.compliance_watcher import SESSION as COMP_SESSION  # noqa: E402
 from watchers.cost_watcher import SESSION as COST_SESSION       # noqa: E402
@@ -169,6 +169,30 @@ def _run_phase2_segment(ledger: Ledger,
                     risk_note="simulated human decision for pipeline "
                               "demonstration (autonomous dogfood)")
 
+    # Receipt ⑥: revocation enforcement (§6.6). The self-audit revokes its
+    # OWN compliance watcher and proves: (a) the next pass records no new
+    # evidence from it, (b) the index refuses to list it, (c) pre-revocation
+    # evidence is not deleted. Done LAST so earlier passes keep all three.
+    watcher_ev_before = [e for e in ledger.query("evidence.recorded")
+                         if e["payload"]["producer"]["kind"] == "watcher"]
+    registry.revoke("example-compliance", "self-audit revocation demonstration")
+    cal_orch.run(_segment_task("dogfood-v0.2-seg-post-revoke", fixture_cal))
+    watcher_ev_after = [e for e in ledger.query("evidence.recorded")
+                        if e["payload"]["producer"]["kind"] == "watcher"]
+    compliance_after = [e for e in watcher_ev_after
+                        if e["payload"]["producer"]["family"] == "example-compliance"]
+    compliance_before = [e for e in watcher_ev_before
+                         if e["payload"]["producer"]["family"] == "example-compliance"]
+    revocation_ok = (
+        len(compliance_after) == len(compliance_before)
+        and all(w["watcher_id"] != "example-compliance"
+                for w in build_index(ledger)["watchers"])
+        and ManifestRegistry.lifecycle_status(ledger, "example-compliance") == "revoked")
+    if not revocation_ok:
+        raise RuntimeError("phase2 segment: revocation receipt broken — "
+                           "a revoked watcher still contributed evidence or "
+                           "still appears in the index")
+
     # Receipt guards — fail closed on a broken self-audit (§6 fail-closed).
     if not any(e["payload"]["producer"]["kind"] == "watcher"
                for e in ledger.query("evidence.recorded")):
@@ -196,6 +220,7 @@ def _phase2_summary(ledger: Ledger, watcher_ids: list[str],
         "escalation_resolved": bool(ledger.query("escalation.resolved")),
         "fail_safe_used": bool(ledger.query("policy.fail_safe")),
         "conformance": conformance,
+        "revocation_enforced": True,
         "marketplace_index": True,
     }
 
