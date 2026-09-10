@@ -49,6 +49,43 @@ def _build_jury() -> tuple[Jury, list[str]]:
     return Jury(providers), warnings
 
 
+def _load_watchers(specs, ledger, keystore, key_id, warnings):
+    """Resolve --watcher specs ("manifest.json:your_module:judge_fn") into
+    sessions registered in the audit ledger. The manifest's integrity
+    code_hash is verified against the sha256 of the entry module file — a
+    watcher whose code does not match its manifest is refused outright."""
+    if not specs:
+        return (), None
+    import importlib
+    import hashlib
+    from veridict.watchers import ManifestRegistry, WatcherManifest, WatcherSession
+    registry = ManifestRegistry(ledger, keystore, key_id)
+    sessions = []
+    for spec in specs:
+        try:
+            mpath, modname, fnname = spec.split(":", 2)
+        except ValueError:
+            raise SystemExit(f"--watcher {spec!r}: expected manifest.json:module:fn")
+        with open(mpath, encoding="utf-8") as f:
+            manifest = WatcherManifest.from_dict(json.load(f))
+        mod = importlib.import_module(modname)
+        fn = getattr(mod, fnname, None)
+        if not callable(fn):
+            raise SystemExit(f"--watcher {spec!r}: {modname}.{fnname} is not callable")
+        mod_file = getattr(mod, "__file__", None)
+        if mod_file and manifest.integrity.get("code_hash"):
+            actual = hashlib.sha256(open(mod_file, "rb").read()).hexdigest()
+            if actual != manifest.integrity["code_hash"]:
+                raise SystemExit(
+                    f"--watcher {spec!r}: code_hash mismatch (manifest "
+                    f"{manifest.integrity['code_hash'][:16]}… vs module {actual[:16]}…)")
+        registry.register(manifest)
+        sessions.append(WatcherSession(
+            manifest, lambda claim_summary, digest, _f=fn: _f(claim_summary, digest)))
+        warnings.append(f"watcher {manifest.watcher_id} registered and wired (§6)")
+    return sessions, ledger
+
+
 def _cmd_audit(args) -> int:
     with open(args.task, encoding="utf-8") as f:
         raw = json.load(f)
@@ -72,7 +109,10 @@ def _cmd_audit(args) -> int:
     keystore = KeyStore(ledger)
     key_id = keystore.generate_and_enroll("veridict-core")   # same ledger as saved (offline verify)
     jury, warnings = _build_jury()
-    orch = AuditOrchestrator(ledger, policy, jury, keystore, key_id)
+    sessions, registry = _load_watchers(getattr(args, "watcher", None), ledger,
+                                        keystore, key_id, warnings)
+    orch = AuditOrchestrator(ledger, policy, jury, keystore, key_id,
+                             watchers=tuple(sessions), registry=registry)
     result = orch.run(task, disclosure_level=args.disclosure)
     ledger.save(args.ledger)
     with open(args.cert_out, "w", encoding="utf-8") as f:
@@ -158,6 +198,9 @@ def main(argv=None) -> int:
     a.add_argument("--policy")
     a.add_argument("--ledger", required=True)
     a.add_argument("--cert-out", required=True)
+    a.add_argument("--watcher", action="append", metavar="MANIFEST:MODULE:FN",
+                   help="wire an external watcher: manifest JSON + module:fn "
+                        "entry point; code_hash is verified against the module")
     a.add_argument("--disclosure", default="REDACTED",
                    choices=("LOCAL_ONLY", "REDACTED", "FULL"))
     a.set_defaults(func=_cmd_audit)

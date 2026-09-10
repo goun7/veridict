@@ -34,19 +34,70 @@ about a minute.
 
 ## Contributing a watcher
 
-1. Implement a `WatcherSession` bound to your `WatcherManifest`
-   (see `watchers/security_watcher.py` for the minimal shape — your module
-   lives OUTSIDE `veridict/`; the core has no special-case for you).
-2. Your manifest MUST: declare `max_tier ∈ {W1b, W2, W3}` (W1a is
-   forbidden to watchers by design), name a real `producer {identity,
-   maintainer}` (no anonymous watchers), and pin its own `code_hash`.
-3. Pass the conformance kit:
-   `python -c "from veridict.conformance import run_conformance_suite; from your_module import SESSION; print(run_conformance_suite(SESSION))"`
-   — all ten checks must pass.
-4. Register through `ManifestRegistry` in your own ledger for testing;
-   marketplace listing is a separate (Phase 3) governance step.
-5. Blindness is the contract: your doctrine fn receives exactly
-   `(claim_summary, artifact_reference)` and nothing else.
+A watcher is any checker you own, wrapped in a manifest and one function.
+Your module lives OUTSIDE `veridict/`; the core has no special-case for
+you — you are a participant, not a contributor to the core.
+
+**1. The function** (`my_watcher.py`) — receives exactly
+`(claim_summary, artifact_reference)` and nothing else (blindness is the
+contract, §6.3); returns `(stance, confidence, rationale)` or `None` to
+abstain. None/exception/bad-stance/malformed shape all degrade to abstain:
+
+```python
+def judge(claim_summary: str, artifact_reference: str):
+    if my_checker.flagged(artifact_reference):
+        return ("REFUTES", 0.9, "my_checker found a violation")
+    return ("SUPPORTS", 0.6, "no findings")
+```
+
+**2. The manifest** (`manifest.json`) — MUST declare
+`max_tier ∈ {W1b, W2, W3}` (W1a is forbidden to watchers by design — the
+ceiling is structural), name a real `producer {identity, maintainer}` (no
+anonymous watchers), and pin the sha256 of your module as `code_hash`:
+
+```json
+{"watcher_id": "your-watcher", "name": "Your Checker", "version": "1.0.0",
+ "producer": {"identity": "your-org", "maintainer": "you"},
+ "capabilities": {"evidence_classes": ["JURY_OPINION"], "max_tier": "W2",
+                  "subscribes_to": ["*"]},
+ "resource_class": {"timeout_seconds": 2, "cost_budget": null,
+                    "sandbox_level": "none"},
+ "integrity": {"code_hash": "<sha256 of my_watcher.py>",
+               "update_policy": "pinned"}}
+```
+
+**3. Prove your contract** — all ten conformance checks must pass:
+
+```bash
+python - <<'PY'
+import json
+from veridict.conformance import run_conformance_suite
+from veridict.watchers import WatcherManifest, WatcherSession
+from my_watcher import judge
+
+manifest = WatcherManifest.from_dict(json.load(open("manifest.json")))
+result = run_conformance_suite(WatcherSession(manifest, judge))
+print(result["conformant"])   # must be True — all ten checks
+PY
+```
+
+A minimal reference implementation of a watcher module ships in
+`watchers/security_watcher.py` (read it, then do it your way).
+
+A watcher that abstains correctly under deadline expiry and exceptions is
+worth more than one that never fails; the kit tests exactly that.
+
+**4. Run it through the CLI** — the audit refuses a manifest whose
+code_hash does not match the module, and revoked watchers are not
+participants (§6.6):
+
+```bash
+veridict audit --task task.json --ledger led.jsonl --cert-out cert.json \
+  --watcher manifest.json:my_watcher:judge
+```
+
+Register through `ManifestRegistry` in your own ledger for testing;
+marketplace listing is a separate (Phase 3) governance step.
 
 ## Issuing certificates
 

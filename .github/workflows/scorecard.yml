@@ -1,0 +1,23 @@
+name: Scorecard supply-chain security
+
+on:
+  schedule:
+    - cron: "30 4 * * 1"   # weekly, Mondays
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
