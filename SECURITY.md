@@ -21,7 +21,7 @@ Scope of highest interest (matches the standard's threat model,
 
 ## Supported versions
 
-Only the latest `master` is supported pre-1.0. Ledger-format breaks are
+Only the latest `main` branch is supported pre-1.0. Ledger-format breaks are
 documented in `CHANGELOG.md` (semver applies to the chain format).
 
 ## Disclosure

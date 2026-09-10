@@ -2,3 +2,8 @@
 {"id": "canary-uncovered-edge", "path": "corpus/artifacts/case-uncovered-edge", "defect_class": "uncovered-edge", "ground_truth": "DEFECT", "intent": ["MACHINE: divide never crashes on zero denominator"], "criticality": []}
 {"id": "canary-uncovered-edge-uncatchable", "path": "corpus/artifacts/case-uncovered-edge-uncatchable", "defect_class": "uncovered-edge", "ground_truth": "DEFECT", "intent": []}
 {"id": "canary-clean", "path": "corpus/artifacts/case-clean", "defect_class": "clean", "ground_truth": "CLEAN", "intent": [], "criticality": []}
+{"id": "canary-off-by-one", "path": "corpus/artifacts/case-off-by-one", "defect_class": "logic-error", "ground_truth": "DEFECT", "intent": ["MACHINE: sum_to sums 1..n inclusive"], "criticality": []}
+{"id": "canary-contract-violation", "path": "corpus/artifacts/case-contract-violation", "defect_class": "contract-violation", "ground_truth": "DEFECT", "intent": ["MACHINE: top_scores returns scores sorted descending"], "criticality": []}
+{"id": "canary-missing-validation", "path": "corpus/artifacts/case-missing-validation", "defect_class": "missing-validation", "ground_truth": "DEFECT", "intent": ["MACHINE: set_age rejects ages outside 0..130"], "criticality": []}
+{"id": "canary-clean-normalize", "path": "corpus/artifacts/case-clean-normalize", "defect_class": "clean", "ground_truth": "CLEAN", "intent": ["MACHINE: normalize_whitespace collapses internal whitespace runs"], "criticality": []}
+{"id": "canary-parse-date-miss", "path": "corpus/artifacts/case-parse-date", "defect_class": "parse-date", "ground_truth": "DEFECT", "intent": ["MACHINE: parse_iso_utc parses ISO-8601 UTC timestamps"], "criticality": []}
