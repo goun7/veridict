@@ -1,0 +1,185 @@
+{
+  "artifact_digest": "digest",
+  "cases": [
+    {
+      "expected": {
+        "confidence": 0.9,
+        "evidence_class": "JURY_OPINION",
+        "producer_kind": "watcher",
+        "stance": "SUPPORTS",
+        "tier": "W2"
+      },
+      "fn_script": "normal-support",
+      "id": "normal-support",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": {
+        "confidence": 1.0,
+        "evidence_class": "JURY_OPINION",
+        "producer_kind": "watcher",
+        "stance": "REFUTES",
+        "tier": "W2"
+      },
+      "fn_script": "confidence-clamps-high",
+      "id": "confidence-clamps-high",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": {
+        "confidence": 0.0,
+        "evidence_class": "JURY_OPINION",
+        "producer_kind": "watcher",
+        "stance": "SUPPORTS",
+        "tier": "W2"
+      },
+      "fn_script": "confidence-clamps-low",
+      "id": "confidence-clamps-low",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": null,
+      "fn_script": "bad-stance-abstains",
+      "id": "bad-stance-abstains",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": null,
+      "fn_script": "none-abstains",
+      "id": "none-abstains",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": null,
+      "fn_script": "exception-abstains",
+      "id": "exception-abstains",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": null,
+      "fn_script": "malformed-shape-abstains",
+      "id": "malformed-shape-abstains",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": {
+        "confidence": 0.8,
+        "evidence_class": "JURY_OPINION",
+        "producer_kind": "watcher",
+        "stance": "REFUTES",
+        "tier": "W2"
+      },
+      "fn_script": "list-output-accepted",
+      "id": "list-output-accepted",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": {
+        "confidence": 1.0,
+        "evidence_class": "TEST_EXECUTION",
+        "producer_kind": "watcher",
+        "stance": "SUPPORTS",
+        "tier": "W3"
+      },
+      "fn_script": "ceiling-never-w1a",
+      "id": "ceiling-never-w1a",
+      "manifest": {
+        "evidence_classes": [
+          "TEST_EXECUTION"
+        ],
+        "max_tier": "W3",
+        "timeout_seconds": 1.0,
+        "watcher_id": "w"
+      }
+    },
+    {
+      "expected": null,
+      "fn_script": "sleep-past-deadline",
+      "id": "deadline-abstains",
+      "manifest": {
+        "evidence_classes": [
+          "JURY_OPINION"
+        ],
+        "max_tier": "W2",
+        "timeout_seconds": 0.05,
+        "watcher_id": "w"
+      }
+    }
+  ],
+  "claim": {
+    "claim_id": "c",
+    "critical_class": null,
+    "summary": "sum",
+    "verifiability": "DOCTRINAL"
+  },
+  "contract": "run_session(manifest, fn, claim, artifact_digest) \u2192 EvidenceItem | None. fn receives (claim_summary, artifact_reference). None \u21d2 abstain. Ceiling: the returned tier is the manifest max_tier, never W1a. Confidence clamps to [0,1]. Bad stance / None / exception / malformed tuple / deadline expiry \u21d2 abstain (None).",
+  "fn_scripts": {
+    "bad-stance-abstains": "return ('MAYBE', 0.5, 'x')",
+    "ceiling-never-w1a": "return ('SUPPORTS', 1.0, 'x') with max_tier=W3, evidence_classes=[TEST_EXECUTION]",
+    "confidence-clamps-high": "return ('REFUTES', 7.5, 'x')",
+    "confidence-clamps-low": "return ('SUPPORTS', -3.0, 'x')",
+    "exception-abstains": "raise RuntimeError",
+    "list-output-accepted": "return ['REFUTES', 0.8, 'x']",
+    "malformed-shape-abstains": "return ('SUPPORTS',)",
+    "none-abstains": "return None",
+    "normal-support": "return ('SUPPORTS', 0.9, 'ok')",
+    "sleep-past-deadline": "sleep past timeout_seconds"
+  },
+  "schema": "veridict-watcher-vectors/1.0"
+}

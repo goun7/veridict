@@ -1,0 +1,294 @@
+{
+  "cases": [
+    {
+      "claim": {
+        "claim_id": "R0-machine-univocal",
+        "critical_class": null,
+        "verifiability": "MACHINE_CHECKABLE"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W1a"
+        },
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        },
+        {
+          "stance": "SUPPORTS",
+          "tier": "W3"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R0",
+        "value": "VERIFIED"
+      },
+      "id": "R0-machine-univocal"
+    },
+    {
+      "claim": {
+        "claim_id": "R1-w1a-refuted",
+        "critical_class": null,
+        "verifiability": "MACHINE_CHECKABLE"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "REFUTES",
+          "tier": "W1a"
+        },
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R1",
+        "value": "REFUTED"
+      },
+      "id": "R1-w1a-refuted"
+    },
+    {
+      "claim": {
+        "claim_id": "R1-doctrine-cannot-overturn",
+        "critical_class": null,
+        "verifiability": "MACHINE_CHECKABLE"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W1a"
+        },
+        {
+          "stance": "REFUTES",
+          "tier": "W2"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R1",
+        "value": "VERIFIED"
+      },
+      "id": "R1-doctrine-cannot-overturn"
+    },
+    {
+      "claim": {
+        "claim_id": "R1-w1b-signal-stays-verified",
+        "critical_class": null,
+        "verifiability": "MACHINE_CHECKABLE"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W1a"
+        },
+        {
+          "stance": "REFUTES",
+          "tier": "W1b"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R2",
+        "value": "VERIFIED"
+      },
+      "id": "R1-w1b-signal-stays-verified"
+    },
+    {
+      "claim": {
+        "claim_id": "R2-w1b-only-refute",
+        "critical_class": null,
+        "verifiability": "MACHINE_CHECKABLE"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "REFUTES",
+          "tier": "W1b"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R2",
+        "value": "INCONCLUSIVE"
+      },
+      "id": "R2-w1b-only-refute"
+    },
+    {
+      "claim": {
+        "claim_id": "R3-critical-split-escalates",
+        "critical_class": "payments",
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        },
+        {
+          "stance": "REFUTES",
+          "tier": "W2"
+        }
+      ],
+      "expected": {
+        "divergence": "SPLIT",
+        "rung": "R3",
+        "value": "ESCALATED"
+      },
+      "id": "R3-critical-split-escalates"
+    },
+    {
+      "claim": {
+        "claim_id": "R4-doctrinal-unanimous-support",
+        "critical_class": null,
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        },
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R4",
+        "value": "VERIFIED"
+      },
+      "id": "R4-doctrinal-unanimous-support"
+    },
+    {
+      "claim": {
+        "claim_id": "R4-doctrinal-single-refute-refuted",
+        "critical_class": null,
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        },
+        {
+          "stance": "SUPPORTS",
+          "tier": "W2"
+        },
+        {
+          "stance": "REFUTES",
+          "tier": "W2"
+        }
+      ],
+      "expected": {
+        "divergence": "MAJORITY",
+        "rung": "R4",
+        "value": "REFUTED"
+      },
+      "id": "R4-doctrinal-single-refute-refuted"
+    },
+    {
+      "claim": {
+        "claim_id": "R4-doctrinal-split-inconclusive",
+        "critical_class": null,
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W3"
+        },
+        {
+          "stance": "REFUTES",
+          "tier": "W3"
+        }
+      ],
+      "expected": {
+        "divergence": "SPLIT",
+        "rung": "R4",
+        "value": "INCONCLUSIVE"
+      },
+      "id": "R4-doctrinal-split-inconclusive"
+    },
+    {
+      "claim": {
+        "claim_id": "R4-w3-only-never-verifies",
+        "critical_class": null,
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [
+        {
+          "stance": "SUPPORTS",
+          "tier": "W3"
+        }
+      ],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R4",
+        "value": "INCONCLUSIVE"
+      },
+      "id": "R4-w3-only-never-verifies"
+    },
+    {
+      "claim": {
+        "claim_id": "R4-first-no-evidence",
+        "critical_class": null,
+        "verifiability": "DOCTRINAL"
+      },
+      "criticality": [
+        "payments"
+      ],
+      "divergence_tolerance": 0.3333333333333333,
+      "evidence": [],
+      "expected": {
+        "divergence": "UNANIMOUS",
+        "rung": "R4",
+        "value": "INCONCLUSIVE"
+      },
+      "id": "R4-first-no-evidence"
+    }
+  ],
+  "contract": "adjudicate(claim, evidence, policy) over \u00a77, top-down; divergence per \u00a75.4. The reference ladder AND a spec-only implementation agree on every case (asserted at build time).",
+  "schema": "veridict-ladder-vectors/1.0"
+}

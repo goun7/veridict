@@ -17,6 +17,18 @@ An independent implementation of the standard (§11.3) MUST, from
    (`{valid: true, chain_valid: true, signature_valid: true,
    verdicts_match: true, errors: []}`).
 
+Also in this directory (built by `scripts/build_contract_vectors.py`,
+pinned by `tests/test_contract_vectors.py`):
+
+- **`watcher_vectors.json`** — §6.3/§6.4 session contract: ceiling (never
+  W1a), confidence clamps, abstain on None/exception/bad-stance/malformed
+  shape, deadline expiry → abstain.
+- **`ladder_vectors.json`** — §7 decision table: every rung, including the
+  D3-errata doctrinal-consensus semantics (majority-SUPPORTS with a lone
+  REFUTES ⇒ REFUTED, fail-closed). The reference ladder AND the spec-only
+  implementation (`examples/spec_verifier.py`) agree on every case —
+  asserted at build time.
+
 `tests/test_standard_vectors.py` pins these files against the reference
 implementation, including byte-determinism of regeneration.
 
