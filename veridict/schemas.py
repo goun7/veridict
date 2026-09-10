@@ -67,6 +67,7 @@ class EvidenceItem:
     reproducibility: dict        # {deterministic: bool, rerun_recipe: dict | None}
     stance: str                  # SUPPORTS | REFUTES
     confidence: float            # 0..1 (fixed 1.0 for W1a)
+    rationale: str = ""          # producer's already-computed why (dossier risk_frame input)
     schema_version: str = SCHEMA_VERSION
 
     def to_dict(self) -> dict:

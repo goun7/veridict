@@ -31,6 +31,27 @@ def test_evidence_item_shape():
                      "rerun_recipe": {"cmd": ["pytest"]}}, stance="SUPPORTS", confidence=1.0)
     assert e.tier == "W1a" and e.stance == "SUPPORTS"
 
+def test_evidence_item_old_payload_without_rationale_loads():
+    # Old ledger payloads predate the rationale field: they must load unchanged,
+    # with the rationale defaulting to empty (never a KeyError on replay).
+    d = {"evidence_id": "e1", "claim_id": "c1", "evidence_class": "JURY_OPINION",
+         "tier": "W2", "producer": {"kind": "jury", "identity": "j-1", "version": "0"},
+         "artifact_ref": "digest",
+         "reproducibility": {"deterministic": False, "rerun_recipe": None},
+         "stance": "REFUTES", "confidence": 0.9}
+    ev = EvidenceItem.from_dict(d)
+    assert ev.rationale == ""
+
+
+def test_evidence_item_rationale_roundtrip():
+    e = EvidenceItem(evidence_id="e1", claim_id="c1", evidence_class="JURY_OPINION",
+                     tier="W2", producer={"kind": "jury", "identity": "j-1", "version": "0"},
+                     artifact_ref="digest",
+                     reproducibility={"deterministic": False, "rerun_recipe": None},
+                     stance="REFUTES", confidence=0.9, rationale="rounding drops cents")
+    assert EvidenceItem.from_dict(e.to_dict()) == e
+
+
 def test_tier_rank_strict_order():
     assert TIER_RANK["W1a"] > TIER_RANK["W1b"] > TIER_RANK["W2"] > TIER_RANK["W3"]
 

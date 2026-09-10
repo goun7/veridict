@@ -27,6 +27,7 @@ class PolicyDeclaration:
     divergence_tolerance: float
     disclosure_level: str = "REDACTED"   # LOCAL_ONLY | REDACTED | FULL
     deliberation_rounds: int = 1    # §4.4.3: revision rounds after a SPLIT; 0 disables
+    response_window_hours: int = 24  # §6.1: window before the R4 fail-safe fires
 
     @property
     def meta_claim_depth_budget(self) -> int:
@@ -56,7 +57,8 @@ def load_policy(src) -> PolicyDeclaration:
         criticality=tuple(data["criticality"]), thresholds=th,
         divergence_tolerance=data["divergence_tolerance"],
         disclosure_level=data.get("disclosure_level", "REDACTED"),
-        deliberation_rounds=data.get("deliberation_rounds", 1))
+        deliberation_rounds=data.get("deliberation_rounds", 1),
+        response_window_hours=data.get("response_window_hours", 24))
 
 
 @dataclass(frozen=True)

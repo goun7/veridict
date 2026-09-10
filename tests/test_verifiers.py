@@ -47,3 +47,15 @@ def test_static_supports_clean_artifact(tmp_path):
                  "def test_add():\n    assert add(1, 1) == 2\n")
     ev = StaticAnalyzerVerifier().produce(_claims(task)["forbidden-constructs-absent"], task)
     assert ev.tier == "W1b" and ev.stance == "SUPPORTS"
+
+def test_executor_rationale_records_exit_code(tmp_path):
+    task = _task(tmp_path, "def add(a, b):\n    return a - b\n",
+                 "from calc import add\ndef test_add():\n    assert add(1, 1) == 2\n")
+    ev = TestExecutorVerifier().produce(_claims(task)["existing-test-suite-passes"], task)
+    assert "exit code 1" in ev.rationale
+
+def test_static_rationale_carries_findings(tmp_path):
+    task = _task(tmp_path, "def f(x):\n    try:\n        eval(x)\n    except:\n        pass\n",
+                 "def test_f():\n    assert f('1+1') == 2\n")
+    ev = StaticAnalyzerVerifier().produce(_claims(task)["forbidden-constructs-absent"], task)
+    assert "forbidden-call" in ev.rationale and "bare-except" in ev.rationale

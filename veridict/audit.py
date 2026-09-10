@@ -9,6 +9,7 @@ from .calibration import apply_factor, update_calibration
 from .certificate import CertificateIssuer
 from .claim_extractor import ClaimExtractor
 from .divergence import compute_divergence
+from .dossier import generate_dossier
 from .jury import Jury
 from .keys import KeyStore
 from .ladder import adjudicate
@@ -171,12 +172,20 @@ class AuditOrchestrator:
         # Meta-claims excluded: their evidence is the same top-level jury round.
         update_calibration(self.ledger, ADJUDICATOR_AUTHOR, claims, evidence_by_claim)
 
-        for a in adjudications:
+        # adjudications align with claims + meta_claims (meta ones were appended
+        # in order), so each ESCALATED claim can be resolved to its evidence.
+        for claim_i, a in zip(claims + meta_claims, adjudications):
             if a.value == "ESCALATED":
                 self.ledger.append("escalation.requested", ActorRef(
                     kind="adjudicator", identity="veridict-ladder", version="0.1.0"),
                     {"claim_id": a.claim_id, "route": ESCALATION_ROUTE,
                      "dossier_summary": "see risk_notes", "risk_notes": a.risk_notes})
+                # §6.3: the dossier is issued as part of the escalation — a view
+                # over THIS ledger (claim evidence + adjudication + task digest).
+                dossier = generate_dossier(
+                    claim_i, a, evidence_by_claim[claim_i.claim_id], self.ledger,
+                    self.policy, digest)
+                self.ledger.append("dossier.issued", ADJUDICATOR_AUTHOR, dossier)
 
         engine = PolicyEngine(self.ledger)
         # Meta-claims are adjudicated + ledgered, so they must also reach the

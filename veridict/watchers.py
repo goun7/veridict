@@ -183,4 +183,4 @@ def run_session(session: WatcherSession, claim: Claim, artifact_digest: str,
                   "version": m.version, "family": m.watcher_id},
         artifact_ref=artifact_digest,
         reproducibility={"deterministic": tier == "W1b", "rerun_recipe": None},
-        stance=stance, confidence=conf)
+        stance=stance, confidence=conf, rationale=rationale)
