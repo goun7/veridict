@@ -184,8 +184,16 @@ evidence sets; "all-SUPPORTS" is over every evidence item on the claim.
 - **R3.** `claim.critical_class ∈ policy.criticality` ∧ divergence == SPLIT
   ⇒ ESCALATED to the human risk owner; the system MUST generate a dossier
   (§12) and MUST NOT resolve itself.
-- **R4.** Anything else ⇒ INCONCLUSIVE — a conforming implementation has NO
-  silent pass.
+- **R4 (doctrinal consensus / fail-safe).** With no W1a/W1b on the claim and
+  at least one W2 item: divergence SPLIT (non-critical) ⇒ INCONCLUSIVE,
+  flagged `inconclusive-unresolved:{claim_id}`; all doctrinal stances
+  SUPPORTS ⇒ VERIFIED; ANY doctrinal REFUTES — even inside a MAJORITY
+  favoring SUPPORTS ⇒ REFUTED (fail-closed: a lone doctrinal dissenter
+  blocks, never passes). W3-only evidence (no W2) ⇒ INCONCLUSIVE (§4.3 rule
+  5). Every remaining case ⇒ INCONCLUSIVE — a conforming implementation has
+  NO silent pass. *Errata (§14.2):* the design's R2 makes SPLIT handling
+  mode-dependent (CERTIFICATE proceeds with a risk note); v1.0.0 keeps
+  non-critical SPLITs INCONCLUSIVE — that refinement is a v1.1 candidate.
 
 Meta-claims: the R1/R2 coverage questions are registered as new DOCTRINAL
 claims (predicate `coverage-of:<parent predicate>`), adjudicated by the
@@ -328,6 +336,18 @@ note.
 
 14.2 Errata. v1.0.0-draft erratum D4 (2026-09-10): replay exclusion of
 superseded deliberation items was unspecified; §9.4 fixes the scope guard.
+Erratum D5 (2026-09-10): the entry-hash preimage originally omitted `ts` and
+`schema_version`; §2.3 now binds every stored field (chain format break —
+≤0.3.0 ledgers regenerate) and mandates ISO-8601 string timestamps. Erratum
+D6 (2026-09-10): §7's R4 originally read "anything else ⇒ INCONCLUSIVE",
+contradicting the reference ladder; §7 now states the doctrinal-consensus
+rule normatively (VERIFIED on unanimous SUPPORTS, REFUTED on any doctrinal
+REFUTES even within a majority, INCONCLUSIVE on non-critical SPLIT / W3-only
+/ no evidence); the design's mode-dependent SPLIT handling (§6.2 R2) remains
+a v1.1 candidate. Erratum D7 (2026-09-10): §9.2 is now explicit — a revision
+hook that is absent or errors degrades to keep-opinion; a juror MUST NOT be
+dropped from the revised basis, which would silently erase its first-round
+REFUTES.
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are

@@ -26,7 +26,7 @@ def test_full_turn_split_to_dossier_to_decision(tmp_path):
     assert p["decision"] == "accept_with_risk"
     assert p["decided_by"] == "risk-owner-1"
     assert p["risk_note"] == "owned; ship with monitoring"
-    assert isinstance(p["ts"], float)
+    assert isinstance(p["ts"], str) and p["ts"].startswith("20")
     assert led.query("escalation.resolved") == [entry]
 
 
@@ -37,17 +37,21 @@ def test_invalid_decision_raises():
     assert led.query("escalation.resolved") == []   # nothing written on reject
 
 
-def test_fail_safe_entry_written():
-    led = Ledger()
-    entry = apply_fail_safe(led, "d-1", ActorRef(kind="system",
-                                                 identity="veridict-policy",
-                                                 version="0.1.0"))
+def test_fail_safe_entry_written(tmp_path):
+    # D4 (fresh-eyes audit): the fail-safe refuses fabricated dossier ids —
+    # exercise it against a REAL issued dossier from the escalated run.
+    result, led, cid = escalated_run(tmp_path)
+    d = dossier_for(led, cid)
+    entry = apply_fail_safe(led, d["dossier_id"],
+                            ActorRef(kind="system",
+                                     identity="veridict-policy",
+                                     version="0.1.0"))
     assert entry["entry_type"] == "policy.fail_safe"
     assert entry["author"]["kind"] == "system"
-    assert entry["payload"]["dossier_id"] == "d-1"
+    assert entry["payload"]["dossier_id"] == d["dossier_id"]
     assert entry["payload"]["consequence"] == \
         "gate_stays_blocked_or_certificate_stamped_unresolved"
-    assert isinstance(entry["payload"]["ts"], float)
+    assert isinstance(entry["payload"]["ts"], str) and entry["payload"]["ts"].startswith("20")
 
 
 def test_gate_stays_blocked_after_fail_safe(tmp_path):

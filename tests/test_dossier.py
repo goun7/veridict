@@ -2,7 +2,8 @@
 import json
 
 from veridict.audit import AuditOrchestrator
-from veridict.dossier import dossier_for, generate_dossier, render_markdown
+from veridict.dossier import (dossier_for, generate_dossier, render_markdown,
+                              resolve_dossier, apply_fail_safe)
 from veridict.jury import Jury, Opinion, ScriptedProvider
 from veridict.keys import KeyStore
 from veridict.ledger import Ledger
@@ -216,3 +217,27 @@ def test_generate_dossier_id_is_stable_short_hash():
                           Ledger(), _policy(), "other-digest")
     assert d1["dossier_id"] == d2["dossier_id"]
     assert len(d1["dossier_id"]) == 16 and d1["dossier_id"] != d3["dossier_id"]
+
+
+def test_resolve_rejects_fabricated_dossier_id(tmp_path):
+    """Audit D4: a resolution for a dossier that was never issued would
+    fabricate human authority — must be rejected before any write."""
+    led = Ledger()
+    try:
+        resolve_dossier(led, "deadbeefdeadbeef", "accept_with_risk", "gokun")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised and not led.query("escalation.resolved")
+
+
+def test_fail_safe_rejects_fabricated_dossier_id():
+    from veridict.schemas import ActorRef
+    led = Ledger()
+    try:
+        apply_fail_safe(led, "deadbeefdeadbeef",
+                        ActorRef(kind="system", identity="core", version="1"))
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised and not led.query("policy.fail_safe")
