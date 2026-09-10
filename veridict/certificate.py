@@ -147,7 +147,25 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
         claims_by_id = {e["payload"]["claim_id"]: Claim.from_dict(e["payload"])
                         for e in led.query("claim.registered")}
         ev_by_claim: dict[str, list[EvidenceItem]] = {}
+        # Deliberation parity (§4.4.3): when a claim went through a revision
+        # round, the deliberation.rounded entry names the SUPERSEDED first-round
+        # item ids. Replay must adjudicate on the post-deliberation evidence set
+        # (first-round items stay in the ledger, but they no longer decide).
+        # Scope guard (D4, audit round 4): only deliberation entries INSIDE the
+        # anchored prefix count (seq <= checkpoint). The cert's signed anchor
+        # pins that prefix's chain_hash, so entries committed pre-issuance are
+        # tamper-evident; a post-issuance fake deliberation entry must NOT be
+        # able to erase refuting evidence from the replay.
+        superseded: set[str] = set()
+        if isinstance(cp_seq, int):
+            for e in led.query("deliberation.rounded"):
+                if e["seq"] > cp_seq:
+                    continue
+                superseded.update(x["evidence_id"]
+                                  for x in e["payload"].get("first_round", []))
         for e in led.query("evidence.recorded"):
+            if e["payload"]["evidence_id"] in superseded:
+                continue
             ev_by_claim.setdefault(e["payload"]["claim_id"], []).append(
                 EvidenceItem.from_dict(e["payload"]))
         for c in cert["claims"]:

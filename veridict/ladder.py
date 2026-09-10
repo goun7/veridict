@@ -16,6 +16,9 @@ class Rung:
     R4 = "R4"
 
 
+SPLIT_RESOLVED_NOTE = "first-round split; post-deliberation consensus"
+
+
 @dataclass(frozen=True)
 class Adjudication:
     claim_id: str
@@ -26,7 +29,8 @@ class Adjudication:
     meta_claims: tuple[dict, ...] = ()
 
 
-def adjudicate(claim: Claim, evidence: list[EvidenceItem], policy) -> Adjudication:
+def adjudicate(claim: Claim, evidence: list[EvidenceItem], policy,
+               first_round_split: bool = False) -> Adjudication:
     """Walk R0->R4 top-down; first matching rung decides.
 
     Doubt only comes from refutation: W1a support plus silent doctrine is a
@@ -35,12 +39,19 @@ def adjudicate(claim: Claim, evidence: list[EvidenceItem], policy) -> Adjudicati
     signal that opens a meta-claim, not a refutation (R2); a critical-class
     doctrinal SPLIT escalates to the human risk owner (R3); and absence of
     evidence is never a silent pass (R4).
+
+    `first_round_split` marks a claim whose first-round jury round SPLIT and
+    went through a deliberation round (§4.4.3): the risk note keeps the split
+    visible even when the revised items reached consensus.
     """
     w1a = [e for e in evidence if e.tier == "W1a"]
     w1b = [e for e in evidence if e.tier == "W1b"]
     w2plus = [e for e in evidence if e.tier in ("W2", "W3")]
     divergence = compute_divergence(evidence, getattr(policy, "divergence_tolerance", 1 / 3))
     risk: list[str] = []
+    if first_round_split:
+        risk.append(SPLIT_RESOLVED_NOTE if divergence != "SPLIT"
+                    else SPLIT_RESOLVED_NOTE + " not reached")
     metas: list[dict] = []
 
     def _meta(depth: int = 1) -> None:
