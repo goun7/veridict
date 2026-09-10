@@ -1,0 +1,109 @@
+name: Nightly soak
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install
+        run: pip install -e . && pip install pytest
+      - name: Suite
+        run: pytest -q
+      - name: Tamper soak (5 seeds × 300 mutated ledgers)
+        run: |
+          python - <<'EOF'
+          import sys, random
+          sys.path.insert(0, '.'); sys.path.insert(0, 'tests')
+          from test_fuzz_ledger import _random_evidence
+          from veridict.ledger import Ledger
+          from veridict.schemas import ActorRef
+          undetected, total = [], 0
+          for seed in (1, 7, 1337, 20260910, 987654321):
+              rng = random.Random(seed)
+              for i in range(300):
+                  total += 1
+                  led = Ledger()
+                  for j in range(4):
+                      led.append("evidence.recorded",
+                                 ActorRef(kind="system", identity="core", version="1"),
+                                 _random_evidence(rng, j).to_dict())
+                  e = led.entries[rng.randrange(len(led.entries))]
+                  field = rng.choice(["ts", "entry_type", "author", "payload",
+                                      "payload_hash", "prev_hash", "entry_hash"])
+                  if field == "payload":
+                      e["payload"][next(iter(e["payload"]))] = f"t-{i}"
+                  elif field == "author":
+                      e[field] = {"kind": "evil", "identity": "m", "version": "0"}
+                  elif field == "entry_type":
+                      e[field] = "evil.entry"
+                  else:
+                      e[field] = "f" * 64
+                  if led.verify_chain()[0]:
+                      undetected.append((seed, i, field))
+          print(f"soak: {total} mutated ledgers — undetected: {undetected or 'NONE'}")
+          assert not undetected
+          EOF
+      - name: Latency budget with a wider sample
+        run: LATENCY_RUNS=12 python scripts/measure_latency.py
+      - name: Cross-implementation parity fuzz (larger sample)
+        run: |
+          python - <<'EOF'
+          import sys, random, json, tempfile, os
+          sys.path.insert(0, '.'); sys.path.insert(0, 'examples'); sys.path.insert(0, 'tests')
+          from test_fuzz_e2e import _random_item
+          from examples.spec_verifier import verify_certificate as spec_verify
+          from veridict.certificate import verify_certificate as ref_verify
+          from veridict.claim_extractor import ClaimExtractor
+          from veridict.keys import KeyStore
+          from veridict.ladder import adjudicate
+          from veridict.ledger import Ledger
+          from veridict.policy import PolicyDeclaration, Thresholds
+          from veridict.schemas import ActorRef, EvidenceItem, TaskManifest
+          from veridict.certificate import CertificateIssuer
+          rng = random.Random(777)
+          mismatches = []
+          with tempfile.TemporaryDirectory() as td:
+              for i in range(40):
+                  led = Ledger(); ks = KeyStore(led); kid = ks.generate_and_enroll("soak")
+                  pol = PolicyDeclaration(policy_id="soak", mode="GATE", criticality=(),
+                                          thresholds=Thresholds(), divergence_tolerance=1/3)
+                  task = TaskManifest(task_id=f"soak-{i}", artifact_path="/x",
+                                      actor_identity="ai-dev",
+                                      intent_lines=("MACHINE: add computes the sum of two numbers",),
+                                      criticality=(), has_existing_tests=True, pytest_args=())
+                  claim = ClaimExtractor().extract(task, f"art-{i}")[0]
+                  led.append("claim.registered", ActorRef(kind="system", identity="c", version="1"),
+                             claim.to_dict())
+                  items = []
+                  for j in range(rng.randrange(1, 4)):
+                      b = _random_item(rng, i * 40 + j)
+                      it = EvidenceItem(evidence_id=b.evidence_id, claim_id=claim.claim_id,
+                                        evidence_class="JURY_OPINION", tier=rng.choice(("W2", "W3")),
+                                        producer=b.producer, artifact_ref=f"art-{i}",
+                                        reproducibility=b.reproducibility, stance=b.stance,
+                                        confidence=b.confidence, rationale=b.rationale)
+                      items.append(it)
+                      led.append("evidence.recorded", ActorRef(kind=it.producer["kind"],
+                                 identity=it.producer["identity"], version=it.producer["version"]),
+                                 it.to_dict())
+                  adj = adjudicate(claim, items, pol)
+                  cert = CertificateIssuer(led, ks, kid).issue(
+                      task=task, artifact_digest=f"art-{i}", policy=pol, claims=[claim],
+                      adjudications=[adj], evidence_by_claim={claim.claim_id: items},
+                      jury_families=[], disclosure_level="REDACTED",
+                      scope_limits=["claim coverage is heuristic, not exhaustive"])
+                  lp, cp = os.path.join(td, f"l{i}.jsonl"), os.path.join(td, f"c{i}.json")
+                  led.save(lp); json.dump(cert, open(cp, "w"))
+                  r, s = ref_verify(lp, cp), spec_verify(lp, cp)
+                  if r != s: mismatches.append(i)
+          print(f"parity fuzz: 40 random audits — mismatches: {mismatches or 'NONE'}")
+          assert not mismatches
+          EOF
