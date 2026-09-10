@@ -16,10 +16,14 @@ from .watchers import ManifestRegistry
 
 
 def build_index(ledger: Ledger) -> dict:
-    """Latest-registration-wins index over `watcher.registered` entries."""
+    """Latest-lifecycle-wins index: `watcher.registered` entries whose
+    CURRENT status is active (§6.6 — a revoked watcher must not be listed;
+    a marketplace index that lists revoked watchers is a CRL nobody reads)."""
     latest: dict[str, dict] = {}
     for e in ledger.query("watcher.registered"):
-        latest[e["payload"]["manifest"]["watcher_id"]] = e
+        wid = e["payload"]["manifest"]["watcher_id"]
+        if ManifestRegistry.is_active(ledger, wid):
+            latest[wid] = e
     watchers = []
     for wid, e in latest.items():
         p = e["payload"]
@@ -44,7 +48,9 @@ def validate_index(index: dict, ledger: Ledger) -> dict:
     errors: list[str] = []
     registered: dict[str, dict] = {}
     for e in ledger.query("watcher.registered"):
-        registered[e["payload"]["manifest"]["watcher_id"]] = e
+        wid = e["payload"]["manifest"]["watcher_id"]
+        if ManifestRegistry.is_active(ledger, wid):
+            registered[wid] = e
     listed: set[str] = set()
     for w in index.get("watchers", []):
         wid = w.get("watcher_id")

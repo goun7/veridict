@@ -91,6 +91,37 @@ class ManifestRegistry:
                           "sig_b64": sig},
         })
 
+    def revoke(self, watcher_id: str, reason: str) -> dict:
+        """Append a signed `watcher.revoked` entry (§6.6): a registry without
+        revocation is a CA without CRLs. Forward-looking: evidence recorded
+        before the revocation stays in the ledger (honesty — no deletion);
+        the orchestrator and the marketplace index stop treating the watcher
+        as active from this seq onward."""
+        manifest = self.get_manifest(ledger=self.ledger, watcher_id=watcher_id)
+        body = {"watcher_id": watcher_id, "reason": reason,
+                "revoked_manifest_digest": manifest.manifest_digest() if manifest
+                else None}
+        sig = self.keystore.sign(self.key_id, canonical_json(body).encode("utf-8"))
+        return self.ledger.append("watcher.revoked", REGISTRY_AUTHOR, {
+            **body, "signature": {"key_id": self.key_id, "algorithm": "ed25519",
+                                  "sig_b64": sig}})
+
+    @staticmethod
+    def lifecycle_status(ledger: Ledger, watcher_id: str) -> str:
+        """'active' | 'revoked' | 'unknown' — the LATEST lifecycle entry wins
+        (registration or revocation), matching latest-wins re-registration."""
+        status = "unknown"
+        for e in ledger.entries:
+            if e["entry_type"] == "watcher.registered" and                     e["payload"]["manifest"]["watcher_id"] == watcher_id:
+                status = "active"
+            elif e["entry_type"] == "watcher.revoked" and                     e["payload"]["watcher_id"] == watcher_id:
+                status = "revoked"
+        return status
+
+    @staticmethod
+    def is_active(ledger: Ledger, watcher_id: str) -> bool:
+        return ManifestRegistry.lifecycle_status(ledger, watcher_id) == "active"
+
     @staticmethod
     def get_manifest(ledger: Ledger, watcher_id: str) -> WatcherManifest | None:
         for e in reversed(ledger.query("watcher.registered")):

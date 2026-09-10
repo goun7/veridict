@@ -18,7 +18,7 @@ from .policy import PolicyDeclaration, PolicyEngine
 from .schemas import ActorRef, TaskManifest
 from .utils import canonical_json, iter_python_files, sha256_hex
 from .verifiers import StaticAnalyzerVerifier, TestExecutorVerifier
-from .watchers import run_session
+from .watchers import ManifestRegistry, run_session
 
 ESCALATION_ROUTE = "human-risk-owner"   # §6.1: the human is the risk owner
 
@@ -44,13 +44,17 @@ def artifact_digest(root: str) -> str:
 
 class AuditOrchestrator:
     def __init__(self, ledger: Ledger, policy: PolicyDeclaration, jury: Jury,
-                 keystore: KeyStore, key_id: str, watchers: tuple = ()) -> None:
+                 keystore: KeyStore, key_id: str, watchers: tuple = (),
+                 registry: Ledger | None = None) -> None:
         self.ledger = ledger
         self.policy = policy
         self.jury = jury
         self.keystore = keystore
         self.key_id = key_id
         self.watchers = tuple(watchers)
+        # §6.6 revocation: when a registry ledger is wired, revoked
+        # watchers are not participants — no evidence, no abstention.
+        self.registry = registry
 
     def _record(self, ev, author_kind: str) -> None:
         """Record evidence with the producer's calibration factor applied at
@@ -98,6 +102,9 @@ class AuditOrchestrator:
             for session in self.watchers:
                 if not session.matches(c):
                     continue
+                if self.registry is not None and not ManifestRegistry.is_active(
+                        self.registry, session.manifest.watcher_id):
+                    continue   # revoked (§6.6) — not a participant
                 watcher_ev = run_session(session, c, digest,
                                          artifact_path=task.artifact_path)
                 if watcher_ev is None:
