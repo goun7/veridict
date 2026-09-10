@@ -19,3 +19,9 @@ An independent implementation of the standard (§11.3) MUST, from
 
 `tests/test_standard_vectors.py` pins these files against the reference
 implementation, including byte-determinism of regeneration.
+
+Scope note (honesty): verification alone does NOT pin these exact bytes —
+`verify_certificate` would validly verify ANY self-consistent
+ledger+certificate pair. What pins the exact content is the regeneration
+byte-comparison test (fixed ts values, fixed ed25519 seed). Keep both tests
+if you fork the vectors.
