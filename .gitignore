@@ -8,3 +8,4 @@ dist/
 dogfood_ledger.jsonl
 dogfood_cert.json
 dogfood_index.json
+_site/
