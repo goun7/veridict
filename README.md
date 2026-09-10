@@ -60,6 +60,11 @@ python scripts/measure_latency.py
 CI runs all of the above on every push — the receipts are regenerated, not
 narrated.
 
+## Public site
+
+The standard and the design document are readable (and linkable) at
+**https://goun7.github.io/veridict/** — deployed from `main` on every push.
+
 ## Documents
 
 - **Standard (normative draft):** [`docs/specs/2026-09-10-veridict-standard-v1.0.md`](docs/specs/2026-09-10-veridict-standard-v1.0.md) — §14.2 carries errata; errata proposals are a first-class issue template
