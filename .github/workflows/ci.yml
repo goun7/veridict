@@ -28,14 +28,14 @@ jobs:
           python -c "import json; d=json.load(open('dogfood_out.json')); assert d['verification']['valid'] and d['risk_level']=='low' and not d['blocked'], d"
       - name: Offline verify of the dogfood certificate
         run: veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
-      - name: Canary quality sheet (caught 5 / fp 0 expected)
+      - name: Canary quality sheet (caught 9 / fp 0 expected)
         run: |
           python - <<'EOF'
           import sys; sys.path.insert(0, '.')
           from tests.test_canary import _audit_fn
           from veridict.canary import CanaryRunner
           s = CanaryRunner(_audit_fn()).run('corpus/corpus.jsonl')
-          assert s['caught_total'] == 5 and s['false_positives'] == 0, s
+          assert s['caught_total'] == 9 and s['false_positives'] == 0, s
           print('canary caught:', s['caught_total'], '| fp:', s['false_positives'])
           EOF
       - name: GATE latency budget (design §6.5, p95 < 30 min)
