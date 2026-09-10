@@ -116,6 +116,13 @@ MUST enforce, and MUST NOT offer configuration to disable:
   5. W3 alone can never yield VERIFIED; a MACHINE_CHECKABLE claim without W1
      evidence is at best INCONCLUSIVE.
 
+5.4 **Divergence classification (normative).** Over the W2/W3 evidence on a
+claim: if there is no doctrinal evidence, or no REFUTES, or no SUPPORTS, the
+divergence is UNANIMOUS. Otherwise let `m` = the minority stance count; if
+`m / |doctrinal| ≤ divergence_tolerance` the divergence is MAJORITY, else
+SPLIT. W1a/W1b conflicts are not divergence — the ladder (§7) handles them
+directly.
+
 ## 6. Watchers (third-party producers)
 
 6.1 **WatcherManifest** (registration contract): `watcher_id`, `name`,
@@ -158,14 +165,32 @@ watcher's opinions.
 
 ## 7. Adjudication ladder (normative)
 
-`R0` all-supporting evidence incl. a tier ≥ W1a ⇒ VERIFIED.
-`R1` W1a SUPPORTS + W1b REFUTES ⇒ open meta-claim (depth-budgeted; §5.3 rule 3).
-`R2` W1b REFUTES without W1a ⇒ INCONCLUSIVE (absence of machine truth is not
-support).
-`R3` critical-class doctrinal SPLIT ⇒ ESCALATED to the human risk owner;
-the system MUST generate a dossier (§12) and MUST NOT resolve itself.
-`R4` anything else ⇒ INCONCLUSIVE — a conforming implementation has NO silent
-pass.
+Walk top-down; the first matching rule decides. `w1a`/`w1b` = the W1a/W1b
+evidence sets; "all-SUPPORTS" is over every evidence item on the claim.
+
+- **R4-first.** No evidence at all ⇒ INCONCLUSIVE (absence is never a silent
+  pass).
+- **R0.** `verifiability == MACHINE_CHECKABLE` ∧ W1a non-empty ∧ all W1a
+  SUPPORTS ∧ no REFUTES at any tier ⇒ VERIFIED (doctrine is advisory). If
+  the meta-claim depth budget > 0, a coverage meta-claim is registered.
+- **R1.** W1a non-empty:
+  - any W1a REFUTES ⇒ REFUTED (machine truth is decisive);
+  - else any W1b REFUTES ⇒ VERIFIED + coverage meta-claim (R2 signal — a
+    statistical W1b refutation does not overturn W1a);
+  - else any W2/W3 REFUTES ⇒ VERIFIED + meta-claim if budget (doctrine
+    cannot overturn W1a).
+- **R2.** Any W1b REFUTES with no W1a ⇒ INCONCLUSIVE + meta-claim (a
+  statistical signal; absence of machine truth is not support).
+- **R3.** `claim.critical_class ∈ policy.criticality` ∧ divergence == SPLIT
+  ⇒ ESCALATED to the human risk owner; the system MUST generate a dossier
+  (§12) and MUST NOT resolve itself.
+- **R4.** Anything else ⇒ INCONCLUSIVE — a conforming implementation has NO
+  silent pass.
+
+Meta-claims: the R1/R2 coverage questions are registered as new DOCTRINAL
+claims (predicate `coverage-of:<parent predicate>`), adjudicated by the
+jury within the remaining depth budget; their verdicts feed the policy
+engine and the certificate like any claim's.
 
 A first-round split that went through deliberation keeps a visible risk note
 ("first-round split; post-deliberation consensus" / "… consensus not

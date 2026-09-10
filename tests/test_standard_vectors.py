@@ -47,3 +47,33 @@ def test_regeneration_is_byte_deterministic(tmp_path):
         rebuilt = hashlib.sha256(
             open(os.path.join(tmp_path, name), "rb").read()).hexdigest()
         assert pinned == rebuilt, name
+
+
+def test_spec_only_verifier_reproduces_the_verdict(tmp_path):
+    """Exit criterion ① rehearsal: a verifier written against the STANDARD
+    alone (examples/spec_verifier.py — zero veridict imports) must reach the
+    same verdict from the vectors, and must REJECT a tampered ledger."""
+    vec = VEC
+    rc = subprocess.run(
+        [sys.executable, os.path.join(REPO, "examples", "spec_verifier.py"),
+         "--ledger", os.path.join(vec, "ledger.jsonl"),
+         "--cert", os.path.join(vec, "certificate.json"),
+         "--expected", os.path.join(vec, "expected_verify.json")],
+        capture_output=True).returncode
+    assert rc == 0
+
+    # negative: flip a payload byte in a COPY — the spec verifier must reject
+    import json
+    ledger_copy = tmp_path / "ledger.jsonl"
+    lines = open(os.path.join(vec, "ledger.jsonl"),
+                 encoding="utf-8").read().splitlines()
+    entry = json.loads(lines[1])
+    entry["payload"]["key_id"] = "tampered-key-id"
+    lines[1] = json.dumps(entry, sort_keys=True, separators=(",", ":"))
+    ledger_copy.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    rc = subprocess.run(
+        [sys.executable, os.path.join(REPO, "examples", "spec_verifier.py"),
+         "--ledger", str(ledger_copy),
+         "--cert", os.path.join(vec, "certificate.json")],
+        capture_output=True).returncode
+    assert rc == 1
