@@ -40,7 +40,8 @@ class TestExecutorVerifier:
             claim_id=claim.claim_id, evidence_class="TEST_EXECUTION", tier="W1a",
             producer=TEST_ACTOR.to_dict(), artifact_ref=claim.derived_from,
             reproducibility={"deterministic": True, "rerun_recipe": recipe},
-            stance=stance, confidence=1.0)
+            stance=stance, confidence=1.0,
+            rationale=f"pytest exited with exit code {proc.returncode}")
 
 
 FORBIDDEN_CALLS = {"eval", "exec", "compile"}
@@ -78,4 +79,6 @@ class StaticAnalyzerVerifier:
             claim_id=claim.claim_id, evidence_class="STATIC_ANALYSIS", tier="W1b",
             producer=STATIC_ACTOR.to_dict(), artifact_ref=claim.derived_from,
             reproducibility={"deterministic": False, "rerun_recipe": recipe},
-            stance=stance, confidence=0.9 if stance == "REFUTES" else 0.7)
+            stance=stance, confidence=0.9 if stance == "REFUTES" else 0.7,
+            rationale="; ".join(findings) if findings
+            else "no bare-except or forbidden-call AST findings")

@@ -8,6 +8,7 @@ import sys
 
 from .audit import AuditOrchestrator
 from .certificate import verify_certificate
+from .dossier import dossier_for, render_markdown, resolve_dossier
 from .jury import Jury, OpenAICompatProvider, Opinion, ScriptedProvider
 from .keys import KeyStore
 from .ledger import Ledger
@@ -64,7 +65,9 @@ def _cmd_audit(args) -> int:
             policy_id=policy.policy_id, mode=args.mode,
             criticality=policy.criticality, thresholds=policy.thresholds,
             divergence_tolerance=policy.divergence_tolerance,
-            disclosure_level=policy.disclosure_level)
+            disclosure_level=policy.disclosure_level,
+            response_window_hours=policy.response_window_hours,
+            deliberation_rounds=policy.deliberation_rounds)
     ledger = Ledger()
     keystore = KeyStore(ledger)
     key_id = keystore.generate_and_enroll("veridict-core")   # same ledger as saved (offline verify)
@@ -96,6 +99,31 @@ def _cmd_quality_sheet(args) -> int:
     return 0
 
 
+def _cmd_dossier(args) -> int:
+    ledger = Ledger.load(args.ledger)
+    d = dossier_for(ledger, args.claim_id)
+    if d is None:
+        raise ValueError(f"no dossier issued for claim {args.claim_id}")
+    md = render_markdown(d)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(md)
+    else:
+        print(md, end="")
+    return 0
+
+
+def _cmd_resolve(args) -> int:
+    ledger = Ledger.load(args.ledger)
+    entry = resolve_dossier(ledger, args.dossier_id, args.decision,
+                            args.decided_by, risk_note=args.note or "")
+    ledger.save(args.ledger)
+    print(f"recorded {entry['payload']['decision']} by "
+          f"{entry['payload']['decided_by']} for dossier "
+          f"{entry['payload']['dossier_id']}")
+    return 0
+
+
 def main(argv=None) -> int:
     p = _Parser(prog="veridict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -116,6 +144,18 @@ def main(argv=None) -> int:
     q.add_argument("--corpus", required=True)
     q.add_argument("--out", required=True)
     q.set_defaults(func=_cmd_quality_sheet)
+    dos = sub.add_parser("dossier")
+    dos.add_argument("--ledger", required=True)
+    dos.add_argument("--claim-id", required=True)
+    dos.add_argument("--out")
+    dos.set_defaults(func=_cmd_dossier)
+    res = sub.add_parser("resolve")
+    res.add_argument("--ledger", required=True)
+    res.add_argument("--dossier-id", required=True)
+    res.add_argument("--decision", required=True)
+    res.add_argument("--decided-by", required=True)
+    res.add_argument("--note")
+    res.set_defaults(func=_cmd_resolve)
     # argparse raises SystemExit on usage errors / --help; convert to a return
     # code so in-process callers (and `sys.exit(main())`) see exit 1, not a
     # raised exception. Dispatch errors below never raise SystemExit.

@@ -114,7 +114,8 @@ class Jury:
             claim_id=claim.claim_id, evidence_class="JURY_OPINION", tier="W2",
             producer=author, artifact_ref=artifact_digest,
             reproducibility={"deterministic": False, "rerun_recipe": None},
-            stance=opinion.stance, confidence=opinion.confidence)
+            stance=opinion.stance, confidence=opinion.confidence,
+            rationale=opinion.rationale)
 
     def deliberate(self, claim: Claim, artifact_digest: str,
                    first_items: list[EvidenceItem],
@@ -142,7 +143,7 @@ class Jury:
                 first = next(it for it in first_items
                              if it.producer["identity"] == p.identity)
                 op = p.revise(packets[p.identity]) if p.revise is not None \
-                    else Opinion(first.stance, first.confidence, "")
+                    else Opinion(first.stance, first.confidence, first.rationale)
             except (StopIteration, ProviderError):
                 abstained.append(p.identity)
                 continue

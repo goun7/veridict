@@ -186,6 +186,15 @@ def test_run_session_passes_artifact_path_reference():
     assert seen == ["/artifacts/repo"]
 
 
+def test_watcher_evidence_persists_doctrine_rationale():
+    # The doctrine fn's rationale (3rd tuple element) was accepted-but-dropped;
+    # it must persist on the evidence item (dossier risk_frame input, §6.3).
+    s = WatcherSession(_session_manifest(),
+                       lambda summary, ref: ("REFUTES", 0.9, "billing path flips signs"))
+    ev = run_session(s, _claim_stub("x"), "digest")
+    assert ev.rationale == "billing path flips signs"
+
+
 def _claim_stub(summary):
     from veridict.schemas import Claim
     return Claim(claim_id="cx", task_id="t", subject="s", predicate="p", scope="r",

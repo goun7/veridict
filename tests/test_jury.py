@@ -41,6 +41,25 @@ def test_provider_error_is_recorded_as_abstain_not_evidence():
     assert items and len(items) == 1          # only the healthy provider
     assert abstained == ["boom-1"]            # abstention reported, never evidence
 
+def test_evidence_item_carries_opinion_rationale():
+    items, _ = _jury().evaluate(CLAIM, "digest")
+    assert [e.rationale for e in items] == ["looks fine", "agrees"]
+
+
+def test_deliberate_without_revise_keeps_first_round_rationale():
+    # A provider with no revise hook keeps its first-round OPINION — its
+    # rationale is that same first-round opinion's rationale (already computed;
+    # the revised item must not silently drop it).
+    j = Jury([ScriptedProvider(family="a", identity="a-1",
+                               default=Opinion("SUPPORTS", 0.8, "machine truth holds")),
+              ScriptedProvider(family="b", identity="b-1",
+                               default=Opinion("REFUTES", 0.9, "rounding drops cents"))])
+    items, _ = j.evaluate(CLAIM, "digest")
+    revised, _ = j.deliberate(CLAIM, "digest", items, 1 / 3)
+    b = next(e for e in revised if e.producer["identity"] == "b-1")
+    assert b.stance == "REFUTES" and b.rationale == "rounding drops cents"
+
+
 def test_blindness_providers_receive_no_cross_context():
     seen = []
     class Recorder(ScriptedProvider):
