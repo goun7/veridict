@@ -68,7 +68,8 @@ class OpenAICompatProvider:
         try:
             resp = httpx.post(
                 self.base_url.rstrip("/") + "/chat/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=({"Authorization": f"Bearer {self.api_key}"}
+                         if self.api_key else {}),
                 json={"model": self.model,
                       "messages": [{"role": "user", "content": prompt}],
                       "temperature": 0},
@@ -80,7 +81,11 @@ class OpenAICompatProvider:
             if stance not in ("SUPPORTS", "REFUTES"):
                 raise ProviderError(f"bad stance: {stance}")
             return Opinion(stance, float(data["confidence"]), str(data["rationale"]))
-        except (httpx.HTTPError, KeyError, ValueError, TypeError, IndexError) as exc:
+        except Exception as exc:   # noqa: BLE001 — transport AND contract
+            # failures must degrade to ProviderError (an abstaining juror),
+            # never crash the audit. Found by the local-mock e2e test: an
+            # unset VERIDICT_JURY_KEY used to raise an uncaught
+            # httpcore.LocalProtocolError ("Bearer " with an empty token).
             raise ProviderError(str(exc)) from exc
 
 
