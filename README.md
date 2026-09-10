@@ -30,7 +30,10 @@ certification precondition: dogfood holds its own example watchers to it.
 Self-audit: `python scripts/dogfood.py`.
 
 Phase 3 substrate in place: spec v1.0.0-draft (`docs/specs/`), governance
-docs, and the marketplace manifest index (`veridict index`). The chain format
+docs, conformance test vectors (`docs/standard-test-vectors/` — regenerate
+with `python scripts/build_test_vectors.py`), and a **verifier written from
+the standard alone** (`examples/spec_verifier.py` — zero veridict imports)
+that reproduces the reference verdict from the vectors. The chain format
 binds every stored field including timestamps; deterministic fuzz properties
 pin serialization and tamper detection. Phase 3 exit criteria that remain
 open are external by nature: an independent verifier implemented from the
