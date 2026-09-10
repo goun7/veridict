@@ -4,6 +4,7 @@ dogfood() refuses re-entry (VERIDICT_DOGFOOD_ACTIVE guard), so the module
 shares ONE dogfood() run via a module-scoped fixture; every assertion in this
 file rides that single audit.
 """
+import os
 import time
 
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from scripts.dogfood import dogfood
 from veridict.certificate import verify_certificate
 from veridict.ledger import Ledger
+from veridict.registry_index import load_index, validate_index
 
 
 @pytest.fixture(scope="module")
@@ -42,6 +44,12 @@ def test_dogfood_phase2_receipt_block(dogfood_out):
     # T26: the three examples pass the conformance kit (§5.5 certification bar)
     assert p2["conformance"] == {"example-security": True, "example-cost": True,
                                  "example-compliance": True}
+    # T28: marketplace index exported from the dogfood ledger and it validates
+    assert p2["marketplace_index"] is True
+    assert os.path.exists(out["index_path"])
+    idx_report = validate_index(load_index(out["index_path"]),
+                                Ledger.load(out["ledger_path"]))
+    assert idx_report["valid"] is True, idx_report["errors"]
     # the segment must leave the MAIN contract exactly as before
     assert out["cert"]["risk_level"] == "low"
     assert out["outcome"].blocked is False
