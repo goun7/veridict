@@ -161,7 +161,13 @@ v1.0.0 kit before marketplace listing: C1 manifest invariants; C2 W1a
 ceiling; C3 blindness; C4/C5/C6 abstain on error/None/bad-stance; C7
 confidence clamp; C8 evidence shape on a benign probe; C9 registry
 verification; C10 deadline enforcement. The kit probes the CONTRACT, not the
-watcher's opinions.
+watcher's opinions. The kit is a LOWER BOUND on trustworthiness, not a
+proof: it exercises a watcher's function a bounded number of times, so a
+stateful function can pass the kit and deviate in production — marketplace
+certification therefore additionally requires review of the manifest's
+`code_hash`. Similarly, deadline enforcement protects the audit, not the
+host: an expired watcher's thread runs until its function completes
+(host-side isolation is the control for a function that never returns).
 
 ## 7. Adjudication ladder (normative)
 

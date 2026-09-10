@@ -51,7 +51,16 @@ def _check(cid: str, name: str, fn) -> dict:
 
 def run_conformance_suite(session: WatcherSession,
                           registry_factory=None) -> dict:
-    """Run the full watcher contract suite. `conformant` = every check passed."""
+    """Run the full watcher contract suite. `conformant` = every check passed.
+
+    HONEST LIMIT (fresh-eyes audit F1a, 2026-09-10): the kit exercises the
+    session's fn a handful of times in a fixed order — a STATEFUL fn can pass
+    every check and deviate in production. Spot-checking cannot bound an
+    arbitrary program; `conformant` is a LOWER BOUND on trustworthiness, not
+    a proof. Listing a watcher on the marketplace therefore additionally
+    requires code review of the manifest's `code_hash` at certification time
+    (§5.5): the kit automates what CAN be automated, and is honest about what
+    cannot."""
     checks: list[dict] = []
     manifest = session.manifest
     claim = _probe_claim()

@@ -165,7 +165,13 @@ def run_session(session: WatcherSession, claim: Claim, artifact_digest: str,
     (§5.3). Blindness means no other producers' outputs, not reference-freeness.
     Deadline (§5.3 resource_class): the manifest's timeout_seconds applies when
     the caller passes none; expiry → abstain (a slow watcher is not a refuting
-    one). With no deadline the fn runs inline on the calling thread.
+    one). HONEST LIMIT (fresh-eyes audit F1b, 2026-09-10): the deadline
+    protects the AUDIT, not the host — `shutdown(wait=False)` leaves the
+    worker running until the fn itself completes (measured: 50 timeouts left
+    35 live threads at +0.2s; all reclaimed once their fns finished). A fn
+    that never returns leaks its thread for the process lifetime — host-side
+    isolation (sandbox_level) is the control for that, not this deadline.
+    With no deadline the fn runs inline on the calling thread.
     """
     deadline = timeout_seconds
     if deadline is None:
