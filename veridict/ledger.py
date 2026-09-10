@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime, timezone
 
 from .schemas import ActorRef, SCHEMA_VERSION
 from .utils import canonical_json, payload_digest, sha256_hex
@@ -36,7 +37,7 @@ class Ledger:
         seq = len(self.entries)
         prev_hash = self.entries[-1]["entry_hash"] if self.entries else GENESIS
         author_d = author.to_dict()
-        ts = time.time()
+        ts = datetime.now(timezone.utc).isoformat()
         entry = {
             "schema_version": SCHEMA_VERSION,
             "seq": seq,
@@ -44,6 +45,9 @@ class Ledger:
             "entry_type": entry_type,
             "author": author_d,
             "payload": payload,
+            # ISO-8601 UTC string (§2.3): floats must not occupy hashed
+            # positions — canonical float formatting is language-fragile,
+            # strings are not. seq carries the ordering; ts is provenance.
             "ts": ts,
             "payload_hash": payload_digest(payload),
             "entry_hash": _entry_hash(prev_hash, payload, entry_type, seq,

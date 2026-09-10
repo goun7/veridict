@@ -43,9 +43,12 @@ at minimum: `seq` (0-based, contiguous), `ts`, `entry_type`, `author`
 (ActorRef: `kind`, `identity`, `version`), `payload`, `payload_hash`
 (= payload_digest), `prev_hash`, `entry_hash`. The preimage of `entry_hash`
 MUST bind all prior fields including `prev_hash`; the genesis entry's
-`prev_hash` MUST be a fixed sentinel. An implementation MUST refuse to load a
-line that is not valid JSON (a truncated tail is a crash artifact, not a
-silent gap) — it MUST raise a chain error naming the line number (§7.3 m2).
+`prev_hash` MUST be a fixed sentinel. `ts` MUST be an ISO-8601 UTC **string**
+— floats MUST NOT occupy hashed positions, because canonical float
+formatting is language-fragile while string formatting is not; `seq` carries
+the ordering and `ts` carries provenance. An implementation MUST refuse to
+load a line that is not valid JSON (a truncated tail is a crash artifact, not
+a silent gap) — it MUST raise a chain error naming the line number (§7.3 m2).
 
 2.4 **Authoritative kinds.** The entry-type registry (§14) is append-only.
 v1.0.0 registers: `key.enrolled`, `task.started`, `actor.output`,
