@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goun7.github.io/veridict/schemas/veridict-certificate-1.0.schema.json",
+  "title": "Veridict Audit Certificate (Standard v1.0.0-draft, \u00a711)",
+  "description": "The signed certificate anchored to a ledger checkpoint. The `signatures` array signs the certificate with the array REMOVED (canonical \u00a74 form); the public key is the `key.enrolled` ledger entry matching key_id.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "cert_id",
+    "subject",
+    "claims",
+    "policy_ref",
+    "policy_mode",
+    "score",
+    "risk_level",
+    "disclosure_level",
+    "scope_limits",
+    "ledger_anchor",
+    "signatures"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "cert_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16,64}$"
+    },
+    "subject": {
+      "type": "object",
+      "required": [
+        "actor_identity",
+        "artifact_digest"
+      ],
+      "properties": {
+        "actor_identity": {
+          "type": "string"
+        },
+        "artifact_digest": {
+          "type": "string"
+        },
+        "artifact_path": {
+          "type": "string"
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "verdict_value"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8,64}$"
+          },
+          "verdict_value": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "REFUTED",
+              "INCONCLUSIVE",
+              "ESCALATED"
+            ]
+          },
+          "rung": {
+            "type": "string"
+          },
+          "divergence": {
+            "type": "string",
+            "enum": [
+              "UNANIMOUS",
+              "STRONG",
+              "MAJORITY",
+              "CONTESTED"
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "policy_ref": {
+      "type": "object",
+      "required": [
+        "policy_id",
+        "mode"
+      ],
+      "properties": {
+        "policy_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "CERTIFICATE",
+            "GATE",
+            "WATCH",
+            "HYBRID"
+          ]
+        },
+        "criticality": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "policy_mode": {
+      "type": "string",
+      "enum": [
+        "CERTIFICATE",
+        "GATE",
+        "WATCH",
+        "HYBRID"
+      ]
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "disclosure_level": {
+      "type": "string",
+      "enum": [
+        "LOCAL_ONLY",
+        "REDACTED",
+        "FULL"
+      ]
+    },
+    "divergence_summary": {
+      "type": "object"
+    },
+    "jury_composition": {
+      "type": "object"
+    },
+    "issued_at_task": {
+      "type": "string"
+    },
+    "scope_limits": {
+      "type": "array",
+      "minItems": 1,
+      "description": "MUST begin with the honesty clause: claim coverage is heuristic, not exhaustive (\u00a711.2).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verify_instructions": {
+      "type": "string"
+    },
+    "ledger_anchor": {
+      "type": "object",
+      "required": [
+        "checkpoint_seq",
+        "chain_hash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chain_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "certificate_seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "description": "ed25519 over the canonical JSON of this certificate with this array removed.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key_id",
+          "algorithm",
+          "sig_b64"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8,64}$"
+          },
+          "algorithm": {
+            "type": "string",
+            "const": "ed25519"
+          },
+          "sig_b64": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9+/]+=*$"
+          }
+        }
+      }
+    }
+  }
+}

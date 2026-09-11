@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://goun7.github.io/veridict/schemas/veridict-ledger-entry-1.0.schema.json",
+  "title": "Veridict Ledger Entry (Standard v1.0.0-draft, \u00a74)",
+  "description": "One append-only entry. Hash binding: entry_hash = sha256(canonical [prev_hash, payload, entry_type, seq, author, ts, schema_version]); payload_hash = sha256(canonical payload). ts is an ISO-8601 UTC STRING \u2014 floats are too fragile to hash across languages.",
+  "type": "object",
+  "required": [
+    "entry_type",
+    "seq",
+    "ts",
+    "author",
+    "payload",
+    "payload_hash",
+    "prev_hash",
+    "entry_hash",
+    "schema_version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "entry_type": {
+      "type": "string",
+      "description": "Open registry \u2014 core types include: key.enrolled, task.registered, claim.registered, evidence.recorded, deliberation.rounded, checkpoint.anchored, policy.declared, certificate.issued, watcher.registered, watcher.revoked, dossier.opened, incident.recorded.",
+      "minLength": 1
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Position in the chain; 0 is genesis."
+    },
+    "ts": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?\\+00:00$",
+      "description": "ISO-8601 UTC with explicit +00:00 offset."
+    },
+    "author": {
+      "type": "object",
+      "required": [
+        "kind",
+        "identity",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Open registry (\u00a72.4): system, watcher, jury, human, agent \u2014 plus implementer-defined kinds (adjudicator, policy_engine, verifier...)."
+        },
+        "identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Entry-type-specific; hashed as canonical JSON. Open schema \u2014 implementers may add entry types, but core semantics (\u00a72.4) are fixed."
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "All-zeros (64 hex) for seq 0 (genesis)."
+    },
+    "entry_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    }
+  }
+}

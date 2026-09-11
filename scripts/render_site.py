@@ -77,6 +77,9 @@ certificates anyone can verify offline — from the standard alone.
 - **[Independent verifier challenge](https://github.com/goun7/veridict/issues/1)**
   — implement the standard without reading our code; findings earn errata
   credit
+- **JSON Schemas** for the watcher manifest, the certificate, and the
+  ledger entry live in [`docs/schemas/`](https://github.com/goun7/veridict/tree/main/docs/schemas) —
+  validated against every real artifact the system produces on each push
 
 *Humans own the verdict of responsibility; machines own the verdict of
 intelligence.*
