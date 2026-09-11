@@ -1,0 +1,28 @@
+{
+  "watcher_id": "example-security",
+  "name": "Example Security Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-security",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "STATIC_ANALYSIS"
+    ],
+    "max_tier": "W1b",
+    "subscribes_to": [
+      "payments",
+      "security"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "2c3a8f7a6a1b096432c4e3fc2f134f5393cd37323c30b1931d894572efbfd9e8",
+    "update_policy": "manual"
+  }
+}

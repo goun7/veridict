@@ -1,0 +1,28 @@
+{
+  "watcher_id": "example-cost",
+  "name": "Example Cost Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-cost",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W1b",
+    "subscribes_to": [
+      "cost",
+      "performance"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "48eac93e04cfc25b028f06a22ff64cf9d94794c6c0c9dbd798c072be73b84b9d",
+    "update_policy": "manual"
+  }
+}

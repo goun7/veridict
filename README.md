@@ -60,6 +60,18 @@ python scripts/measure_latency.py
 CI runs all of the above on every push — the receipts are regenerated, not
 narrated.
 
+## Register a watcher in 3 commands
+
+```bash
+veridict registry init --registry r.jsonl --key-out r.key.json
+veridict registry register --registry r.jsonl --manifest examples/manifests/example-security.json --key-file r.key.json
+veridict registry index --registry r.jsonl --out index.json
+```
+
+Then audit with the external registry as authority:
+`veridict audit ... --registry r.jsonl` — revoked watchers are refused
+(§6.6). See CONTRIBUTING.md for writing your own.
+
 ## Public site
 
 The standard and the design document are readable (and linkable) at
