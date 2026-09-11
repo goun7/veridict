@@ -1,7 +1,16 @@
 """JSON Schema contracts (published under docs/schemas/) must accept every
-REAL artifact the system produces — the shipped watcher manifests, a
-dogfood ledger (every entry), and a dogfood certificate. A schema that
-drifts from reality fails here before any implementer sees it."""
+REAL artifact the system produces — the shipped watcher manifests, the
+dogfood ledger (every entry), and the dogfood certificate. A schema that
+drifts from reality fails here before any implementer sees it.
+
+Dogfood artifacts are validated when they exist and SKIPPED when they do
+not: this module is also collected by dogfood's own inner pytest
+(scripts/dogfood.py audits the repo suite as W1a evidence), where the
+repo-root artifacts do not exist yet — reading them there would refute
+dogfood's W1a evidence and turn the main certificate HIGH (a
+self-referential deadlock). In a plain full-suite run, test_dogfood (d < j)
+writes the artifacts before this module validates them; CI's dedicated
+schema step runs after the dogfood receipt step and always has them."""
 import json
 import os
 import sys
@@ -43,18 +52,38 @@ def test_shipped_watcher_manifests_validate():
         schema.validate(manifest), name
 
 
+def _dogfood_artifacts():
+    """Return (ledger_path, cert_path) for the repo-root dogfood run, or None.
+
+    The artifacts exist iff a dogfood run has completed in this process tree
+    (test_dogfood's module fixture, or CI's dogfood receipt step). Inside
+    dogfood's own inner pytest they do not exist yet — that context is
+    skipped rather than fabricated (see module docstring)."""
+    ledger = os.path.join(REPO, "dogfood_ledger.jsonl")
+    cert = os.path.join(REPO, "dogfood_cert.json")
+    if os.path.exists(ledger) and os.path.exists(cert):
+        return ledger, cert
+    return None
+
+
 def test_dogfood_ledger_entries_validate():
+    artifacts = _dogfood_artifacts()
+    if artifacts is None:
+        pytest.skip("dogfood artifacts not produced yet (inner-pytest context)")
     schema = _validator(_load("veridict-ledger-entry-1.0.schema.json"))
     from veridict.ledger import Ledger
-    led = Ledger.load(os.path.join(REPO, "dogfood_ledger.jsonl"))
+    led = Ledger.load(artifacts[0])
     assert len(led.entries) > 20
     for i, entry in enumerate(led.entries):
         schema.validate(entry), f"entry {i} ({entry['entry_type']})"
 
 
 def test_dogfood_certificate_validates():
+    artifacts = _dogfood_artifacts()
+    if artifacts is None:
+        pytest.skip("dogfood artifacts not produced yet (inner-pytest context)")
     schema = _validator(_load("veridict-certificate-1.0.schema.json"))
-    with open(os.path.join(REPO, "dogfood_cert.json"), encoding="utf-8") as f:
+    with open(artifacts[1], encoding="utf-8") as f:
         cert = json.load(f)
     schema.validate(cert)
 
