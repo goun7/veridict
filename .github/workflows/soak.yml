@@ -53,6 +53,8 @@ jobs:
           EOF
       - name: Latency budget with a wider sample
         run: LATENCY_RUNS=12 python scripts/measure_latency.py
+      - name: Certificate mutation differential (100 mutations)
+        run: pytest tests/test_cert_mutation_parity.py -q
       - name: Cross-implementation parity fuzz (larger sample)
         run: |
           python - <<'EOF'

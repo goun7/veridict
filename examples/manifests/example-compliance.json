@@ -1,0 +1,27 @@
+{
+  "watcher_id": "example-compliance",
+  "name": "Example Compliance Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-compliance",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "*"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "9045a087afd7d6090d848e9ce901ff589944fca7c6d5e5678b8477db9bea8cbc",
+    "update_policy": "manual"
+  }
+}
