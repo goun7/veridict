@@ -25,7 +25,7 @@ about a minute.
 3. **The verification mechanism gates every round** (see
    `docs/plans/`): full test suite (both `python -m pytest` and bare
    `pytest`) + fresh dogfood self-audit with a valid certificate + offline
-   `veridict verify` + canary Quality Sheet (9 catches / 3 honest misses /
+   `veridict verify` + canary Quality Sheet (10 catches / 3 honest misses /
    0 false positives). If any leg is red, the round does not close.
 4. **The five tier rules are non-negotiable** (spec §5.3): strict tier
    ordering, no doctrine-over-W1a, depth-budgeted meta-claims, SPLIT is

@@ -76,7 +76,7 @@ kötü hüküm kazanır.
 | Test süitesi | 223 passed (her iki çağrı stili, CI'da Python 3.12–3.14) |
 | Öz-denetim | geçerli sertifika, risk `low`, GATE engellenmedi |
 | Offline yeniden oynatma | dogfood sertifikasında `veridict verify` rc 0 |
-| Kanarya (canary) protokolü | 11 hata sınıfında 9 yakalama / 3 dürüst kaçırma / 0 yanlış pozitif |
+| Kanarya (canary) protokolü | 12 hata sınıfında 10 yakalama / 3 dürüst kaçırma / 0 yanlış pozitif |
 | Bütünlük saldırısı (tamper soak) | 1500 mutasyonlu defter, 5 tohum → %100 tespit, 0 sessiz geçiş |
 | Standard eş-paritesi | referans doğrulayıcı ≡ salt-standart doğrulayıcı, 8 hata modunda |
 
