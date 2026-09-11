@@ -13,7 +13,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 ```
 
-Python 3.14+. The full suite (including the dogfood self-audit) runs in
+Python 3.12+. The full suite (including the dogfood self-audit) runs in
 about a minute.
 
 ## The per-contribution bar
@@ -25,8 +25,8 @@ about a minute.
 3. **The verification mechanism gates every round** (see
    `docs/plans/`): full test suite (both `python -m pytest` and bare
    `pytest`) + fresh dogfood self-audit with a valid certificate + offline
-   `veridict verify` + canary Quality Sheet (2 catches, 0 false
-   positives). If any leg is red, the round does not close.
+   `veridict verify` + canary Quality Sheet (9 catches / 3 honest misses /
+   0 false positives). If any leg is red, the round does not close.
 4. **The five tier rules are non-negotiable** (spec §5.3): strict tier
    ordering, no doctrine-over-W1a, depth-budgeted meta-claims, SPLIT is
    information, W3 alone never verifies. There is no configuration that
