@@ -370,7 +370,12 @@ REFUTES even within a majority, INCONCLUSIVE on non-critical SPLIT / W3-only
 a v1.1 candidate. Erratum D7 (2026-09-10): §9.2 is now explicit — a revision
 hook that is absent or errors degrades to keep-opinion; a juror MUST NOT be
 dropped from the revised basis, which would silently erase its first-round
-REFUTES.
+REFUTES. Erratum D8 (2026-09-11, certificate mutation differential): the
+spec-only verifier crashed (IndexError) on a certificate whose
+`signatures` array was empty, instead of returning an invalid verdict — a
+hostile certificate must produce a verdict, never a crash (fail-closed).
+Fixed in `examples/spec_verifier.py`; pinned by 16 certificate mutations
+in `tests/test_cert_mutation_parity.py` where both verifiers agree.
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are
