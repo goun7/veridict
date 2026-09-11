@@ -280,6 +280,11 @@ transport; flag latency budgets for a stream (design §6.5) are a v1.1
 candidate, deferred behind a demonstrated need; the `divergence.flagged`
 and `inconclusive-unresolved` flags computed for WATCH claims are still
 recorded as ledger entries, only the blocking consequence is absent.
+*Erratum D10 (§14.2):* a reference transport candidate now exists
+(`veridict/watcher_stream.py`) implementing append detection + per-
+increment flag recomputation over the same §7 ladder, WITHOUT claiming
+conformance to any latency budget — the normative latency sentence is
+proposed in §14.2 and deferred to v1.1.
 
 ## 11. Certificates and offline replay
 
@@ -384,6 +389,17 @@ gate correctly BLOCKED the release on the resulting REFUTES. The gate's
 behavior was correct; the scanner was not. The walk now skips all
 dotted directories plus known build directories, pinned by
 `tests/test_verifiers.py::test_static_analyzer_ignores_hidden_dirs`.
+Erratum D10 (2026-09-11, issue #3): the §10.3 WATCH transport gap now has
+a reference implementation candidate — `veridict/watcher_stream.py`
+(poll-based append detection, per-increment §10.2 flag recomputation
+through the SAME §7 ladder as the batch engine, never blocks, torn
+trailing lines held back). It does NOT claim conformance to a latency
+budget yet: no normative latency sentence exists in v1.0.0 and none is
+added by an implementation unilaterally. The v1.1 candidate sentence
+proposed: "A conforming WATCH transport MUST surface the flag set
+recomputed over an appended entry within a bounded detection interval
+declared by the deployment, and MUST NOT block, alter, or append to the
+audited ledger." Ratification is deferred to v1.1 (§10.3 errata).
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are

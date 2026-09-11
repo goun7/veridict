@@ -1,6 +1,6 @@
 # Architecture — module map to the standard
 
-Veridict core is 21 modules, ~2.3k lines, stdlib-only (the single
+Veridict core is 22 modules, ~2.4k lines, stdlib-only (the single
 third-party dependency is `cryptography` for ed25519 signing). The normative
 reference is `docs/specs/2026-09-10-veridict-standard-v1.0.md` (the
 "standard"); the founding design is
@@ -33,6 +33,7 @@ reference is `docs/specs/2026-09-10-veridict-standard-v1.0.md` (the
 | `calibration.py` | per-producer confidence factor ledger: W1a-contradiction discount −0.1, rehab +0.05, clamp [0.5, 1.0]; confidence only, never tier/stance | standard §4.4.5 |
 | `dossier.py` | R3 human-risk-owner view (risk frames from REFUTES rationale, evidence links) + decision return + R4 fail-safe; refuses fabricated dossier ids | standard §12 |
 | `registry_index.py` | marketplace index: build/validate/export/load over `watcher.registered` (latest-wins, signature + digest verified) | standard §6.6 |
+| `watcher_stream.py` | WATCH-mode streaming transport (v1.1 candidate): poll-based append detector over the ledger file; recomputes §10.2 flags per increment with the SAME ladder as the batch engine; never blocks; torn trailing lines held back | issue #3, standard §10.3 errata |
 
 ## Verification surfaces
 

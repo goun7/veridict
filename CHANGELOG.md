@@ -3,6 +3,20 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## unreleased
+
+- WATCH-mode streaming transport (issue #3, erratum D10): new module
+  `veridict/watcher_stream.py` — `LedgerStream` subscribes to a JSONL
+  ledger file, detects appended entries (complete lines only; torn
+  trailing lines held back), recomputes the §10.2 flag set per increment
+  through the SAME §7 ladder as the batch engine, and emits
+  `watch.observed` Observations that never block. Parity with the batch
+  PolicyEngine is pinned by test (identical verdicts, identical flags);
+  incrementality, torn-line tolerance, missing-file waiting, and
+  JSON-serializable summaries are each pinned. No latency-budget
+  conformance is claimed — the normative sentence is proposed as erratum
+  D10 (§14.2) and deferred to v1.1.
+
 ## 0.3.1 — 2026-09-11 (adoption surface + hardening night)
 
 - Executable contract vectors beyond certificates: `watcher_vectors.json`
