@@ -6,7 +6,7 @@
 [![Standard](https://img.shields.io/badge/standard-v1.0.0--draft-8A2BE2.svg)](docs/specs/2026-09-10-veridict-standard-v1.0.md)
 [![Veridict self-audit](docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/blob/main/dogfood_cert.json)
 
-*The verdict that survived verification.*
+*The verdict that survived verification.* | **[Türkçe](README.tr.md)**
 
 Veridict is a protocol and reference implementation for **auditing AI with AI
 when humans no longer can**. An append-only, hash-chained evidence ledger
