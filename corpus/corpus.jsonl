@@ -13,3 +13,4 @@
 {"id": "canary-exception-swallowing", "path": "corpus/artifacts/case-exception-swallowing", "defect_class": "exception-swallowing", "ground_truth": "DEFECT", "intent": ["MACHINE: parse_strict never ignores malformed input"], "criticality": []}
 {"id": "canary-crypto-misuse", "path": "corpus/artifacts/case-crypto-misuse", "defect_class": "crypto-misuse", "ground_truth": "DEFECT", "intent": ["MACHINE: hash_password is salted and computationally slow"], "criticality": ["security"]}
 {"id": "canary-clean-uuid", "path": "corpus/artifacts/case-clean-uuid", "defect_class": "clean", "ground_truth": "CLEAN", "intent": ["MACHINE: new_request_id returns collision-resistant random ids"], "criticality": []}
+{"id": "canary-secrets-leak", "path": "corpus/artifacts/case-secrets-leak", "defect_class": "secrets-leak", "ground_truth": "DEFECT", "intent": ["MACHINE: no hardcoded credentials are present"], "criticality": ["security"]}

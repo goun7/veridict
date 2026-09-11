@@ -19,7 +19,8 @@ def _audit_fn():
                  "increment is safe under concurrent callers",
                  "read_config closes the file handle it opens",
                  "find_user never interpolates raw input into SQL",
-                 "parse_strict never ignores malformed input"}
+                 "parse_strict never ignores malformed input",
+                 "no hardcoded credentials are present"}
     # deliberately NOT refutable: hash_password (crypto-misuse honest miss),
     # parse_iso_utc (offset-stomp honest miss), and both clean summaries
     overrides = {
@@ -53,6 +54,7 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert by_id["canary-exception-swallowing"] is True
     assert by_id["canary-crypto-misuse"] is False                # honest miss
     assert by_id["canary-clean-uuid"] is False                   # no false positive
+    assert by_id["canary-secrets-leak"] is True
     assert sheet["per_class"]["uncovered-edge"] == {"caught": 1, "total": 2}
     assert sheet["per_class"]["logic-error"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["contract-violation"] == {"caught": 1, "total": 1}
@@ -61,11 +63,12 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert sheet["false_positives"] == 0
     assert sheet["per_class"]["race-condition"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["crypto-misuse"] == {"caught": 0, "total": 1}
-    assert sheet["caught_total"] == 9
+    assert sheet["per_class"]["secrets-leak"] == {"caught": 1, "total": 1}
+    assert sheet["caught_total"] == 10
 
 
 def test_quality_sheet_persists(tmp_path):
     sheet = CanaryRunner(_audit_fn()).run("corpus/corpus.jsonl")
     out = tmp_path / "sheet.json"
     out.write_text(json.dumps(sheet))
-    assert json.loads(out.read_text())["caught_total"] == 9
+    assert json.loads(out.read_text())["caught_total"] == 10
