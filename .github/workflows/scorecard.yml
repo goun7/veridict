@@ -12,6 +12,10 @@ permissions: read-all
 jobs:
   analysis:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write      # required to publish results to the scorecard API
+      security-events: write
     steps:
       - uses: actions/checkout@v4
         with:
