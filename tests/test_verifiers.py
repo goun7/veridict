@@ -59,3 +59,31 @@ def test_static_rationale_carries_findings(tmp_path):
                  "def test_f():\n    assert f('1+1') == 2\n")
     ev = StaticAnalyzerVerifier().produce(_claims(task)["forbidden-constructs-absent"], task)
     assert "forbidden-call" in ev.rationale and "bare-except" in ev.rationale
+
+
+def test_static_analyzer_ignores_hidden_dirs(tmp_path):
+    """Errata D9: a non-hidden venv inside the artifact (.venv312 etc.) used
+    to be walked — third-party eval/exec findings then REFUTES'd the claim
+    and the fail-closed gate blocked the release. The walk now skips every
+    dotted directory; the venv's forbidden calls are invisible."""
+    import hashlib
+    from veridict.claim_extractor import ClaimExtractor
+    from veridict.schemas import TaskManifest
+    from veridict.verifiers import StaticAnalyzerVerifier
+
+    (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + b\n")
+    venv = tmp_path / ".venv312"
+    (venv / "lib" / "site-packages").mkdir(parents=True)
+    (venv / "lib" / "site-packages" / "evil.py").write_text(
+        "def boom(x):\n    return eval(x)   # third-party code — NOT our artifact\n")
+    task = TaskManifest(task_id="d9", artifact_path=str(tmp_path),
+                        actor_identity="ai-dev", intent_lines=(),
+                        criticality=(), has_existing_tests=False, pytest_args=())
+    claim = next(c for c in ClaimExtractor().extract(task, "d9")
+                 if c.predicate == "forbidden-constructs-absent")
+    item = StaticAnalyzerVerifier().produce(claim, task)
+    assert item is not None and item.stance == "SUPPORTS", item.rationale
+    # and a REAL forbidden call at the top level is still caught
+    (tmp_path / "oops.py").write_text("def go(s):\n    return eval(s)\n")
+    item = StaticAnalyzerVerifier().produce(claim, task)
+    assert item.stance == "REFUTES" and "oops.py" in item.rationale
