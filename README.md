@@ -82,6 +82,7 @@ The standard and the design document are readable (and linkable) at
 - **Standard (normative draft):** [`docs/specs/2026-09-10-veridict-standard-v1.0.md`](docs/specs/2026-09-10-veridict-standard-v1.0.md) — §14.2 carries errata; errata proposals are a first-class issue template
 - **Design document (founding paper):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — module map to standard sections
+- **Strategy:** [`docs/notes/strategy-deep-review.md`](docs/notes/strategy-deep-review.md) — roadmap + revenue, perfectionist lens
 - **Contributing / Governance / Security:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`GOVERNANCE.md`](GOVERNANCE.md) · [`SECURITY.md`](SECURITY.md)
 
 ## Status & roadmap

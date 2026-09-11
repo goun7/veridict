@@ -1,3 +1,9 @@
-# GitHub Sponsors activates once the account is enabled at
-# https://github.com/sponsors/accounts — this file is the repo-side display.
-github: [goun7]
+# GitHub Sponsors: DEACTIVATED by maintainer decision (2026-09-11) —
+# pending professional tax advice. The handle stays reserved; enabling it
+# is one click at https://github.com/sponsors/accounts once advised.
+# github: [goun7]
+
+# Crypto donations (ACTIVE RAIL): multi-chain wallet addresses arrive from
+# the maintainer's phantom wallet — one entry per chain, uncommented as
+# each address lands. Format: "<CHAIN>:<address>".
+# custom: ["EVM:PENDING", "SOLANA:PENDING", "TRC20:PENDING"]
