@@ -3,6 +3,43 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## 0.3.1 — 2026-09-11 (adoption surface + hardening night)
+
+- Executable contract vectors beyond certificates: `watcher_vectors.json`
+  (§6.3/§6.4 session contract: ceiling, clamps, abstains, deadline) and
+  `ladder_vectors.json` (§7 decision table, 11 cases) — the reference
+  ladder and the spec-only ladder agree on every case, asserted at build
+  time (`scripts/build_contract_vectors.py`)
+- JSON Schema contracts (§4/§6/§11) under `docs/schemas/` — validated in
+  CI against EVERY dogfood ledger entry, the dogfood certificate, and all
+  shipped watcher manifests; schema drift from reality fails the build
+- `veridict registry` subcommands: init (0600 key file), register,
+  revoke, list, index — a marketplace owner's complete surface; signing
+  power never lives in the ledger
+- `veridict audit --registry r.jsonl`: an external registry is
+  AUTHORITATIVE — wired watchers must be registered and ACTIVE there;
+  self-registration cannot bypass revocation (§6.6 at the CLI)
+- `veridict audit --watcher manifest.json:module:fn`: external watchers
+  via CLI, with code_hash verified against the entry module
+- Signature-format interop test: the certificate verifies with a STOCK
+  ed25519 library from the JSON alone (the external verifier's first task)
+- Certificate mutation differential: 16 one-field mutations — reference
+  and spec-only verifiers agree on every verdict; erratum D8 (§14.2): the
+  spec-only verifier crashed on an empty signatures array (fail-closed now)
+- Real-jury provider hardened + validated end-to-end without an API key:
+  an unset VERIDICT_JURY_KEY crashed the audit (uncaught LocalProtocolError)
+  instead of the juror abstaining; all transport/contract failures now
+  degrade to ProviderError
+- Canary corpus: 15 cases / 11 defect classes — 9 catches / 3 honest
+  misses / 0 false positives (issue #2 reference implementation; crypto-
+  misuse is a deliberate honest miss)
+- Nightly soak workflow (1500-ledger tamper, wide latency sample, 40-audit
+  parity fuzz), OpenSSF Scorecard, public docs site
+  (https://goun7.github.io/veridict/), dependency CVE scan in CI
+- CLI e2e roundtrip test (audit → verify), verify_chain scaling pin
+  (4k entries in ~0.09s), dogfood revocation receipt ⑥
+- 219 tests green across Python 3.12–3.14, two invocation styles
+
 ## 0.3.0 — 2026-09-10 (Phase 3 open-source substrate)
 
 - **CHAIN FORMAT (breaking):** entry-hash preimage now binds `ts` and
