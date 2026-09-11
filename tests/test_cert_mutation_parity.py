@@ -95,7 +95,12 @@ def _mutations(cert):
     out.append(("anchor-drop", top("ledger_anchor", drop=True)))
 
     def sig_flip(c):
-        c["signatures"][0]["sig_b64"] = "A" + c["signatures"][0]["sig_b64"][1:]
+        # Guarantee a REAL flip: if the signature's first base64 char is
+        # already 'A', the classic "A" + rest mutation is a no-op and the
+        # certificate legitimately stays valid (Ed25519's first byte is
+        # random, so this happens ~1/64 runs — a CI flake by construction).
+        cur = c["signatures"][0]["sig_b64"]
+        c["signatures"][0]["sig_b64"] = ("B" if cur[0] == "A" else "A") + cur[1:]
     out.append(("signature-flip", sig_flip))
 
     def sig_drop(c):
