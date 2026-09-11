@@ -36,7 +36,7 @@ Receipts, regenerated on every push (not narrated):
 - 220 tests across Python 3.12-3.14
 - self-audit: the system audits itself and holds its own watchers to its own conformance kit
 - 1500-ledger tamper soak: 100% detection, zero silent passes
-- canary protocol with honest misses published: 9 catches / 3 misses / 0 false positives across 11 defect classes
+- canary protocol with honest misses published: 10 catches / 3 misses / 0 false positives across 12 defect classes (including the secrets-leak class)
 
 One honest limitation to lead with: the shipped jury is a deterministic stub. The real-LLM provider path (OpenAI-compatible endpoint) is validated in CI against a local mock (strict-JSON parsing, auth, error degradation, full audit with a real-surface juror — 8 tests) — what is NOT yet done is a run against a real LLM endpoint, because that needs an API key and a budget (both $0 so far, deliberately).
 

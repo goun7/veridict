@@ -23,8 +23,8 @@ The honest summary, no cheerleading:
 - Watcher manifests with revocation (CRL-equivalent) — proven end-to-end.
 - JSON Schema contracts for every public surface, validated against real
   artifacts in CI.
-- Honest canary: 9 catches / 3 misses / 0 false positives — the misses are
-  PUBLISHED, which is the point.
+- Honest canary: 10 catches / 3 misses / 0 false positives across 12 defect
+  classes — the misses are PUBLISHED, which is the point.
 
 **What is NOT proven (and must not be claimed as proven):**
 - That a real third party can actually implement the verifier from the
@@ -114,7 +114,8 @@ protocol is not near its ceiling, but the remaining distance splits into
   as it acts" mode real instead of a policy flag.
 - Streaming/event-sourced ledger (ledger as a live event log, not a file)
   — but this edges toward hosted infra; gate it.
-- More canary classes (secrets-leak etc., now a good-first-issue).
+- More canary classes beyond the current secrets-leak coverage (good-first
+  issue).
 
 ### Far (±weeks-months, some capital at G2+)
 - **Multi-party federation** (I already proved two KeyStores on one ledger;
