@@ -25,7 +25,25 @@ jobs:
       - name: Dogfood self-audit (receipt)
         run: |
           python scripts/dogfood.py > dogfood_out.json
-          python -c "import json; d=json.load(open('dogfood_out.json')); assert d['verification']['valid'] and d['risk_level']=='low' and not d['blocked'], d"
+          python - <<'EOF'
+          import json
+          d = json.load(open('dogfood_out.json'))
+          if not (d['verification']['valid'] and d['risk_level'] == 'low'
+                  and not d['blocked']):
+              # print the full W1a rationales of every non-VERIFIED claim —
+              # the inner pytest's own output tail rides in the evidence
+              # rationale (verifiers.py), so the CI log shows WHY it failed
+              led = [json.loads(l) for l in open('dogfood_ledger.jsonl')]
+              cert = d.get('cert') or {}
+              bad = {c['claim_id'] for c in cert.get('claims', [])
+                     if c.get('verdict_value') != 'VERIFIED'}
+              print('=== NON-VERIFIED CLAIM EVIDENCE (diagnosis) ===')
+              for e in led:
+                  p = e.get('payload', {})
+                  if e['entry_type'] == 'evidence.recorded' and p.get('claim_id') in bad:
+                      print(f"[{p.get('tier')}] {p.get('stance')}: {p.get('rationale')}")
+              raise SystemExit(1)
+          EOF
       - name: Offline verify of the dogfood certificate
         run: veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
       - name: JSON Schema contracts vs reality
