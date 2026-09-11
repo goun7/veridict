@@ -376,6 +376,14 @@ spec-only verifier crashed (IndexError) on a certificate whose
 hostile certificate must produce a verdict, never a crash (fail-closed).
 Fixed in `examples/spec_verifier.py`; pinned by 16 certificate mutations
 in `tests/test_cert_mutation_parity.py` where both verifiers agree.
+Erratum D9 (2026-09-11, nightly hardening): the static analyzer's file
+walk did not skip hidden directories — creating a second interpreter
+environment (`.venv312`) inside the repository produced thousands of
+forbidden-call findings from third-party packages, and the §6 fail-closed
+gate correctly BLOCKED the release on the resulting REFUTES. The gate's
+behavior was correct; the scanner was not. The walk now skips all
+dotted directories plus known build directories, pinned by
+`tests/test_verifiers.py::test_static_analyzer_ignores_hidden_dirs`.
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are
