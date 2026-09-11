@@ -1,0 +1,33 @@
+{
+  "risk_level": "low",
+  "score": 1.0,
+  "blocked": false,
+  "verification": {
+    "valid": true,
+    "chain_valid": true,
+    "signature_valid": true,
+    "verdicts_match": true,
+    "errors": []
+  },
+  "duration_seconds": 138.993,
+  "phase2": {
+    "watchers_registered": [
+      "example-security",
+      "example-cost",
+      "example-compliance"
+    ],
+    "watcher_evidence": 4,
+    "calibration_entries": 3,
+    "deliberation_entries": 2,
+    "dossier_issued": true,
+    "escalation_resolved": true,
+    "fail_safe_used": false,
+    "conformance": {
+      "example-security": true,
+      "example-cost": true,
+      "example-compliance": true
+    },
+    "revocation_enforced": true,
+    "marketplace_index": true
+  }
+}
