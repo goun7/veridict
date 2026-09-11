@@ -19,8 +19,8 @@ not on our servers.
 |---|---|---|---|
 | **Watcher certification** | $0 (review time only) | after ≥10 community manifests | We are PAID TO REJECT. Income depends on failing bad watchers — the incentive aligns with the no-silent-pass invariant instead of against it |
 | **Enterprise adoption support** | $0 | immediately on first inbound inquiry | Consulting on embedding Veridict in a company's CI: policy tuning, audit pipelines, verifier integration |
-| **Crypto donations** (USDT TRC-20; wallet address pending from maintainer — FUNDING.yml `custom` block ready to activate) | $0 | ACTIVE RAIL (decision 2026-09-10) | Chosen over GitHub Sponsors for now — Sponsors is supported for Turkey but the maintainer prefers deferring the payout/tax setup; honest note: the tax character of income does not change with the rail, revisit declaration with a professional when amounts matter |
-| **GitHub Sponsors** | $0 | deferred — supported for Turkey, account not opened | FUNDING.yml already carries the handle; activates when the maintainer enables it |
+| **Crypto donations** (multi-chain: EVM + Solana + TRC-20; addresses pending from maintainer's phantom wallet — FUNDING.yml `custom` block ready to activate per chain) | $0 | ACTIVE RAIL (decision 2026-09-10, widened 2026-09-11) | Global donors pick their cheapest rail; no custody, no payout setup, no tax-setup friction. Honest note: the tax character of income does not change with the rail — declaration goes through a professional once amounts matter |
+| **GitHub Sponsors** | $0 | DEACTIVATED by decision (2026-09-11) — pending professional tax advice; handle reserved in FUNDING.yml | Sponsors stays off until a tax professional is consulted; crypto is the active rail meanwhile |
 | **Hosted platform / SaaS** | HIGH (servers, ops) | **gated** — see below | The deferred prize: hosted registries, continuous dogfood, dashboards. Only worth building when demand exists |
 | **Certification authority** (formal body) | MEDIUM | long-term | The endgame: Veridict-as-standard needs an issuer of watcher certificates, the way TLS needs CAs |
 
@@ -56,6 +56,13 @@ the open-core promise).
 5. **Badge protocol.** "Audited by Veridict — certificate verifiable
    offline" badge for repos that pass a GATE audit, linking to the
    certificate: free distribution for them, free reach for us.
+
+## Strategy deep review
+
+The full tradeoff map (roadmap critique, revenue ranking by speed×fit,
+protocol terminal-state, and the two imperatives) lives in
+`docs/notes/strategy-deep-review.md`. It is the reference for the next big
+build decision — read it before choosing what to fund or build.
 
 ## G1 tracker (launch receipts)
 
