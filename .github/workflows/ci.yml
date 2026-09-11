@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write   # regenerate the self-audit badge after the dogfood receipt
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -46,6 +49,10 @@ jobs:
           EOF
       - name: Offline verify of the dogfood certificate
         run: veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
+      - name: Regenerate the self-audit badge (receipt, not decoration)
+        run: |
+          python scripts/make_badge.py --cert dogfood_cert.json --ledger dogfood_ledger.jsonl --out docs/assets/veridict-badge.svg --label "veridict self-audit"
+          git diff --quiet docs/assets/veridict-badge.svg || (git add docs/assets/veridict-badge.svg && git -c user.name="veridict-ci" -c user.email="ci@veridict.local" commit -m "ci: regenerate self-audit badge [skip ci]" && git push)
       - name: JSON Schema contracts vs reality
         run: |
           pip install jsonschema
