@@ -35,13 +35,21 @@ class TestExecutorVerifier:
         if proc.returncode in (2, 3, 4, 5):   # usage/internal/no-tests → abstain
             return None
         stance = "SUPPORTS" if proc.returncode == 0 else "REFUTES"
+        # Evidence discipline (receipts over claims): an exit code alone is
+        # not reproducible to a human, so the tail of the run's own output
+        # rides with the evidence. Truncated hard — the failure summary is
+        # in the last lines of pytest output.
+        tail = [line.strip()[:160] for line in
+                (proc.stdout or "").strip().splitlines()[-12:] if line.strip()]
+        rationale = f"pytest exited with exit code {proc.returncode}"
+        if proc.returncode != 0 and tail:
+            rationale += ": " + " | ".join(tail)[-800:]
         return EvidenceItem(
             evidence_id=f"{EID_SALT}-" + claim.claim_id + "-testexec",
             claim_id=claim.claim_id, evidence_class="TEST_EXECUTION", tier="W1a",
             producer=TEST_ACTOR.to_dict(), artifact_ref=claim.derived_from,
             reproducibility={"deterministic": True, "rerun_recipe": recipe},
-            stance=stance, confidence=1.0,
-            rationale=f"pytest exited with exit code {proc.returncode}")
+            stance=stance, confidence=1.0, rationale=rationale)
 
 
 FORBIDDEN_CALLS = {"eval", "exec", "compile"}
