@@ -160,6 +160,9 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
     with open(cert_path, encoding="utf-8") as f:
         cert = json.load(f)
     body = {k: v for k, v in cert.items() if k != "signatures"}
+    if not cert.get("signatures"):
+        errors.append("signature: certificate carries no signatures")
+        return report
     sig0 = cert["signatures"][0]
     pub = next((e["payload"]["public_pem"] for e in entries
                 if e["entry_type"] == "key.enrolled"
