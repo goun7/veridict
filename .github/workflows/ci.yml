@@ -49,10 +49,6 @@ jobs:
           EOF
       - name: Offline verify of the dogfood certificate
         run: veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
-      - name: Regenerate the self-audit badge (receipt, not decoration)
-        run: |
-          python scripts/make_badge.py --cert dogfood_cert.json --ledger dogfood_ledger.jsonl --out docs/assets/veridict-badge.svg --label "veridict self-audit"
-          git diff --quiet docs/assets/veridict-badge.svg || (git add docs/assets/veridict-badge.svg && git -c user.name="veridict-ci" -c user.email="ci@veridict.local" commit -m "ci: regenerate self-audit badge [skip ci]" && git push)
       - name: JSON Schema contracts vs reality
         run: |
           pip install jsonschema
@@ -73,3 +69,32 @@ jobs:
           EOF
       - name: GATE latency budget (design §6.5, p95 < 30 min)
         run: python scripts/measure_latency.py
+
+  # Badge regeneration runs AFTER the matrix (single job, no push race).
+  # On PRs it only verifies the badge can be produced (no push).
+  badge:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e . && pip install pytest cryptography
+      - name: Dogfood + regenerate the self-audit badge (receipt, not decoration)
+        run: |
+          python scripts/dogfood.py > dogfood_out.json
+          python scripts/make_badge.py --cert dogfood_cert.json --ledger dogfood_ledger.jsonl --out docs/assets/veridict-badge.svg --label "veridict self-audit"
+          git config user.name "veridict-ci"
+          git config user.email "ci@veridict.local"
+          git add docs/assets/veridict-badge.svg
+          git diff --cached --quiet && echo "badge already current" && exit 0
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && exit 0
+            sleep $((i * 5))
+          done
+          echo "could not push badge after retries" && exit 1
