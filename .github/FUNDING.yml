@@ -3,7 +3,7 @@
 # is one click at https://github.com/sponsors/accounts once advised.
 # github: [goun7]
 
-# Crypto donations (ACTIVE RAIL): multi-chain wallet addresses arrive from
-# the maintainer's phantom wallet — one entry per chain, uncommented as
-# each address lands. Format: "<CHAIN>:<address>".
-# custom: ["EVM:PENDING", "SOLANA:PENDING", "TRC20:PENDING"]
+# Crypto donations (ACTIVE RAIL, activated 2026-09-11/12 night): addresses
+# from the maintainer's wallet, receive-only, no signing authority granted.
+# TRC-20 follows (2026-09-12) via TronLink once the maintainer sets it up.
+custom: ["SOLANA:5Qefqc4LGboCeMc7iZRqzXvwvJpTyQEmSSuzPSAb1hwg", "EVM:0x8776aa3E36d3D2F5d6de36EB7E37aeb86592252f", "BTC:bc1qlw0dtwnzt5xzhdkwezqftmkxve5au9p2vj2s2p", "SUI:0x556a20bca4cf715ea29d5c43b375999898f95836ddbf2aafe16168a6037d2eee"]
