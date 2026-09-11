@@ -33,12 +33,12 @@ How it works:
 The part we care most about: certificates verify OFFLINE without trusting the auditor. We publish language-neutral conformance test vectors, and a verifier implemented from the specification alone (zero imports of our code) that agrees with the reference on every failure mode we fuzzed. That cross-implementation parity is a permanent property in the suite now.
 
 Receipts, regenerated on every push (not narrated):
-- 198 tests across Python 3.12-3.14
+- 220 tests across Python 3.12-3.14
 - self-audit: the system audits itself and holds its own watchers to its own conformance kit
 - 1500-ledger tamper soak: 100% detection, zero silent passes
 - canary protocol with honest misses published: 9 catches / 3 misses / 0 false positives across 11 defect classes
 
-One honest limitation to lead with: the shipped jury is a deterministic stub — the real-LLM provider exists but is not yet validated end-to-end in CI, because that needs an API key and a budget (both $0 so far, deliberately).
+One honest limitation to lead with: the shipped jury is a deterministic stub. The real-LLM provider path (OpenAI-compatible endpoint) is validated in CI against a local mock (strict-JSON parsing, auth, error degradation, full audit with a real-surface juror — 8 tests) — what is NOT yet done is a run against a real LLM endpoint, because that needs an API key and a budget (both $0 so far, deliberately).
 
 What we want most from HN: someone to implement an independent verifier from the standard alone (https://github.com/goun7/veridict/issues/1). Where your implementation and ours disagree, either the standard is ambiguous or someone is wrong — both findings land in the standard's public errata ledger with credit.
 

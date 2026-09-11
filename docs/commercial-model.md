@@ -57,6 +57,20 @@ the open-core promise).
    offline" badge for repos that pass a GATE audit, linking to the
    certificate: free distribution for them, free reach for us.
 
+## G1 tracker (launch receipts)
+
+Filled by the maintainer after publishing per
+`docs/notes/launch-ready.md` step 4 — numbers, not narratives.
+
+| Date | Channel | Stars (total) | Comments/replies | Signups for Issue #1 | Notes |
+|---|---|---|---|---|---|
+| — | Show HN | — | — | — | pending |
+| — | Reddit (r/MachineLearning or r/singularity) | — | — | — | pending |
+| — | dev.to (canonical article) | — | — | — | pending |
+
+Gate trips at **≥500 stars or ≥3 external contributors** → unlocks paid
+launch content + conference talk budget.
+
 ## Anti-corruption guardrails
 
 - Certification revenue must never create pressure to pass watchers; the

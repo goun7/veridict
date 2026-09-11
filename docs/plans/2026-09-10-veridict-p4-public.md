@@ -21,10 +21,14 @@ costs $0. Capital-bearing items are gated in the commercial doc, not here.
       by effort, errata is the default
 - [x] T9 multi-signer federation: two independent KeyStores on one ledger,
       cross-verify, plus test
-- [ ] T10 launch story: public write-up from
-      `docs/notes/2026-09-10-agent-coordination-incident.md` (publish on
-      G1 gate — ≥500 stars or ≥3 external contributors; the note is ready,
-      publishing is a human-judgment + community-timing act)
+- [x] T10 launch story: paste-ready kit in
+      `docs/notes/launch-ready.md` (Show HN + Reddit + dev.to, ~10 min of
+      maintainer clicks). Decision 2026-09-10/11: publish NOW (maintainer
+      accounts required — no agent can post to HN/Reddit); step 4 records
+      stars/comments in the G1 tracker below
+      (`docs/commercial-model.md`). Status after publish: pending maintainer
+      action — kit is final, see `docs/notes/launch-ready.md` §Posting
+      checklist.
 
 ## Receipt (2026-09-10)
 

@@ -50,7 +50,7 @@ python scripts/measure_latency.py
 
 | Check | Result |
 |---|---|
-| Test suite | 186 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 220 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Canary protocol | 9 catches / 3 honest misses / 0 false positives across 11 defect classes |
@@ -104,7 +104,7 @@ Start with the issue tracker — the tracker is seeded with the project's own
 exit criteria:
 
 - **[Independent verifier from the standard alone](https://github.com/goun7/veridict/issues/1)** (exit criterion ①) — write a verifier without reading our code; where you and the reference disagree, either the standard is ambiguous or someone is wrong, and both findings earn errata credit.
-- **[Good-first issues](https://github.com/labels/good-first-issue)** — e.g. canary corpus expansion (self-contained, tests included as reference).
+- **[Good-first issues](https://github.com/goun7/veridict/labels/good-first-issue)** — e.g. canary corpus expansion (self-contained, tests included as reference).
 - **[Errata proposals](https://github.com/goun7/veridict/issues/new?template=standard_errata.md)** — a normative sentence that is wrong, ambiguous, or unimplementable. Accepted errata land in §14.2 with credit.
 
 All work is governed by the receipts culture: tests and regenerated
