@@ -49,7 +49,8 @@ def _build_jury() -> tuple[Jury, list[str]]:
     return Jury(providers), warnings
 
 
-def _load_watchers(specs, ledger, keystore, key_id, warnings):
+def _load_watchers(specs, ledger, keystore, key_id, warnings,
+                   registry_ledger=None):
     """Resolve --watcher specs ("manifest.json:your_module:judge_fn") into
     sessions registered in the audit ledger. The manifest's integrity
     code_hash is verified against the sha256 of the entry module file — a
@@ -79,7 +80,18 @@ def _load_watchers(specs, ledger, keystore, key_id, warnings):
                 raise SystemExit(
                     f"--watcher {spec!r}: code_hash mismatch (manifest "
                     f"{manifest.integrity['code_hash'][:16]}… vs module {actual[:16]}…)")
-        registry.register(manifest)
+        if registry_ledger is not None:
+            # an external registry is authoritative: the watcher must already
+            # be registered there and ACTIVE (§6.6) — self-registration in
+            # the audit ledger would bypass the owner's revocation
+            if ManifestRegistry.lifecycle_status(registry_ledger,
+                                                 manifest.watcher_id) != "active":
+                raise SystemExit(
+                    f"--watcher {manifest.watcher_id!r}: not registered/active "
+                    "in the provided registry (§6.6) — see `veridict registry register`")
+            warnings.append(f"watcher {manifest.watcher_id} active in external registry")
+        else:
+            registry.register(manifest)
         sessions.append(WatcherSession(
             manifest, lambda claim_summary, digest, _f=fn: _f(claim_summary, digest)))
         warnings.append(f"watcher {manifest.watcher_id} registered and wired (§6)")
@@ -109,10 +121,14 @@ def _cmd_audit(args) -> int:
     keystore = KeyStore(ledger)
     key_id = keystore.generate_and_enroll("veridict-core")   # same ledger as saved (offline verify)
     jury, warnings = _build_jury()
-    sessions, registry = _load_watchers(getattr(args, "watcher", None), ledger,
-                                        keystore, key_id, warnings)
+    reg_ledger = None
+    if getattr(args, "registry", None):
+        reg_ledger = Ledger.load(args.registry)
+        warnings.append(f"registry loaded: {args.registry} (§6.6 revocation enforced)")
+    sessions, _ = _load_watchers(getattr(args, "watcher", None), ledger,
+                                 keystore, key_id, warnings, registry_ledger=reg_ledger)
     orch = AuditOrchestrator(ledger, policy, jury, keystore, key_id,
-                             watchers=tuple(sessions), registry=registry)
+                             watchers=tuple(sessions), registry=reg_ledger)
     result = orch.run(task, disclosure_level=args.disclosure)
     ledger.save(args.ledger)
     with open(args.cert_out, "w", encoding="utf-8") as f:
@@ -189,6 +205,75 @@ def _cmd_index(args) -> int:
     return 0
 
 
+def _cmd_registry(args) -> int:
+    from veridict.registry_index import build_index, export_index, validate_index
+    from veridict.watchers import ManifestRegistry, WatcherManifest
+    action = args.action
+    if action == "init":
+        led = Ledger()
+        ks = KeyStore(led)
+        kid = ks.generate_and_enroll("registry-owner")
+        led.save(args.registry)
+        key_file = args.key_out or (args.registry + ".key.json")
+        ks.export_key_file(kid, key_file)
+        print(json.dumps({"registry": args.registry, "key_id": kid,
+                          "key_file": key_file,
+                          "note": "private key — keep secret, needed for register/revoke"}))
+        return 0
+    led = Ledger.load(args.registry)
+    ks = KeyStore(led)
+    kid = args.key_id or next(
+        (e["payload"]["key_id"] for e in led.query("key.enrolled")), None)
+    if kid is None:
+        raise SystemExit("registry has no enrolled key — run `veridict registry init`")
+    reg = None
+    if action in ("register", "revoke"):
+        if not args.key_file:
+            raise SystemExit(
+                "--key-file required for register/revoke (private key exported "
+                "by `registry init`; signing power lives there, never in the ledger)")
+        kid = ks.load_key_file(args.key_file)
+        reg = ManifestRegistry(led, ks, kid)
+    else:
+        reg = ManifestRegistry(led, ks, kid)
+    if action == "register":
+        with open(args.manifest, encoding="utf-8") as f:
+            manifest = WatcherManifest.from_dict(json.load(f))
+        entry = reg.register(manifest)
+        led.save(args.registry)
+        print(json.dumps({"registered": manifest.watcher_id, "seq": entry["seq"]}))
+    elif action == "revoke":
+        entry = reg.revoke(args.watcher_id, args.reason)
+        led.save(args.registry)
+        print(json.dumps({"revoked": args.watcher_id, "seq": entry["seq"],
+                          "reason": args.reason}))
+    elif action == "list":
+        seen: dict = {}
+        for e in led.entries:
+            if e["entry_type"] == "watcher.registered":
+                wid = e["payload"]["manifest"]["watcher_id"]
+                seen.setdefault(wid, []).append(
+                    (e["seq"], "registered", e["payload"]["manifest"]["version"]))
+            elif e["entry_type"] == "watcher.revoked":
+                seen.setdefault(e["payload"]["watcher_id"], []).append(
+                    (e["seq"], "revoked", e["payload"]["reason"]))
+        for wid, events in sorted(seen.items()):
+            status = ManifestRegistry.lifecycle_status(led, wid)
+            print(f"{wid}\t{status}\t"
+                  + "; ".join(f"{seq}:{what}" for seq, what, _ in events))
+    elif action == "index":
+        idx = build_index(led)
+        report = validate_index(idx, led)
+        if not report["valid"]:
+            raise SystemExit(f"index does not validate: {report['errors']}")
+        export_index(led, args.out)
+        print(json.dumps({"out": args.out,
+                          "watchers": [w["watcher_id"] for w in idx["watchers"]]}))
+    else:
+        raise SystemExit(f"unknown registry action: {action}")
+    return 0
+
+
 def main(argv=None) -> int:
     p = _Parser(prog="veridict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -201,9 +286,23 @@ def main(argv=None) -> int:
     a.add_argument("--watcher", action="append", metavar="MANIFEST:MODULE:FN",
                    help="wire an external watcher: manifest JSON + module:fn "
                         "entry point; code_hash is verified against the module")
+    a.add_argument("--registry", metavar="REGISTRY_JSONL",
+                   help="external registry ledger: watchers must be registered "
+                        "and ACTIVE there (§6.6); revocation is enforced")
     a.add_argument("--disclosure", default="REDACTED",
                    choices=("LOCAL_ONLY", "REDACTED", "FULL"))
     a.set_defaults(func=_cmd_audit)
+    r = sub.add_parser("registry")
+    r.add_argument("action", choices=("init", "register", "revoke", "list", "index"))
+    r.add_argument("--registry", required=True)
+    r.add_argument("--manifest")
+    r.add_argument("--watcher-id")
+    r.add_argument("--reason", default="")
+    r.add_argument("--key-id")
+    r.add_argument("--key-out", help="init: where to write the private key file")
+    r.add_argument("--key-file", help="register/revoke: private key file from init")
+    r.add_argument("--out")
+    r.set_defaults(func=_cmd_registry)
     v = sub.add_parser("verify")
     v.add_argument("--ledger", required=True)
     v.add_argument("--cert", required=True)
