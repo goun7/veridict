@@ -4,6 +4,8 @@
 # github: [goun7]
 
 # Crypto donations (ACTIVE RAIL, activated 2026-09-11/12 night): addresses
-# from the maintainer's wallet, receive-only, no signing authority granted.
-# TRC-20 follows (2026-09-12) via TronLink once the maintainer sets it up.
-custom: ["SOLANA:5Qefqc4LGboCeMc7iZRqzXvwvJpTyQEmSSuzPSAb1hwg", "EVM:0x8776aa3E36d3D2F5d6de36EB7E37aeb86592252f", "BTC:bc1qlw0dtwnzt5xzhdkwezqftmkxve5au9p2vj2s2p", "SUI:0x556a20bca4cf715ea29d5c43b375999898f95836ddbf2aafe16168a6037d2eee"]
+# from the maintainer's wallets, receive-only, no signing authority granted.
+# TRC-20 (2026-09-12): standard TRON address chosen over the GasFree
+# variant — universal acceptance at exchanges/wallets matters more for a
+# donation address than sender-side fee ergonomics.
+custom: ["SOLANA:5Qefqc4LGboCeMc7iZRqzXvwvJpTyQEmSSuzPSAb1hwg", "EVM:0x8776aa3E36d3D2F5d6de36EB7E37aeb86592252f", "BTC:bc1qlw0dtwnzt5xzhdkwezqftmkxve5au9p2vj2s2p", "SUI:0x556a20bca4cf715ea29d5c43b375999898f95836ddbf2aafe16168a6037d2eee", "TRC20:TGP5YohNb7EYHWaiSw3EPMB9b4E6S12tR1"]
