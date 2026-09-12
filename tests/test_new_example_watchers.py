@@ -117,6 +117,38 @@ def test_doc_sync_flags_stale_test_counts(tmp_path):
     assert ev2.stance == "SUPPORTS"
 
 
+def test_doc_sync_interval_tolerates_honest_counting_methods(tmp_path):
+    """Collected-vs-static drift (parametrize/skip): a doc claim within
+    ±10% of the static definition count is in sync; beyond it, stale.
+    Fixture trees (corpus/-style audited artifacts) are never counted —
+    their test_ functions are subjects, not the suite."""
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_real.py").write_text(
+        "def test_a():\n    assert True\n\ndef test_b():\n    assert True\n")
+    # a corpus-style fixture with 20 test_ defs: must NOT inflate the count
+    corpus = tmp_path / "corpus" / "case-x"
+    corpus.mkdir(parents=True)
+    (corpus / "test_calc.py").write_text(
+        "\n".join(f"def test_{i}():\n    pass" for i in range(20)))
+    # historical docs (a plan file) may cite any past count — not live
+    plans = tmp_path / "docs" / "plans"
+    plans.mkdir(parents=True)
+    (plans / "2026-01-01-old-plan.md").write_text("Back then: 100 tests.\n")
+    # live claim inside tolerance (2 ± 10% → [2, 2]) → SUPPORTS
+    (tmp_path / "README.md").write_text("2 tests pass in CI.\n")
+    ev = run_session(DOC_SESSION, _claim("documentation counts are in sync",
+                                         pred="doc-sync"), "d",
+                     artifact_path=str(tmp_path))
+    assert ev.stance == "SUPPORTS", ev.rationale
+    # live claim far outside tolerance → REFUTES (and names the file)
+    (tmp_path / "README.md").write_text("90 tests pass in CI.\n")
+    ev2 = run_session(DOC_SESSION, _claim("documentation counts are in sync",
+                                          pred="doc-sync"), "d",
+                      artifact_path=str(tmp_path))
+    assert ev2.stance == "REFUTES" and "README.md" in ev2.rationale
+
+
 def test_sbom_flags_undeclared_imports(tmp_path):
     (tmp_path / "pyproject.toml").write_text(
         '[project]\ndependencies = ["requests"]\n')

@@ -5,6 +5,19 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- doc-sync watcher canon sharpened (found by running it against THIS
+  repo, pre-launch): (a) counting-method tolerance — honest docs cite
+  either pytest's collected count or the static definition count and
+  they drift (parametrize/skip); a live claim within ±10% of the static
+  count is in sync, beyond it stale under every honest method; (b)
+  fixture trees (corpus/-style audited artifacts, examples, build
+  output) are never counted — their test_ functions are audit subjects,
+  not the suite (18 phantom defs were inflating this repo's count);
+  (c) live-claim documents are top-level READMEs + the launch kit —
+  plans/emails are historical records of past counts, not claims
+  (flagging history is how a watcher earns its uninstall). The watcher
+  now passes on its own repo (dogfood honesty extended to marketplace
+  examples).
 - PyPI distribution name is `veridict-standard`: the bare `veridict` name
   on PyPI belongs to an UNRELATED third-party project (curagus /
   NodexisLabs — "verify an AI agent actually did what it claimed", parked

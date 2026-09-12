@@ -31,25 +31,56 @@ MANIFEST = WatcherManifest(
 _TESTCOUNT_RE = re.compile(r"\b(\d{2,4})\s+tests?\b", re.IGNORECASE)
 
 
-def _count_tests(root: str) -> int | None:
-    """Count `def test_` functions across the artifact (None when none)."""
-    count = 0
-    seen = False
+# Fixture/corpus-style trees an audit tool ships to be AUDITED (not run):
+# their test_ functions are subjects, not the project's suite. Skipping
+# these is doctrine honesty — counting them would call every docs claim
+# stale while pytest collects none of them.
+_SKIP_DIRS = {"corpus", "fixtures", "examples", "node_modules",
+              "__pycache__", "build", "dist", "_site"}
+
+
+# Counting-method tolerance: honest docs cite either pytest's collected
+# count or the static definition count (they drift via parametrize/skip).
+# A claim within TOLERANCE of the static count is in sync; beyond it,
+# stale under every honest counting method. Tolerance is doctrine, kept
+# explicit (W3 judgment, not machine truth).
+_TOLERANCE = 0.10
+
+# Live-claim documents only: top-level READMEs (the store front) and the
+# docs/notes launch kit (texts pasted publicly). Plans/emails/changelogs
+# are HISTORICAL RECORDS — a past count in them is not a live claim, and
+# flagging history is how a watcher earns its uninstall.
+_LIVE_DOC = re.compile(r"^(readme(\..*)?|docs/notes/launch-.+\.md)$",
+                       re.IGNORECASE)
+
+
+def _count_tests(root: str) -> tuple[int, int] | None:
+    """(lo, hi) plausible test counts = static ± tolerance.
+
+    hi/lo = static `def test_` definition count (outside fixture trees)
+    scaled by ±10%. A doc claim inside that band is in sync under SOME
+    honest counting method (collected vs static drift by parametrize
+    and skips); a claim outside it is stale under every one. None when
+    the artifact defines no tests at all."""
+    static = 0
     for rel in iter_python_files(root):
+        parts = [p.lower() for p in rel.split(os.sep)]
+        if any(p in _SKIP_DIRS for p in parts[:-1]):
+            continue                      # fixture tree: audited, not run
         path = os.path.join(root, rel)
-        if os.sep + "test" not in path.lower():
-            continue
         with open(path, encoding="utf-8", errors="replace") as f:
             try:
                 tree = ast.parse(f.read())
             except SyntaxError:
                 continue
-        seen = True
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.FunctionDef)
-                    and node.name.startswith("test_")):
-                count += 1
-    return count if seen else None
+        static += sum(1 for node in ast.walk(tree)
+                      if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and node.name.startswith("test_"))
+    if not static:
+        return None
+    lo = max(0, round(static * (1 - _TOLERANCE)))
+    hi = round(static * (1 + _TOLERANCE))
+    return (lo, hi)
 
 
 def _markdown_files(root: str):
@@ -64,24 +95,29 @@ def _markdown_files(root: str):
 def _doctrine(summary: str, artifact_ref: str) -> tuple[str, float, str] | None:
     if not os.path.isdir(artifact_ref):
         return None                       # unreadable reference → abstain (§5.4)
-    actual = _count_tests(artifact_ref)
-    if actual is None:
+    interval = _count_tests(artifact_ref)
+    if interval is None:
         # benign/empty artifact: no tests to sync against, the sync question
         # is vacuous, not refuted
         return ("SUPPORTS", 0.6, "no test files found (doc-sync question "
                                  "vacuous)")
-    claims = set()
+    lo, hi = interval
+    stale = set()
     for path in _markdown_files(artifact_ref):
+        rel = os.path.relpath(path, artifact_ref).replace(os.sep, "/")
+        if not _LIVE_DOC.match(rel):
+            continue         # historical record (plan/email/etc), not live
         with open(path, encoding="utf-8", errors="replace") as f:
             for m in _TESTCOUNT_RE.finditer(f.read()):
-                if int(m.group(1)) != actual:
-                    claims.add(f"{os.path.relpath(path, artifact_ref)} claims "
-                               f"{m.group(1)} tests")
-    if claims:
+                claimed = int(m.group(1))
+                if not (lo <= claimed <= hi):
+                    stale.add(f"{rel} claims {m.group(1)} tests")
+    if stale:
         return ("REFUTES", 0.6,
-                f"stale test-count claims in docs (actual: {actual}): "
-                + "; ".join(sorted(claims)[:5]))
-    return ("SUPPORTS", 0.6, f"no stale test-count claims found (actual: {actual})")
+                f"stale test-count claims in docs (plausible range "
+                f"{lo}-{hi}): " + "; ".join(sorted(stale)[:5]))
+    return ("SUPPORTS", 0.6, f"no stale test-count claims found (plausible "
+                             f"range {lo}-{hi})")
 
 
 SESSION = WatcherSession(MANIFEST, _doctrine)
