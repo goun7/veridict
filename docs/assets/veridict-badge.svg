@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="304" height="20" role="img" aria-label="veridict self-audit: VERIFIED">
-<!-- Veridict audit badge. Claim: certificate f350d5ea21ef verified offline.
+<!-- Veridict audit badge. Claim: certificate 0f2a8b4b9cdc verified offline.
      Audit it yourself: veridict verify --ledger <ledger.jsonl> --cert <cert.json>
      Standard: https://goun7.github.io/veridict/standard.html -->
 <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
