@@ -5,6 +5,16 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- Pugio watch-feed bridge receiver (`scripts/pugio_watch_receiver.py`,
+  K0 §6 / K3): ingestion point for the PUGIO metering layer's decision
+  stream (watch_manifest → watch_event* → watch_close), re-hashing the
+  chain receiver-side, fail-loud, stdlib-only, core untouched. Hardened
+  on arrival: strict field schemas (unknown fields are RED — the
+  standard's D5 lesson: a field outside the hash preimage must not ride
+  along silently), and manifest `bundle_event_count` must agree with
+  `close.entries`. 10 tamper-class pins in `tests/test_pugio_bridge.py`,
+  including one honest KNOWN-LIMIT pin: manifest VALUES are not chained
+  in v1 (needs producer-side changes → bridge_version=2).
 - Watcher marketplace grows 3 → 8 shipped examples (G2 direction; exit
   criterion ③ needs ≥10 ACTIVE manifests, external ones included): five new
   third-party producers under `watchers/` — secret-scan (W1b static
