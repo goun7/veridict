@@ -400,6 +400,11 @@ proposed: "A conforming WATCH transport MUST surface the flag set
 recomputed over an appended entry within a bounded detection interval
 declared by the deployment, and MUST NOT block, alter, or append to the
 audited ledger." Ratification is deferred to v1.1 (§10.3 errata).
+*Status (2026-09-12): the ratification draft now exists — see
+[`2026-09-12-veridict-standard-v1.1-delta.md`](2026-09-12-veridict-standard-v1.1-delta.md)
+(amendment A1 proposes ratifying this exact sentence; the delta stays DRAFT
+until an independent implementation exercises it). Erratum D10 remains OPEN
+until v1.1.0 is ratified.*
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are

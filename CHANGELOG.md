@@ -5,6 +5,26 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- Watcher marketplace grows 3 → 8 shipped examples (G2 direction; exit
+  criterion ③ needs ≥10 ACTIVE manifests, external ones included): five new
+  third-party producers under `watchers/` — secret-scan (W1b static
+  analysis, high-confidence patterns only), license-scan (W3),
+  docker-best-practices (W3), doc-sync (W3 — stale test-count claims in
+  docs, the exact staleness class this repo hit itself),
+  sbom-spdx (W3 — undeclared dependency imports). All five pass the
+  conformance kit (C1–C10) and are registered in the dogfood Phase 2
+  segment with the rest; manifests exported under `examples/manifests/`.
+- Auditee program (launch follow-up, strategy imperative ②): the
+  "Audit my repo" issue template; README gains a paste-ready
+  self-serve section (task manifest → audit → offline verify); shippable
+  reusable GitHub Action `.github/workflows/veridict-audit.yml`
+  (workflow_call; ledger+cert artifacts; optional risk gate).
+- Standard v1.1 delta DRAFT (`docs/specs/2026-09-12-...-v1.1-delta.md`):
+  ratifies exactly the WATCH transport latency sentence deferred by erratum
+  D10 as amendment A1; deliberately minimal, no other normative change.
+  Erratum D10 in v1.0 §14.2 now links the delta and stays OPEN until
+  ratified. Issue #8 opened for the formal verification of the ladder's
+  tier rules (Coq/Lean; intentionally an issue, not a branch).
 - WATCH-mode streaming transport (issue #3, erratum D10): new module
   `veridict/watcher_stream.py` — `LedgerStream` subscribes to a JSONL
   ledger file, detects appended entries (complete lines only; torn

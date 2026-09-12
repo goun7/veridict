@@ -1,0 +1,29 @@
+{
+  "watcher_id": "example-sbom-spdx",
+  "name": "Example SBOM SPDX Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-sbom-spdx",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "sbom",
+      "supply-chain",
+      "compliance"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "3fe5d5708e67404797055191af56e1639511c634bfa38bda0198e1dc1978853e",
+    "update_policy": "manual"
+  }
+}

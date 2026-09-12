@@ -37,10 +37,14 @@ def _validator(schema):
 
 
 def _ship_manifests():
-    """The three shipped example watchers each carry a manifest dict."""
+    """Every shipped example watcher carries a manifest dict (8 since the
+    marketplace growth commit: security/compliance/cost + secret-scan,
+    license-scan, docker-best-practices, doc-sync, sbom-spdx)."""
     sys.path.insert(0, os.path.join(REPO, "watchers"))
     out = []
-    for mod in ("security_watcher", "compliance_watcher", "cost_watcher"):
+    for mod in ("security_watcher", "compliance_watcher", "cost_watcher",
+                "secret_scan_watcher", "license_scan_watcher",
+                "docker_watcher", "doc_sync_watcher", "sbom_watcher"):
         m = __import__(mod)
         out.append((mod, m.MANIFEST.to_dict()))
     return out

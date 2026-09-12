@@ -1,0 +1,29 @@
+{
+  "watcher_id": "example-doc-sync",
+  "name": "Example Doc Sync Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-doc-sync",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "documentation",
+      "docs",
+      "compliance"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "79dc05a6c0339ecff88e40018a44010c65d6f40dc03af9cdc3089e3d29fcc514",
+    "update_policy": "manual"
+  }
+}

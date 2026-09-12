@@ -57,7 +57,7 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 228 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 239 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Canary protocol | 10 catches / 3 honest misses / 0 false positives across 12 defect classes |
@@ -79,6 +79,53 @@ Then audit with the external registry as authority:
 `veridict audit ... --registry r.jsonl` — revoked watchers are refused
 (§6.6). See CONTRIBUTING.md for writing your own.
 
+## Audit your own repo in 3 commands
+
+The fastest way to see Veridict work on *your* code: write a one-file task
+manifest naming your checkout and the claims you want evidence about, run
+the audit, verify the certificate offline — then link the pair from your
+README. A runnable demo lives in [`examples/run_audit.py`](examples/run_audit.py).
+
+```bash
+# 1) a task manifest (see examples/ and TaskManifest in veridict/schemas.py)
+cat > task.json <<'EOF'
+{"task_id": "my-audit", "artifact_path": "/path/to/your/repo",
+ "actor_identity": "you", "intent_lines": ["DOCTRINE: modules are idiomatic python"],
+ "criticality": [], "has_existing_tests": true, "pytest_args": []}
+EOF
+
+# 2) audit → ledger + certificate
+veridict audit --task task.json --mode HYBRID \
+    --ledger my-ledger.jsonl --cert-out my-cert.json
+
+# 3) verify offline (anyone can; no trust in the auditor required)
+veridict verify --ledger my-ledger.jsonl --cert my-cert.json
+```
+
+Want the reference implementation to run the audit for you and publish the
+certificate? Open an **[Audit my repo](https://github.com/goun7/veridict/issues/new?template=audit-my-repo.md)**
+issue — the certificate that comes back is evidence, not endorsement (§13):
+anyone can replay it offline against the published ledger, and a REFUTED
+claim says exactly which evidence refuted it.
+
+### Audit on every push (GitHub Action)
+
+Run Veridict inside your own CI without installing anything locally:
+
+```yaml
+jobs:
+  audit:
+    uses: goun7/veridict/.github/workflows/veridict-audit.yml@v1
+    with:
+      intent: "DOCTRINE: modules are idiomatic python"
+      mode: HYBRID          # GATE / WATCH / CERTIFICATE also available
+      fail-on-refuted: false # flip to true once you trust the audit
+```
+
+The run uploads `veridict-audit` artifacts (ledger + certificate) — download
+once, verify forever: `veridict verify --ledger veridict-ledger.jsonl --cert
+veridict-cert.json`. See the workflow file for all inputs.
+
 ## Public site
 
 The standard and the design document are readable (and linkable) at
@@ -87,6 +134,7 @@ The standard and the design document are readable (and linkable) at
 ## Documents
 
 - **Standard (normative draft):** [`docs/specs/2026-09-10-veridict-standard-v1.0.md`](docs/specs/2026-09-10-veridict-standard-v1.0.md) — §14.2 carries errata; errata proposals are a first-class issue template
+- **Standard v1.1 delta (draft):** [`docs/specs/2026-09-12-veridict-standard-v1.1-delta.md`](docs/specs/2026-09-12-veridict-standard-v1.1-delta.md) — ratifies the WATCH transport latency sentence (D10); read on top of v1.0
 - **Design document (founding paper):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — module map to standard sections
 - **Strategy:** [`docs/notes/strategy-deep-review.md`](docs/notes/strategy-deep-review.md) — roadmap + revenue, perfectionist lens

@@ -1,0 +1,28 @@
+{
+  "watcher_id": "example-license-scan",
+  "name": "Example License Scan Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-license-scan",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "license",
+      "compliance"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "b983879abea82dc3deacb1c77290d24406d6d949c133d118716a805fc866223b",
+    "update_policy": "manual"
+  }
+}

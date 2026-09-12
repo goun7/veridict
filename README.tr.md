@@ -73,7 +73,7 @@ kötü hüküm kazanır.
 
 | Kontrol | Sonuç |
 |---|---|
-| Test süitesi | 228 passed (her iki çağrı stili, CI'da Python 3.12–3.14) |
+| Test süitesi | 239 passed (her iki çağrı stili, CI'da Python 3.12–3.14) |
 | Öz-denetim | geçerli sertifika, risk `low`, GATE engellenmedi |
 | Offline yeniden oynatma | dogfood sertifikasında `veridict verify` rc 0 |
 | Kanarya (canary) protokolü | 12 hata sınıfında 10 yakalama / 3 dürüst kaçırma / 0 yanlış pozitif |
@@ -96,6 +96,20 @@ Ardından dış kayıt defterini yetkili olarak kullanarak denetleyin:
 watcher'lar reddedilir (§6.6). Kendi watcher'ınızı yazmak için
 CONTRIBUTING.md'ye bakın.
 
+## 3 komutla kendi reponuzu denetleyin
+
+Veridict'in *kendi kodunuz* üzerinde çalıştığını görmenin en hızlı yolu:
+checkout'unuzu gösteren tek dosyalık bir görev manifesti yazın, denetimi
+koşun, sertifikayı offline doğrulayın — sonra çifti README'nizden bağlayın.
+Çalıştırılabilir demo: [`examples/run_audit.py`](examples/run_audit.py).
+(İngilizce README'deki "Audit your own repo in 3 commands" bölümündeki
+komutlar birebir geçerlidir; issue şablonu:
+[Audit my repo](https://github.com/goun7/veridict/issues/new?template=audit-my-repo.md).)
+
+Her push'ta kendi CI'ınızda koşmak isterseniz reusable GitHub Action
+hazır: `goun7/veridict/.github/workflows/veridict-audit.yml@v1`
+(girdilerin tamamı workflow dosyasında).
+
 ## Genel site
 
 Standart ve tasarım dokümanı **https://goun7.github.io/veridict/**
@@ -105,6 +119,7 @@ yayınlanır.
 ## Dokümanlar
 
 - **Standart (normatif taslak):** [`docs/specs/2026-09-10-veridict-standard-v1.0.md`](docs/specs/2026-09-10-veridict-standard-v1.0.md) — §14.2 hata düzeltmelerini (errata) taşır; errata önerileri birinci sınıf bir issue şablonudur
+- **Standart v1.1 deltası (taslak):** [`docs/specs/2026-09-12-veridict-standard-v1.1-delta.md`](docs/specs/2026-09-12-veridict-standard-v1.1-delta.md) — WATCH transport gecikme cümlesini (D10) onaylar; v1.0 üstünden okunur
 - **Tasarım dokümanı (kuruluş yazısı):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Mimari:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — modül haritası → standart bölümleri
 - **Strateji:** [`docs/notes/strategy-deep-review.md`](docs/notes/strategy-deep-review.md) — yol haritası + gelir, mükemmeliyetçi bakış

@@ -1,0 +1,105 @@
+name: Veridict audit
+
+# Reusable audit action: run a Veridict GATE audit on your repository and
+# upload the ledger + certificate pair as build artifacts.
+#
+# Use it from your own workflow:
+#
+#   jobs:
+#     audit:
+#       uses: goun7/veridict/.github/workflows/veridict-audit.yml@v1
+#       with:
+#         intent: "DOCTRINE: modules are idiomatic python"
+#         mode: HYBRID
+#
+# The audit produces veridict-ledger.jsonl + veridict-cert.json under
+# $GITHUB_WORKSPACE/artifacts/ — verify them offline later with:
+#   veridict verify --ledger artifacts/veridict-ledger.jsonl --cert artifacts/veridict-cert.json
+#
+# The certificate is evidence, not endorsement (standard §13): a REFUTED
+# claim names the evidence that refuted it.
+
+on:
+  workflow_call:
+    inputs:
+      intent:
+        description: "DOCTRINE line(s) describing what to audit (see TaskManifest.intent_lines)"
+        required: false
+        type: string
+        default: "DOCTRINE: modules are idiomatic python"
+      mode:
+        description: "Policy mode: CERTIFICATE, GATE, WATCH, or HYBRID"
+        required: false
+        type: string
+        default: "HYBRID"
+      run-tests:
+        description: "Whether the artifact has a runnable pytest suite (W1a machine evidence)"
+        required: false
+        type: boolean
+        default: true
+      python-version:
+        description: "Python version for the audit run"
+        required: false
+        type: string
+        default: "3.12"
+      fail-on-refuted:
+        description: "Fail the job when the audit's risk level is not low (worst-verdict-wins)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: auditee
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install Veridict (reference implementation)
+        run: pip install -e git+https://github.com/goun7/veridict.git#egg=veridict && pip install pytest cryptography
+      - name: Compose the task manifest
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cat > "$GITHUB_WORKSPACE/task.json" <<EOF
+          {
+            "task_id": "audit-\${{ github.sha }}",
+            "artifact_path": "auditee",
+            "actor_identity": "veridict-audit",
+            "intent_lines": ["${{ inputs.intent }}"],
+            "criticality": [],
+            "has_existing_tests": ${{ inputs.run-tests }},
+            "pytest_args": []
+          }
+          EOF
+          cat "$GITHUB_WORKSPACE/task.json"
+      - name: Run the audit (ledger + certificate)
+        run: |
+          veridict audit --task "$GITHUB_WORKSPACE/task.json" \
+            --mode ${{ inputs.mode }} \
+            --ledger "$GITHUB_WORKSPACE/artifacts/veridict-ledger.jsonl" \
+            --cert-out "$GITHUB_WORKSPACE/artifacts/veridict-cert.json"
+      - name: Offline verify of the produced certificate
+        run: |
+          veridict verify --ledger "$GITHUB_WORKSPACE/artifacts/veridict-ledger.jsonl" \
+            --cert "$GITHUB_WORKSPACE/artifacts/veridict-cert.json"
+      - name: Risk gate (optional, worst-verdict-wins)
+        if: ${{ inputs.fail-on-refuted }}
+        run: |
+          python - <<'EOF'
+          import json, sys
+          cert = json.load(open("artifacts/veridict-cert.json"))
+          risk = cert.get("risk_level", "unknown")
+          print("audit risk level:", risk, "| score:", cert.get("score"))
+          sys.exit(0 if risk == "low" else 1)
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: veridict-audit
+          path: artifacts/
+          retention-days: 90

@@ -34,6 +34,11 @@ from veridict.registry_index import build_index, export_index                  #
 from veridict.watchers import ManifestRegistry                  # noqa: E402
 from watchers.compliance_watcher import SESSION as COMP_SESSION  # noqa: E402
 from watchers.cost_watcher import SESSION as COST_SESSION       # noqa: E402
+from watchers.docker_watcher import SESSION as DOCKER_SESSION  # noqa: E402
+from watchers.doc_sync_watcher import SESSION as DOCSYNC_SESSION  # noqa: E402
+from watchers.license_scan_watcher import SESSION as LICENSE_SESSION  # noqa: E402
+from watchers.sbom_watcher import SESSION as SBOM_SESSION       # noqa: E402
+from watchers.secret_scan_watcher import SESSION as SECRET_SESSION  # noqa: E402
 from watchers.security_watcher import SESSION as SEC_SESSION    # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -110,7 +115,12 @@ def _run_phase2_segment(ledger: Ledger,
     registry = ManifestRegistry(ledger, keystore, key_id)
     watcher_ids: list[str] = []
     conformance: dict[str, bool] = {}
-    for session in (SEC_SESSION, COST_SESSION, COMP_SESSION):
+    # every shipped example must pass the certification bar before listing —
+    # the marketplace count grows 3 → 8 (G2 direction; exit needs ≥10 ACTIVE
+    # manifests, including external ones, not shipped examples alone).
+    for session in (SEC_SESSION, COST_SESSION, COMP_SESSION,
+                    SECRET_SESSION, LICENSE_SESSION, DOCKER_SESSION,
+                    DOCSYNC_SESSION, SBOM_SESSION):
         # §5.5 certification precondition: an external watcher must pass the
         # conformance kit BEFORE it can be listed — dogfood holds its own
         # examples to the same bar.
@@ -140,7 +150,9 @@ def _run_phase2_segment(ledger: Ledger,
         cal_orch = AuditOrchestrator(
             ledger, _segment_policy("dogfood-v0.2-segment", "HYBRID"),
             _calibration_jury(), keystore, key_id,
-            watchers=(SEC_SESSION, COST_SESSION, COMP_SESSION),
+            watchers=(SEC_SESSION, COST_SESSION, COMP_SESSION,
+                      SECRET_SESSION, LICENSE_SESSION, DOCKER_SESSION,
+                      DOCSYNC_SESSION, SBOM_SESSION),
             registry=ledger)   # §6.6: the self-audit consults its own registry
         cal_orch.run(_segment_task(task_id, fixture_cal))
 

@@ -34,16 +34,22 @@ def test_dogfood_phase2_receipt_block(dogfood_out):
     out, _ = dogfood_out
     p2 = out["phase2"]
     assert set(p2["watchers_registered"]) == {
-        "example-security", "example-cost", "example-compliance"}
+        "example-security", "example-cost", "example-compliance",
+        "example-secret-scan", "example-license-scan",
+        "example-docker-best-practices", "example-doc-sync",
+        "example-sbom-spdx"}
     assert p2["watcher_evidence"] >= 1        # receipt ①: blind watcher sessions
     assert p2["calibration_entries"] >= 1     # receipt ③: calibration accumulates
     assert p2["deliberation_entries"] >= 1    # the forced SPLIT ran its round
     assert p2["dossier_issued"] is True       # receipt ②: full turn
     assert p2["escalation_resolved"] is True  # receipt ②: human decision returned
     assert p2["fail_safe_used"] is False
-    # T26: the three examples pass the conformance kit (§5.5 certification bar)
-    assert p2["conformance"] == {"example-security": True, "example-cost": True,
-                                 "example-compliance": True}
+    # T26: every shipped example passes the conformance kit (§5.5 bar)
+    assert p2["conformance"] == {
+        "example-security": True, "example-cost": True,
+        "example-compliance": True, "example-secret-scan": True,
+        "example-license-scan": True, "example-docker-best-practices": True,
+        "example-doc-sync": True, "example-sbom-spdx": True}
     assert p2["revocation_enforced"] is True  # §6.6 receipt: self-revocation enforced
     # T28: marketplace index exported from the dogfood ledger and it validates
     assert p2["marketplace_index"] is True
@@ -62,7 +68,11 @@ def test_dogfood_ledger_registers_watchers_and_verifies(dogfood_out):
     led = Ledger.load(out["ledger_path"])
     registered = {e["payload"]["manifest"]["watcher_id"]
                   for e in led.query("watcher.registered")}
-    assert registered == {"example-security", "example-cost", "example-compliance"}
+    assert registered == {
+        "example-security", "example-cost", "example-compliance",
+        "example-secret-scan", "example-license-scan",
+        "example-docker-best-practices", "example-doc-sync",
+        "example-sbom-spdx"}
     # receipt ② full turn in the saved ledger, honestly labelled as simulated
     resolved = led.query("escalation.resolved")
     assert len(resolved) == 1

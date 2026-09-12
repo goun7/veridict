@@ -1,0 +1,29 @@
+{
+  "watcher_id": "example-docker-best-practices",
+  "name": "Example Docker Best Practices Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-docker-best-practices",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "docker",
+      "deployment",
+      "security"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "af389c16ac4b3878e53a8dfffe8bdbe509c889d2d011fac9b08c9f04f329b9be",
+    "update_policy": "manual"
+  }
+}
