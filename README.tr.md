@@ -42,6 +42,9 @@ sorumluluğun hükmünün sahibi insandır.
 
 ```bash
 pip install -e . && pip install pytest
+# PyPI adı: `veridict-standard` (PyPI'daki çıplak `veridict` adı
+# BAŞKASININ projesi — bizim değil; bu repodan veya yayınlandığında
+# `pip install veridict-standard` ile kurulur)
 
 # bir görevi uçtan uca denetle (GATE modu) — çalıştırılabilir senaryolar
 # için examples/ dizinine bakın
@@ -73,7 +76,7 @@ kötü hüküm kazanır.
 
 | Kontrol | Sonuç |
 |---|---|
-| Test süitesi | 255 passed (her iki çağrı stili, CI'da Python 3.12–3.14) |
+| Test süitesi | 259 passed (her iki çağrı stili, CI'da Python 3.12–3.14) |
 | Öz-denetim | geçerli sertifika, risk `low`, GATE engellenmedi |
 | Offline yeniden oynatma | dogfood sertifikasında `veridict verify` rc 0 |
 | Kanarya (canary) protokolü | 12 hata sınıfında 10 yakalama / 3 dürüst kaçırma / 0 yanlış pozitif |

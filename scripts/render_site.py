@@ -34,7 +34,58 @@ nav a { margin-right: 1rem; }
 NAV = ('<nav><a href="index.html">Home</a>'
        '<a href="standard.html">The Standard</a>'
        '<a href="design.html">Design</a>'
+       '<a href="marketplace.html">Watchers</a>'
        '<a href="https://github.com/goun7/veridict">Repository</a></nav><hr>')
+
+
+def _marketplace_md() -> str:
+    """Generate the watcher showcase page from the SHIPPED manifests —
+    never hand-maintained (a hand list would be a second truth). Renders
+    every examples/manifests/*.json with tier, domains, and producer."""
+    import json
+    mdir = os.path.join(REPO, "examples", "manifests")
+    rows = []
+    for name in sorted(os.listdir(mdir)):
+        if not name.endswith(".json"):
+            continue
+        with open(os.path.join(mdir, name), encoding="utf-8") as f:
+            m = json.load(f)
+        cap = m["capabilities"]
+        subs = ", ".join(f"`{s}`" if s != "*" else "`*` (all)"
+                         for s in cap["subscribes_to"])
+        rows.append(
+            f"| [{m['watcher_id']}](https://github.com/goun7/veridict/blob/"
+            f"main/examples/manifests/{name}) | {m['name'].replace('Example ', '')}"
+            f" | `{cap['max_tier']}` | {subs} "
+            f"| {m['producer']['maintainer']} | v{m['version']} |")
+    return f"""# The watcher marketplace
+
+Third-party producers participate through **signed manifests + blind
+sessions** — the core has no special case for any of them. A watcher can
+never produce W1a (machine truth is reserved to built-in verifiers), and
+each must pass the **conformance kit** (C1–C10: blindness, tier ceiling,
+abstain semantics, deadline, evidence shape) before it can be listed.
+
+These are the example watchers we ship. Real third-party watchers join
+the same way — see [`CONTRIBUTING.md`](https://github.com/goun7/veridict/blob/main/CONTRIBUTING.md).
+
+| Watcher | Doctrine | Tier | Domains | Maintainer | Version |
+|---|---|---|---|---|---|
+{chr(10).join(rows)}
+
+## Verify the index yourself
+
+An index is a VIEW of registered manifests exported from a ledger —
+never a separate truth. Offline consumers verify:
+
+```
+veridict registry index --registry r.jsonl --out index.json
+```
+
+…then validate `index.json` against the ledger they trust. Revoked
+watchers never appear in an index (§6.6 — an index that lists revoked
+watchers is a CRL nobody reads).
+"""
 
 
 def render(md_path: str, title: str) -> str:
@@ -72,6 +123,8 @@ certificates anyone can verify offline — from the standard alone.
 - **[The Standard v1.0.0-draft](standard.html)** — normative, with a public
   errata ledger (§14.2)
 - **[Design document](design.html)** — the founding paper
+- **[The watcher marketplace](marketplace.html)** — ten shipped example
+  watchers, all certified by the conformance kit
 - **[Repository](https://github.com/goun7/veridict)** — core, offline
   verifier, conformance test vectors, spec-only verifier, CI receipts
 - **[Independent verifier challenge](https://github.com/goun7/veridict/issues/1)**
@@ -91,8 +144,15 @@ intelligence.*
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(index_md)
     pages["index.html"] = (tmp, pages["index.html"][1])
+    market_tmp = os.path.join(tempfile.gettempdir(), "vd-marketplace.md")
+    with open(market_tmp, "w", encoding="utf-8") as f:
+        f.write(_marketplace_md())
+    pages["marketplace.html"] = (market_tmp, "The watcher marketplace")
     for name, (src, title) in pages.items():
-        html = render(src, title) if name != "index.html" else render(tmp, title)
+        html = render(src, title) if name not in ("index.html",
+                                                  "marketplace.html") \
+            else render(market_tmp if name == "marketplace.html" else tmp,
+                        title)
         with open(os.path.join(OUT, name), "w", encoding="utf-8") as f:
             f.write(html)
         print("rendered", name)

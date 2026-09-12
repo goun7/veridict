@@ -30,6 +30,9 @@ the verdict of responsibility.
 
 ```bash
 pip install -e . && pip install pytest
+# PyPI name: `veridict-standard` (the bare `veridict` on PyPI is a
+# DIFFERENT project — not ours; from this repo or `pip install
+# veridict-standard` once published)
 
 # audit a task end-to-end (GATE mode) — see examples/ for runnable scenarios
 veridict --help
@@ -57,7 +60,7 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 255 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 259 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Canary protocol | 10 catches / 3 honest misses / 0 false positives across 12 defect classes |
@@ -97,6 +100,9 @@ EOF
 # 2) audit → ledger + certificate
 veridict audit --task task.json --mode HYBRID \
     --ledger my-ledger.jsonl --cert-out my-cert.json
+
+# 2b) or WATCH a live audit as it writes (streaming transport, §10.3):
+veridict watch --ledger my-ledger.jsonl --forever
 
 # 3) verify offline (anyone can; no trust in the auditor required)
 veridict verify --ledger my-ledger.jsonl --cert my-cert.json

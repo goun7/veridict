@@ -62,7 +62,7 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
       - name: Install Veridict (reference implementation)
-        run: pip install -e git+https://github.com/goun7/veridict.git#egg=veridict && pip install pytest cryptography
+        run: pip install -e "git+https://github.com/goun7/veridict.git#egg=veridict-standard" && pip install pytest cryptography
       - name: Compose the task manifest
         run: |
           mkdir -p "$GITHUB_WORKSPACE/artifacts"

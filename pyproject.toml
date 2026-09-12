@@ -3,7 +3,11 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "veridict"
+# Distribution name on PyPI is `veridict-standard` (the bare `veridict`
+# name belongs to a DIFFERENT project — curagus/NodexisLabs, "verify an AI
+# agent actually did what it claimed", since 2026-06). Same package, same
+# import, same CLI: only `pip install veridict-standard` differs.
+name = "veridict-standard"
 version = "0.3.1"
 description = "The verdict that survived verification — audit AI with AI"
 requires-python = ">=3.11"

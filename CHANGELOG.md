@@ -5,6 +5,26 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- PyPI distribution name is `veridict-standard`: the bare `veridict` name
+  on PyPI belongs to an UNRELATED third-party project (curagus /
+  NodexisLabs — "verify an AI agent actually did what it claimed", parked
+  there since 2026-06) in an eerily adjacent domain; `pip install
+  veridict` installs THEIR code, not ours. Blast radius swept and fixed
+  (audit-my-repo issue template, GitHub Action, READMEs) — install path
+  is `pip install -e git+...#egg=veridict-standard` or, once published,
+  `pip install veridict-standard`. Same package, same import, same CLI.
+- `veridict watch` subcommand — the WATCH-mode streaming transport
+  surface (§10.3, v1.1-draft A1): tails a growing ledger and prints
+  `watch.observed` batches as JSON lines with the batch-identical §10.2
+  flag set. Never blocks, never appends (read-only observer — A1's MUST
+  NOT clauses pinned by test). Bounded runs via --max-batches/--idle-
+  timeout; --forever for tailing. 4 e2e tests in
+  `tests/test_watch_cli.py` (subprocess-runs of the real CLI, growth
+  under the stream, flag parity with the batch PolicyEngine).
+- Pages site gains `marketplace.html`: the watcher showcase generated
+  from the SHIPPED manifests at render time (never hand-maintained — a
+  hand list would be a second truth). Ten shipped examples listed with
+  tier, domains, maintainer.
 - Pugio watch-feed bridge receiver (`scripts/pugio_watch_receiver.py`,
   K0 §6 / K3): ingestion point for the PUGIO metering layer's decision
   stream (watch_manifest → watch_event* → watch_close), re-hashing the

@@ -274,6 +274,28 @@ def _cmd_registry(args) -> int:
     return 0
 
 
+def _cmd_watch(args) -> int:
+    """WATCH-mode streaming transport (§10.3, v1.1-draft A1): tail a growing
+    ledger and print `watch.observed` batches as JSON lines. WATCH never
+    blocks the writer and never appends to the ledger — read-only observer."""
+    policy = load_policy(args.policy) if args.policy else DEFAULT_POLICY
+    if args.mode:
+        policy = PolicyDeclaration(
+            policy_id=policy.policy_id, mode=args.mode,
+            criticality=policy.criticality, thresholds=policy.thresholds,
+            divergence_tolerance=policy.divergence_tolerance,
+            disclosure_level=policy.disclosure_level,
+            response_window_hours=policy.response_window_hours,
+            deliberation_rounds=policy.deliberation_rounds)
+    from .watcher_stream import LedgerStream, stream_summary
+    stream = LedgerStream(args.ledger, policy, poll_interval=args.poll_interval)
+    idle = 0.0 if args.forever else args.idle_timeout
+    for obs in stream.observations(max_batches=args.max_batches,
+                                   idle_timeout=(idle or None)):
+        print(json.dumps(stream_summary(obs), sort_keys=True), flush=True)
+    return 0
+
+
 def main(argv=None) -> int:
     p = _Parser(prog="veridict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -328,6 +350,23 @@ def main(argv=None) -> int:
     idx.add_argument("--out")
     idx.add_argument("--validate", action="store_true")
     idx.set_defaults(func=_cmd_index)
+    w = sub.add_parser(
+        "watch",
+        help="WATCH-mode streaming transport: tail a growing ledger, print "
+             "watch.observed JSON batches (flags per §10.2; never blocks)")
+    w.add_argument("--ledger", required=True)
+    w.add_argument("--policy")
+    w.add_argument("--mode", choices=("CERTIFICATE", "GATE", "WATCH", "HYBRID"))
+    w.add_argument("--poll-interval", type=float, default=0.05,
+                   help="seconds between file polls (detection-latency bound)")
+    w.add_argument("--max-batches", type=int, default=None,
+                   help="stop after N observations (bounded runs, CI receipts)")
+    w.add_argument("--idle-timeout", type=float, default=10.0,
+                   help="stop after N seconds with no append (default 10; "
+                        "ignored with --forever)")
+    w.add_argument("--forever", action="store_true",
+                   help="never idle-stop (Ctrl-C to end)")
+    w.set_defaults(func=_cmd_watch)
     # argparse raises SystemExit on usage errors / --help; convert to a return
     # code so in-process callers (and `sys.exit(main())`) see exit 1, not a
     # raised exception. Dispatch errors below never raise SystemExit.

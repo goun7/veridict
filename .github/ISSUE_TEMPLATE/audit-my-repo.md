@@ -25,9 +25,13 @@ a human dossier; non-critical REFUTES are recorded, not blocking.
 ledger pair. Anyone can re-verify offline:
 
 ```
-pip install veridict
+pip install -e git+https://github.com/goun7/veridict.git#egg=veridict-standard
 veridict verify --ledger <published>.jsonl --cert <published>.json
 ```
+
+(Note: `pip install veridict` on PyPI installs an UNRELATED third-party
+project that happens to share the name — our distribution is
+`veridict-standard`.)
 
 **Checklist**
 - [ ] The repo is publicly cloneable
