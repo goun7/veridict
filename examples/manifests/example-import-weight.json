@@ -1,0 +1,29 @@
+{
+  "watcher_id": "example-import-weight",
+  "name": "Example Import Weight Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-import-weight",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "STATIC_ANALYSIS"
+    ],
+    "max_tier": "W1b",
+    "subscribes_to": [
+      "performance",
+      "startup",
+      "cost"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "42710048674fb085a4acd838abccfbe41f8e055dcf95571ff33db8f86f3ecc04",
+    "update_policy": "manual"
+  }
+}

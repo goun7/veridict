@@ -1,0 +1,29 @@
+{
+  "watcher_id": "example-a11y",
+  "name": "Example Accessibility Watcher",
+  "version": "0.1.0",
+  "producer": {
+    "identity": "example-a11y",
+    "maintainer": "veridict-examples"
+  },
+  "capabilities": {
+    "evidence_classes": [
+      "WATCHER_REPORT"
+    ],
+    "max_tier": "W3",
+    "subscribes_to": [
+      "accessibility",
+      "a11y",
+      "compliance"
+    ]
+  },
+  "resource_class": {
+    "timeout_seconds": 60,
+    "cost_budget": 0.0,
+    "sandbox_level": "inprocess"
+  },
+  "integrity": {
+    "code_hash": "b0ed18bd24936f64cf384f586146d9a25f80d653e6be016003a66cc3916ddaf5",
+    "update_policy": "manual"
+  }
+}

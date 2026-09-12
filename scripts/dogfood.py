@@ -32,10 +32,12 @@ from veridict.schemas import TaskManifest                       # noqa: E402
 from veridict.conformance import run_conformance_suite            # noqa: E402
 from veridict.registry_index import build_index, export_index                  # noqa: E402
 from veridict.watchers import ManifestRegistry                  # noqa: E402
+from watchers.a11y_watcher import SESSION as A11Y_SESSION       # noqa: E402
 from watchers.compliance_watcher import SESSION as COMP_SESSION  # noqa: E402
 from watchers.cost_watcher import SESSION as COST_SESSION       # noqa: E402
 from watchers.docker_watcher import SESSION as DOCKER_SESSION  # noqa: E402
 from watchers.doc_sync_watcher import SESSION as DOCSYNC_SESSION  # noqa: E402
+from watchers.import_weight_watcher import SESSION as IMPW_SESSION  # noqa: E402
 from watchers.license_scan_watcher import SESSION as LICENSE_SESSION  # noqa: E402
 from watchers.sbom_watcher import SESSION as SBOM_SESSION       # noqa: E402
 from watchers.secret_scan_watcher import SESSION as SECRET_SESSION  # noqa: E402
@@ -116,11 +118,13 @@ def _run_phase2_segment(ledger: Ledger,
     watcher_ids: list[str] = []
     conformance: dict[str, bool] = {}
     # every shipped example must pass the certification bar before listing —
-    # the marketplace count grows 3 → 8 (G2 direction; exit needs ≥10 ACTIVE
-    # manifests, including external ones, not shipped examples alone).
+    # the marketplace shipped set is now TEN manifests (G2 direction; the
+    # exit criterion needs ≥10 ACTIVE on the marketplace, and shipped
+    # examples advertise the surface while external ones are recruited).
     for session in (SEC_SESSION, COST_SESSION, COMP_SESSION,
                     SECRET_SESSION, LICENSE_SESSION, DOCKER_SESSION,
-                    DOCSYNC_SESSION, SBOM_SESSION):
+                    DOCSYNC_SESSION, SBOM_SESSION, A11Y_SESSION,
+                    IMPW_SESSION):
         # §5.5 certification precondition: an external watcher must pass the
         # conformance kit BEFORE it can be listed — dogfood holds its own
         # examples to the same bar.
@@ -152,7 +156,8 @@ def _run_phase2_segment(ledger: Ledger,
             _calibration_jury(), keystore, key_id,
             watchers=(SEC_SESSION, COST_SESSION, COMP_SESSION,
                       SECRET_SESSION, LICENSE_SESSION, DOCKER_SESSION,
-                      DOCSYNC_SESSION, SBOM_SESSION),
+                      DOCSYNC_SESSION, SBOM_SESSION, A11Y_SESSION,
+                      IMPW_SESSION),
             registry=ledger)   # §6.6: the self-audit consults its own registry
         cal_orch.run(_segment_task(task_id, fixture_cal))
 

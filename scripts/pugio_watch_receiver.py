@@ -19,7 +19,7 @@ Fail-loud: tek satır bile RED ise exit 1 (sessiz-geçiş yok — ortak doktrin)
 
 BİLİNEN SINIR (v1, dürüstlük): manifest'in kendi DEĞERLERİ (bundle_head,
 bundle_merkle_root, source, watcher_id) zincire bağlı DEĞİLDİR — yalnız
-alan-kümesi strictliği ve bundle_event_count↔close.entries uyuşması
+alan-kümesi strictliği ve bundle_event_count≥close.entries uyuşması
 denetlenir. Değerlerin bağlanması üretici tarafında değişiklik gerektirir
 (ör. ilk olayın prev'i = SHA(manifest) veya close'a manifest_digest):
 bridge_version=2 işidir, alıcıdan tek başına yapılamaz.
@@ -93,9 +93,13 @@ def verify_watch_feed(lines: list[str]) -> tuple[bool, str, Counter]:
                 return False, f"FAIL: close'da bilinmeyen alan(lar): {sorted(extra)}", tally
             if line.get("entries") != seen:
                 return False, f"FAIL: close.entries={line.get('entries')} ≠ gerçek {seen}", tally
-            if bundle_count != seen:
+            # manifest TÜM bundle-olaylarını sayar; feed yalnız karar-olaylarını
+            # (⊆ bundle) → ses invariant: bundle_event_count >= entries.
+            # Eşitlik şartı YANLIŞ olurdu: ücretli-işlem içeren her meşru
+            # bundle'da bundle_event_count > entries (receipt'ler feed'e girmez).
+            if bundle_count < seen:
                 return False, (f"FAIL: manifest.bundle_event_count={bundle_count} "
-                              f"≠ close.entries={seen}"), tally
+                               f"< close.entries={seen} (manifest karar-sayısından az iddia edemez)"), tally
             if line.get("watch_head") != last:
                 return False, "FAIL: watch_head son entry_sha ile uyuşmuyor", tally
             return True, f"PASS: {seen} karar · watch_head={last[:16]}…", tally
@@ -187,10 +191,10 @@ def selftest() -> int:
         print("SONUÇ: RED (hash-dışı alan geçti — ALARM)")
         return 1
 
-    # manifest count ile close.entries çelişkisi reddedilmeli
+    # manifest, feed'tekinden AZ karar iddia edemez (⊆-ilişkisi reddedilmeli)
     lying = make(True)
     obj = json.loads(lying[0])
-    obj["bundle_event_count"] = 99
+    obj["bundle_event_count"] = 1
     lying[0] = json.dumps(obj, sort_keys=True, separators=(",", ":"))
     ok, msg, _ = verify_watch_feed(lying)
     print("sayı-çelişkisi:", msg)

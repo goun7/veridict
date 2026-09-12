@@ -11,19 +11,24 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   chain receiver-side, fail-loud, stdlib-only, core untouched. Hardened
   on arrival: strict field schemas (unknown fields are RED — the
   standard's D5 lesson: a field outside the hash preimage must not ride
-  along silently), and manifest `bundle_event_count` must agree with
-  `close.entries`. 10 tamper-class pins in `tests/test_pugio_bridge.py`,
+  along silently), and the manifest's `bundle_event_count` must respect
+  the subset invariant (the feed carries DECISION events ⊆ the bundle,
+  so bundle_event_count < close.entries is a lie and RED — equality
+  would wrongly reject legitimate bundles whose receipts stay out of
+  the feed; producer-side semantics, corrected by the PUGIO agent during
+  review). 11 tamper-class pins in `tests/test_pugio_bridge.py`,
   including one honest KNOWN-LIMIT pin: manifest VALUES are not chained
   in v1 (needs producer-side changes → bridge_version=2).
-- Watcher marketplace grows 3 → 8 shipped examples (G2 direction; exit
-  criterion ③ needs ≥10 ACTIVE manifests, external ones included): five new
-  third-party producers under `watchers/` — secret-scan (W1b static
-  analysis, high-confidence patterns only), license-scan (W3),
-  docker-best-practices (W3), doc-sync (W3 — stale test-count claims in
-  docs, the exact staleness class this repo hit itself),
-  sbom-spdx (W3 — undeclared dependency imports). All five pass the
-  conformance kit (C1–C10) and are registered in the dogfood Phase 2
-  segment with the rest; manifests exported under `examples/manifests/`.
+- Watcher marketplace reaches TEN shipped examples (G2 direction; exit
+  criterion ③ needs ≥10 ACTIVE manifests on the marketplace): eight from
+  the growth batch (secret-scan W1b, license-scan, docker-best-practices,
+  doc-sync, sbom-spdx — all W3 except secret-scan) plus two more roadmap
+  watchers — a11y (W3, HTML hygiene: img-without-alt,
+  aria-hidden-focusable) and import-weight (W1b, deterministic
+  import-graph weight vs a startup budget; measures WEIGHT not coverage —
+  coverage stays the sbom watcher's job). All pass the conformance kit
+  (C1–C10), are registered in the dogfood Phase 2 segment, and manifests
+  are exported under `examples/manifests/`.
 - Auditee program (launch follow-up, strategy imperative ②): the
   "Audit my repo" issue template; README gains a paste-ready
   self-serve section (task manifest → audit → offline verify); shippable

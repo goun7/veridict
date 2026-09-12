@@ -14,9 +14,12 @@ from watchers.secret_scan_watcher import MANIFEST as SEC2_MANIFEST, SESSION as S
 from watchers.docker_watcher import MANIFEST as DOCKER_MANIFEST, SESSION as DOCKER_SESSION
 from watchers.doc_sync_watcher import MANIFEST as DOC_MANIFEST, SESSION as DOC_SESSION
 from watchers.sbom_watcher import MANIFEST as SBOM_MANIFEST, SESSION as SBOM_SESSION
+from watchers.a11y_watcher import MANIFEST as A11Y_MANIFEST, SESSION as A11Y_SESSION
+from watchers.import_weight_watcher import (MANIFEST as IMPW_MANIFEST,
+                                            SESSION as IMPW_SESSION)
 
 ALL_NEW = (LIC_MANIFEST, SEC2_MANIFEST, DOCKER_MANIFEST, DOC_MANIFEST,
-           SBOM_MANIFEST)
+           SBOM_MANIFEST, A11Y_MANIFEST, IMPW_MANIFEST)
 
 
 def _claim(summary, pred="p"):
@@ -27,7 +30,7 @@ def _claim(summary, pred="p"):
 
 def test_new_watchers_pass_conformance_kit():
     for session in (LIC_SESSION, SEC2_SESSION, DOCKER_SESSION, DOC_SESSION,
-                    SBOM_SESSION):
+                    SBOM_SESSION, A11Y_SESSION, IMPW_SESSION):
         report = run_conformance_suite(session)
         assert report["conformant"], (report["watcher_id"],
                                       [c for c in report["checks"]
@@ -159,3 +162,59 @@ def test_code_hashes_self_pinned():
     for m in ALL_NEW:
         assert len(m.integrity["code_hash"]) == 64
         assert m.integrity["code_hash"] != "0" * 64
+
+
+def test_a11y_flags_img_without_alt(tmp_path):
+    (tmp_path / "index.html").write_text(
+        '<img src="hero.png"><p>fine</p>\n')
+    ev = run_session(A11Y_SESSION, _claim("pages meet basic accessibility",
+                                          pred="a11y"), "d",
+                     artifact_path=str(tmp_path))
+    assert ev is not None and ev.stance == "REFUTES"
+    assert "alt" in ev.rationale
+
+    (tmp_path / "index.html").write_text(
+        '<img src="hero.png" alt="hero"><p>fine</p>\n')
+    ev2 = run_session(A11Y_SESSION, _claim("pages meet basic accessibility",
+                                           pred="a11y"), "d",
+                      artifact_path=str(tmp_path))
+    assert ev2.stance == "SUPPORTS"
+
+
+def test_a11y_vacuous_without_html(tmp_path):
+    (tmp_path / "app.py").write_text("x = 1\n")
+    ev = run_session(A11Y_SESSION, _claim("accessibility"), "d",
+                     artifact_path=str(tmp_path))
+    assert ev.stance == "SUPPORTS"    # no HTML shipped: question vacuous
+
+
+def test_a11y_never_matches_outside_domain():
+    assert A11Y_SESSION.matches(_claim("accessibility check", pred="a11y"))
+    assert not A11Y_SESSION.matches(_claim("cost stays under budget"))
+
+
+def test_import_weight_flags_heavy_graph(tmp_path):
+    body = "".join(f"import dep{i}\n" for i in range(15))
+    (tmp_path / "heavy.py").write_text(body)
+    ev = run_session(IMPW_SESSION, _claim("startup weight stays within "
+                                          "budget", pred="import-weight"),
+                     "d", artifact_path=str(tmp_path))
+    assert ev is not None and ev.stance == "REFUTES" and ev.tier == "W1b"
+    assert "15" in ev.rationale
+
+    (tmp_path / "heavy.py").write_text("import os\nimport json\n")
+    ev2 = run_session(IMPW_SESSION, _claim("startup weight stays within "
+                                          "budget", pred="import-weight"),
+                      "d", artifact_path=str(tmp_path))
+    assert ev2.stance == "SUPPORTS"    # stdlib never counts as weight
+
+
+def test_import_weight_ignores_local_package(tmp_path):
+    pkg = tmp_path / "mypkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    (tmp_path / "app.py").write_text("from mypkg import thing\nimport json\n")
+    ev = run_session(IMPW_SESSION, _claim("startup weight within budget",
+                                         pred="import-weight"), "d",
+                     artifact_path=str(tmp_path))
+    assert ev.stance == "SUPPORTS"    # own package is not third-party weight

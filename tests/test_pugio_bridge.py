@@ -90,10 +90,23 @@ def test_hash_exogenous_field_is_rejected():
     assert not ok and "bilinmeyen alan" in msg
 
 
-def test_count_mismatch_between_manifest_and_close_is_rejected():
-    feed = _rewrite(_make_feed(), 0, bundle_event_count=99)
+def test_count_underflow_between_manifest_and_close_is_rejected():
+    """Feed carries DECISION events (a subset of the bundle); receipts of
+    metered side-work stay out of the feed. So the sound invariant is
+    bundle_event_count >= close.entries — a manifest claiming FEWER
+    bundle events than decisions shipped is a lie and must be RED."""
+    feed = _rewrite(_make_feed(), 0, bundle_event_count=1)
     ok, msg, _ = verify_watch_feed(feed)
     assert not ok and "bundle_event_count" in msg
+
+
+def test_count_above_decisions_is_legitimate():
+    """bundle_event_count > close.entries is legal by design (receipts
+    ride in the bundle but not the decision feed) — pinned so nobody
+    'fixes' this into an equality check later."""
+    feed = _rewrite(_make_feed(), 0, bundle_event_count=5)
+    ok, msg, _ = verify_watch_feed(feed)
+    assert ok, msg
 
 
 def test_close_entries_lie_is_rejected():
