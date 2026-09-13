@@ -4,7 +4,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Standard](https://img.shields.io/badge/standard-v1.0.0--draft-8A2BE2.svg)](docs/specs/2026-09-10-veridict-standard-v1.0.md)
-[![Veridict self-audit](docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/blob/main/dogfood_cert.json)
+[![Veridict self-audit](docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/releases/download/v0.3.1/dogfood_cert.json)
 
 *Doğrulamadan geçen hüküm.* | **[English](README.md)**
 
@@ -55,6 +55,8 @@ veridict --help
 python scripts/dogfood.py
 
 # bir sertifikayı offline doğrula (üçüncü tarafların umursadığı özellik)
+# (defter + sertifika release asset'idir: gh release download v0.3.1
+#  veya https://github.com/goun7/veridict/releases)
 veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
 
 # standardın uygunluk (conformance) test vektörlerini yeniden üret
@@ -69,8 +71,11 @@ python scripts/measure_latency.py
 
 Yukarıdaki öz-denetim rozeti, CI tarafından her push'ta gerçek dogfood
 sertifikasından yeniden üretilir (asla elle çizilmez) — ve o sertifikaya
-bağlanır; siz de onu kendiniz offline doğrulayabilirsiniz:
-`veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json`.
+bağlanır; siz de onu kendiniz offline doğrulayabilirsiniz: defter ve
+sertifikayı [son release'den](https://github.com/goun7/veridict/releases)
+indirin (`gh release download` ya da asset listesi), sonra
+`veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json`
+çalıştırın.
 Başarısız bir denetim rozeti kehribar veya kırmızıya çevirir — en
 kötü hüküm kazanır.
 
@@ -83,8 +88,9 @@ kötü hüküm kazanır.
 | Bütünlük saldırısı (tamper soak) | 1500 mutasyonlu defter, 5 tohum → %100 tespit, 0 sessiz geçiş |
 | Standard eş-paritesi | referans doğrulayıcı ≡ salt-standart doğrulayıcı, 8 hata modunda |
 
-CI yukarıdakilerin tamamını her push'ta koşar — makbuzlar anlatılmaz,
-yeniden üretilir.
+CI süiti, dogfood öz-denetimini ve offline yeniden oynatmayı her push'ta
+koşar — makbuzlar anlatılmaz, yeniden üretilir. 1500-defterlik tamper
+soak gecelik koşar (push koşusu 150 defterlik dilimi çalıştırır).
 
 ## 3 komutla watcher kaydı
 

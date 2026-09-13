@@ -1,6 +1,7 @@
 # Architecture — module map to the standard
 
-Veridict core is 22 modules, ~2.4k lines, stdlib-only (the single
+Veridict core is 20 modules (21 with `__init__.py`), ~2.7k lines,
+stdlib-only (the single
 third-party dependency is `cryptography` for ed25519 signing). The normative
 reference is `docs/specs/2026-09-10-veridict-standard-v1.0.md` (the
 "standard"); the founding design is
@@ -49,5 +50,5 @@ reference is `docs/specs/2026-09-10-veridict-standard-v1.0.md` (the
 
 ## Governance docs
 
-`LICENSE` (Apache-2.0), `CONTRIBUTING.md`, `GOVERNANCE.md`,
-`CHANGELOG.md`, and `docs/notes/` (external-incident design notes).
+`LICENSE` (Apache-2.0), `CONTRIBUTING.md`, `GOVERNANCE.md`, and
+`CHANGELOG.md`.

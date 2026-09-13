@@ -66,8 +66,12 @@ never produce W1a (machine truth is reserved to built-in verifiers), and
 each must pass the **conformance kit** (C1–C10: blindness, tier ceiling,
 abstain semantics, deadline, evidence shape) before it can be listed.
 
-These are the example watchers we ship. Real third-party watchers join
-the same way — see [`CONTRIBUTING.md`](https://github.com/goun7/veridict/blob/main/CONTRIBUTING.md).
+These are the example watchers we ship ({len(rows)} shipped). In the
+dogfood self-audit, one of them (compliance) is deliberately revoked
+mid-run to generate a §6.6 revocation receipt, so the live index shows
+9 active of 10 shipped — by design, not by drift. Real third-party
+watchers join the same way — see
+[`CONTRIBUTING.md`](https://github.com/goun7/veridict/blob/main/CONTRIBUTING.md).
 
 | Watcher | Doctrine | Tier | Domains | Maintainer | Version |
 |---|---|---|---|---|---|
@@ -94,6 +98,9 @@ def render(md_path: str, title: str) -> str:
     # resolve repo-relative links to GitHub so they work from Pages
     text = re.sub(r"\]\((docs/[^)]+|corpus/[^)]+)\)",
                   r"](https://github.com/goun7/veridict/blob/main/\1)", text)
+    # resolve same-directory .md links (spec cross-references) to GitHub too
+    text = re.sub(r"\]\((?!https?://|#|/)([0-9a-zA-Z._-]+\.md)\)",
+                  r"](https://github.com/goun7/veridict/blob/main/docs/specs/\1)", text)
     body = markdown.markdown(text, extensions=["tables", "fenced_code", "toc"])
     return (f"<!doctype html><meta charset=utf-8>"
             f"<meta name=viewport content='width=device-width,initial-scale=1'>"

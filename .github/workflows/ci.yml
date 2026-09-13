@@ -92,12 +92,22 @@ jobs:
           git config user.name "veridict-ci"
           git config user.email "ci@veridict.local"
           if git diff --quiet docs/assets/veridict-badge.svg; then
-            echo "badge already current"; exit 0
+            echo "badge already current"
+          else
+            git add docs/assets/veridict-badge.svg
+            git commit -m "ci: regenerate self-audit badge [skip ci]"
+            ok=1
+            for i in 1 2 3; do
+              if git pull --rebase origin main && git push origin main; then ok=0; break; fi
+              sleep $((i * 5))
+            done
+            if [ "$ok" -ne 0 ]; then
+              echo "could not push badge after retries" && exit 1
+            fi
           fi
-          git add docs/assets/veridict-badge.svg
-          git commit -m "ci: regenerate self-audit badge [skip ci]"
-          for i in 1 2 3; do
-            if git pull --rebase origin main && git push origin main; then exit 0; fi
-            sleep $((i * 5))
-          done
-          echo "could not push badge after retries" && exit 1
+      - name: Publish dogfood receipts to the latest release (stay-off-main)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName) || exit 0
+          gh release upload "$LATEST" dogfood_cert.json dogfood_ledger.jsonl --repo "$GITHUB_REPOSITORY" --clobber
