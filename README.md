@@ -143,7 +143,7 @@ The standard and the design document are readable (and linkable) at
 - **Standard v1.1 delta (draft):** [`docs/specs/2026-09-12-veridict-standard-v1.1-delta.md`](docs/specs/2026-09-12-veridict-standard-v1.1-delta.md) — ratifies the WATCH transport latency sentence (D10); read on top of v1.0
 - **Design document (founding paper):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — module map to standard sections
-- **Strategy:** [`docs/notes/strategy-deep-review.md`](docs/notes/strategy-deep-review.md) — roadmap + revenue, perfectionist lens
+- **Commercial model:** [`docs/commercial-model.md`](docs/commercial-model.md) — open-core model, growth levers, anti-corruption guardrails
 - **Contributing / Governance / Security:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`GOVERNANCE.md`](GOVERNANCE.md) · [`SECURITY.md`](SECURITY.md)
 
 ## Status & roadmap
@@ -157,7 +157,7 @@ spec-only verifier. The remaining exit criteria are external by nature:
 2. a first **external production deployment**,
 3. **≥10 active watcher manifests** on the marketplace.
 
-Current work tracks the [`docs/plans/`](docs/plans/) series; the commercial
+Roadmap decisions are tracked in the issue tracker; the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
 ## Contributing

@@ -125,7 +125,7 @@ yayınlanır.
 - **Standart v1.1 deltası (taslak):** [`docs/specs/2026-09-12-veridict-standard-v1.1-delta.md`](docs/specs/2026-09-12-veridict-standard-v1.1-delta.md) — WATCH transport gecikme cümlesini (D10) onaylar; v1.0 üstünden okunur
 - **Tasarım dokümanı (kuruluş yazısı):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Mimari:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — modül haritası → standart bölümleri
-- **Strateji:** [`docs/notes/strategy-deep-review.md`](docs/notes/strategy-deep-review.md) — yol haritası + gelir, mükemmeliyetçi bakış
+- **Ticari model:** [`docs/commercial-model.md`](docs/commercial-model.md) — açık çekirdek modeli, büyüme kaldıraçları, yozlaşma önleyici güvenceler
 - **Katkı / Yönetişim / Güvenlik:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`GOVERNANCE.md`](GOVERNANCE.md) · [`SECURITY.md`](SECURITY.md)
 
 ## Durum ve yol haritası
@@ -140,7 +140,7 @@ dışsaldır:
 2. ilk **dış üretim dağıtımı**,
 3. pazar yerinde **≥10 aktif watcher manifesti**.
 
-Şu anki çalışma [`docs/plans/`](docs/plans/) serisini izler; ticari model
+Yol haritası kararları issue takipçisinde izlenir; ticari model
 [`docs/commercial-model.md`](docs/commercial-model.md) içinde
 belgelenmiştir.
 

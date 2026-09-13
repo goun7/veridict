@@ -11,3 +11,7 @@ dogfood_index.json
 _site/
 .venv*/
 .freebuff/
+docs/plans/
+docs/notes/launch-*.md
+docs/notes/2026-09-10-agent-coordination-incident.md
+docs/notes/strategy-deep-review.md

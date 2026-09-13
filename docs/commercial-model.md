@@ -45,8 +45,8 @@ the open-core promise).
    vectors and a reference spec-only verifier is *implementable by
    competitors*; every independent implementation multiplies the value of
    certification (network effect we don't have to host).
-3. **Content with a spine.** The agent-coordination incident note
-   (`docs/notes/2026-09-10-agent-coordination-incident.md`) shows the thesis
+3. **Content with a spine.** Publicly reported agent-coordination incidents
+   show the thesis
    maps onto real incidents — turned into a public write-up it is the launch
    story: *agents already coordinate covertly; the audit channel must be the
    better medium.*
@@ -59,15 +59,16 @@ the open-core promise).
 
 ## Strategy deep review
 
-The full tradeoff map (roadmap critique, revenue ranking by speed×fit,
-protocol terminal-state, and the two imperatives) lives in
-`docs/notes/strategy-deep-review.md`. It is the reference for the next big
-build decision — read it before choosing what to fund or build.
+The full tradeoff map is maintained by the maintainer outside the public
+tree. The commitments it governs: the open core is permanent and never
+gated (Apache-2.0, no crippleware); certification revenue must never
+pressure watcher outcomes (guardrails below); next build decisions rank
+by revenue-fit against the roadmap, not by novelty.
 
 ## G1 tracker (launch receipts)
 
-Filled by the maintainer after publishing per
-`docs/notes/launch-ready.md` step 4 — numbers, not narratives.
+Filled by the maintainer after each publishing step — numbers, not
+narratives.
 
 | Date | Channel | Stars (total) | Comments/replies | Signups for Issue #1 | Notes |
 |---|---|---|---|---|---|

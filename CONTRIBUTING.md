@@ -22,8 +22,7 @@ about a minute.
 2. **No self-merged reviews.** Every change gets an independent review
    pass; reviewer-found issues are fixed by the implementer, then
    re-reviewed.
-3. **The verification mechanism gates every round** (see
-   `docs/plans/`): full test suite (both `python -m pytest` and bare
+3. **The verification mechanism gates every round**: full test suite (both `python -m pytest` and bare
    `pytest`) + fresh dogfood self-audit with a valid certificate + offline
    `veridict verify` + canary Quality Sheet (10 catches / 3 honest misses /
    0 false positives). If any leg is red, the round does not close.
@@ -107,9 +106,9 @@ element, and MUST NOT resolve R3 escalations autonomously.
 
 ## Design documents
 
-- Spec: `docs/specs/2026-09-09-veridict-design.md`
+- Design document: `docs/specs/2026-09-09-veridict-design.md`
 - Standard draft: `docs/specs/2026-09-10-veridict-standard-v1.0.md`
-- Plans and receipts: `docs/plans/`
+- Architecture (module map): `ARCHITECTURE.md`
 
 ## License
 
