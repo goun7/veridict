@@ -36,20 +36,25 @@ jobs:
           EOF
           cat task.json
       - name: Run the audit with the REAL jury (qwen3.8-flash)
+        # CERTIFICATE mode: record the verdict, do not gate on it. The
+        # audit itself must not fail the job — the RECEIPT is the point
+        # (a blocked/divergent outcome is a valid, honest receipt).
         env:
           VERIDICT_JURY_URL: "https://api.b.ai/v1"
           VERIDICT_JURY_MODEL: "qwen3.8-flash"
           VERIDICT_JURY_KEY: ${{ secrets.VERIDICT_JURY_KEY }}
         run: |
           veridict audit --task task.json \
-            --mode GATE \
+            --mode CERTIFICATE \
             --ledger "$GITHUB_WORKSPACE/artifacts/real-jury-ledger.jsonl" \
             --cert-out "$GITHUB_WORKSPACE/artifacts/real-jury-cert.json"
       - name: Offline verify of the produced certificate
+        if: always()
         run: |
           veridict verify --ledger artifacts/real-jury-ledger.jsonl \
             --cert artifacts/real-jury-cert.json
       - name: Jury composition receipt (were real providers used?)
+        if: always()
         run: |
           python - <<'EOF'
           import json
@@ -63,6 +68,7 @@ jobs:
           # design (>=2-family jury). The receipt shows which entries were real.
           EOF
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: real-jury-receipt
           path: artifacts/
