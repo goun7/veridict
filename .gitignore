@@ -10,3 +10,4 @@ dogfood_cert.json
 dogfood_index.json
 _site/
 .venv*/
+.freebuff/
