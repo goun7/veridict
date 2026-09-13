@@ -5,6 +5,16 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## 0.3.2 — 2026-09-13 (launch follow-through)
 
+- receipts: **real-LLM jury run** — the launch texts' last honest
+  limitation is closed. A live qwen3.8-flash juror produced doctrine on
+  both dogfood claims (real rationales, honest low confidence where the
+  digest alone can't decide), the certificate verifies offline
+  (`valid/chain_valid/signature_valid/verdicts_match` all true, risk low,
+  score 1.0), and the first GATE-mode attempt showed the fail-closed
+  design catching real-vs-stub divergence (`divergence-split`,
+  `inconclusive-unresolved`, GATE blocked). Workflow:
+  `real-jury-receipt.yml` (manual dispatch, key via repo secret, never
+  committed). Roadmap #10 L0-3; run 34787467296.
 - action: composite `audit/action.yml` added — the audit as a
   Marketplace-listable GitHub Action (reusable workflows cannot be
   Marketplace-listed; only actions with action.yml metadata can). Same
