@@ -1,0 +1,69 @@
+name: real-jury-receipt
+
+# L0-3 (roadmap #10): one real-LLM jury run — the honest-limitation receipt
+# the launch texts publicly promise. Manual trigger only; never scheduled.
+# The key NEVER touches the repo: it lives in the VERIDICT_JURY_KEY secret
+# and is passed to the audit process as an environment variable.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-jury-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Veridict (reference implementation)
+        run: pip install -e . && pip install pytest cryptography httpx
+      - name: Compose the task manifest (audit THIS repo)
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cat > "$GITHUB_WORKSPACE/task.json" <<EOF
+          {
+            "task_id": "real-jury-receipt",
+            "artifact_path": ".",
+            "actor_identity": "real-jury-receipt",
+            "intent_lines": ["DOCTRINE: modules are idiomatic python"],
+            "criticality": [],
+            "has_existing_tests": false,
+            "pytest_args": []
+          }
+          EOF
+          cat task.json
+      - name: Run the audit with the REAL jury (qwen3.8-flash)
+        env:
+          VERIDICT_JURY_URL: "https://api.b.ai/v1"
+          VERIDICT_JURY_MODEL: "qwen3.8-flash"
+          VERIDICT_JURY_KEY: ${{ secrets.VERIDICT_JURY_KEY }}
+        run: |
+          veridict audit --task task.json \
+            --mode GATE \
+            --ledger "$GITHUB_WORKSPACE/artifacts/real-jury-ledger.jsonl" \
+            --cert-out "$GITHUB_WORKSPACE/artifacts/real-jury-cert.json"
+      - name: Offline verify of the produced certificate
+        run: |
+          veridict verify --ledger artifacts/real-jury-ledger.jsonl \
+            --cert artifacts/real-jury-cert.json
+      - name: Jury composition receipt (were real providers used?)
+        run: |
+          python - <<'EOF'
+          import json
+          ledger = [json.loads(l) for l in open("artifacts/real-jury-ledger.jsonl")]
+          families = sorted({e.get("payload", {}).get("family", e.get("family", "?"))
+                              for e in ledger if "jury" in str(e.get("entry_type", ""))})
+          print("jury families on ledger:", families)
+          stubs = [f for f in families if f and f.startswith("stub")]
+          print("scripted stubs present:", bool(stubs))
+          # note: with only VERIDICT_JURY_URL set, provider 2 pads with a stub by
+          # design (>=2-family jury). The receipt shows which entries were real.
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: real-jury-receipt
+          path: artifacts/
+          retention-days: 90
