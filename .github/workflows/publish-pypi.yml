@@ -13,7 +13,10 @@ name: publish-pypi
 # After the first successful publish the pending publisher becomes active.
 on:
   push:
-    tags: ['v*']
+    # Semver tags only (v0.3.1, v1.0.0, ...). The `v1` MAJOR-TRACKING
+    # tag (a moving ref for the audit Action, not a release: single
+    # component, no dot) does not match this pattern.
+    tags: ['v*.*.*']
 
 permissions:
   contents: read

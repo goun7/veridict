@@ -5,6 +5,15 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- launch hygiene (roadmap v2, issue #10): `v1` major-tracking tag created
+  for the audit Action's `@v1` reference (README example was broken — no
+  such tag existed; the first attempt pointed at a pre-action commit and
+  was retagged on main where the workflow file exists). `publish-pypi`
+  trigger narrowed to semver tags (`v*.*.*`) so the moving `v1` ref can
+  never fire a publish (found live: the tag push triggered a doomed
+  trusted-publishing run — PyPI publisher not yet registered; manual
+  0.3.1 upload remains the release of record).
+
 - brand: project mark (the V glyph — two strokes converge to one
   verified point) added as `docs/assets/logo.svg` with favicon set
   (16/32/48/64/128/180/512 + .ico) and a 1200×640 social card; site
