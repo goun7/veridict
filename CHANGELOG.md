@@ -5,6 +5,12 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- action: composite `audit/action.yml` added — the audit as a
+  Marketplace-listable GitHub Action (reusable workflows cannot be
+  Marketplace-listed; only actions with action.yml metadata can). Same
+  engine, same inputs as the reusable workflow; invocation:
+  `uses: goun7/veridict/audit@v1`. L0-2 of roadmap issue #10.
+
 - launch hygiene (roadmap v2, issue #10): `v1` major-tracking tag created
   for the audit Action's `@v1` reference (README example was broken — no
   such tag existed; the first attempt pointed at a pre-action commit and
