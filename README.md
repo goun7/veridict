@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Standard](https://img.shields.io/badge/standard-v1.0.0--draft-8A2BE2.svg)](docs/specs/2026-09-10-veridict-standard-v1.0.md)
-[![Veridict self-audit](docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/releases/download/v0.3.1/dogfood_cert.json)
+[![Veridict self-audit](https://raw.githubusercontent.com/goun7/veridict/main/docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/releases/download/v0.3.1/dogfood_cert.json)
 
 *The verdict that survived verification.* | **[Türkçe](README.tr.md)**
 
