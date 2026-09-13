@@ -3,7 +3,7 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
-## unreleased
+## 0.3.2 — 2026-09-13 (launch follow-through)
 
 - action: composite `audit/action.yml` added — the audit as a
   Marketplace-listable GitHub Action (reusable workflows cannot be
