@@ -168,7 +168,10 @@ spec-only verifier. The remaining exit criteria are external by nature:
 2. a first **external production deployment**,
 3. **≥10 active watcher manifests** on the marketplace.
 
-Roadmap decisions are tracked in the issue tracker; the commercial
+Roadmap decisions are tracked in the issue tracker — the post-launch
+expansion plan is [Roadmap v2 (#10)](https://github.com/goun7/veridict/issues/10)
+(launch-hygiene fixes first, then standard maturity, federation, and
+formal verification); the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
 ## Contributing
