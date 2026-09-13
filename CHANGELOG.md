@@ -12,12 +12,13 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 - adoption: GitHub Discussions enabled (2026-09-13) — the open inbox for
   enterprise adoption support (first revenue lane, $0). Seed thread:
   "Adopting Veridict in your CI".
-- packaging: PyPI publish pipeline ready — Trusted Publishing (OIDC, no
-  stored tokens) via `.github/workflows/publish-pypi.yml` on `v*` tags;
-  `veridict-standard` sdist+wheel build clean and pass `twine check`;
-  smoke-tested in a fresh venv (CLI installs and runs). Publishes on the
-  first `v*` tag after the maintainer registers the pending publisher on
-  PyPI (name `veridict-standard`, env `pypi`).
+- packaging: PUBLISHED — `veridict-standard` 0.3.1 is live on PyPI
+  (https://pypi.org/project/veridict-standard/0.3.1/), uploaded via the
+  maintainer's API token; fresh-venv install + CLI smoke test pass.
+  Future releases flow through `.github/workflows/publish-pypi.yml`
+  (Trusted Publishing, OIDC, no stored tokens) on `v*` tags. READMEs
+  carry the PyPI badge and the launch texts now lead with
+  `pip install veridict-standard`.
 - docs: "Tiers, not vibes" bullet rewritten in plain language (both
   READMEs) — the evidence rank order is explained before the W-notation
   is used.

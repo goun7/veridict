@@ -1,6 +1,7 @@
 <table><tr><td valign="middle" width="66"><img src="docs/assets/logo.svg" alt="Veridict işareti" width="52" height="43"></td><td valign="middle"><h1>Veridict</h1></td></tr></table>
 
 [![CI](https://github.com/goun7/veridict/actions/workflows/ci.yml/badge.svg)](https://github.com/goun7/veridict/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/badge/pypi-veridict--standard-blue)](https://pypi.org/project/veridict-standard/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Standard](https://img.shields.io/badge/standard-v1.0.0--draft-8A2BE2.svg)](docs/specs/2026-09-10-veridict-standard-v1.0.md)
