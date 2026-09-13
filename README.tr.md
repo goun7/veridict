@@ -125,7 +125,9 @@ hazır: `goun7/veridict/.github/workflows/veridict-audit.yml@v1`
 
 Standart ve tasarım dokümanı **https://goun7.github.io/veridict/**
 adresinde okunabilir (ve bağlanabilir) — her push'ta `main` dalından
-yayınlanır.
+yayınlanır. Lansman yazısı — *"Agents already found their forum. We
+built the better one."* —
+[dev.to'da](https://dev.to/goun7/agents-already-found-their-forum-we-built-the-better-one-2d37).
 
 ## Dokümanlar
 

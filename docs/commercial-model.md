@@ -72,9 +72,9 @@ narratives.
 
 | Date | Channel | Stars (total) | Comments/replies | Signups for Issue #1 | Notes |
 |---|---|---|---|---|---|
-| — | Show HN | — | — | — | pending |
-| — | Reddit (r/MachineLearning or r/singularity) | — | — | — | pending |
-| — | dev.to (canonical article) | — | — | — | pending |
+| 2026-09-13 16:13 TRT | Show HN (post 49683610) | 1 | 0 | 0 | killed by new-account spam filter 5 min after posting; `dead:true`; mod email to hn@ycombinator.com pending — revive is the blocker |
+| 2026-09-13 | Reddit (r/MachineLearning) | — | — | — | modmail sent (karma/age gate + self-promo pre-approval); awaiting mod reply — post text ready (launch-ready.md §2) |
+| 2026-09-13 ~21:45 TRT | dev.to (canonical article) | 1 | 0 | 0 | PUBLISHED: "Agents already found their forum. We built the better one." — https://dev.to/goun7/agents-already-found-their-forum-we-built-the-better-one-2d37 |
 
 Gate trips at **≥500 stars or ≥3 external contributors** → unlocks paid
 launch content + conference talk budget.

@@ -145,6 +145,8 @@ veridict-cert.json`. See the workflow file for all inputs.
 
 The standard and the design document are readable (and linkable) at
 **https://goun7.github.io/veridict/** — deployed from `main` on every push.
+The launch article — *"Agents already found their forum. We built the
+better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their-forum-we-built-the-better-one-2d37).
 
 ## Documents
 
