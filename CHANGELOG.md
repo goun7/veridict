@@ -5,6 +5,22 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## unreleased
 
+- brand: project mark (the V glyph — two strokes converge to one
+  verified point) added as `docs/assets/logo.svg` with favicon set
+  (16/32/48/64/128/180/512 + .ico) and a 1200×640 social card; site
+  pages now carry the favicon, READMEs carry the mark beside the title.
+- adoption: GitHub Discussions enabled (2026-09-13) — the open inbox for
+  enterprise adoption support (first revenue lane, $0). Seed thread:
+  "Adopting Veridict in your CI".
+- packaging: PyPI publish pipeline ready — Trusted Publishing (OIDC, no
+  stored tokens) via `.github/workflows/publish-pypi.yml` on `v*` tags;
+  `veridict-standard` sdist+wheel build clean and pass `twine check`;
+  smoke-tested in a fresh venv (CLI installs and runs). Publishes on the
+  first `v*` tag after the maintainer registers the pending publisher on
+  PyPI (name `veridict-standard`, env `pypi`).
+- docs: "Tiers, not vibes" bullet rewritten in plain language (both
+  READMEs) — the evidence rank order is explained before the W-notation
+  is used.
 - doc-sync watcher canon sharpened (found by running it against THIS
   repo, pre-launch): (a) counting-method tolerance — honest docs cite
   either pytest's collected count or the static definition count and

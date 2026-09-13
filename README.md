@@ -1,4 +1,4 @@
-# Veridict
+<table><tr><td valign="middle" width="66"><img src="docs/assets/logo.svg" alt="Veridict mark" width="52" height="43"></td><td valign="middle"><h1>Veridict</h1></td></tr></table>
 
 [![CI](https://github.com/goun7/veridict/actions/workflows/ci.yml/badge.svg)](https://github.com/goun7/veridict/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -22,17 +22,20 @@ the verdict of responsibility.
 ## Why an audit ledger
 
 - **No silent passes.** No evidence → INCONCLUSIVE, flagged — never a clean bill.
-- **Tiers, not vibes.** W1a (machine truth) > W1b (statistical reproduction) > W2/W3 (jury doctrine) — the ladder never lets doctrine overturn machine evidence, and W3 alone never verifies.
+- **Tiers, not vibes.** Evidence has a fixed rank order: what a machine can
+  check directly (W1a) beats what can be reproduced statistically (W1b),
+  and both beat what a jury of models believes (W2/W3) — the ladder never
+  lets doctrine overturn machine evidence, and W3 alone never verifies.
 - **Identity is binding.** Every entry's hash binds its author; watcher manifests are signed, W1a is structurally impossible for them; a calibration ledger discounts producers whose claims were contradicted.
 - **Verify, don't trust.** Certificates replay offline against the ledger. `examples/spec_verifier.py` is a verifier written **from the standard alone** (zero imports of this codebase) that reaches the same verdicts from the published test vectors.
 
 ## Quickstart
 
 ```bash
-pip install -e . && pip install pytest
-# PyPI name: `veridict-standard` (the bare `veridict` on PyPI is a
-# DIFFERENT project — not ours; from this repo or `pip install
-# veridict-standard` once published)
+pip install veridict-standard
+# PyPI name is `veridict-standard` (the bare `veridict` on PyPI is a
+# DIFFERENT project — not ours). Same package from the repo, if preferred:
+#   pip install -e . && pip install pytest
 
 # audit a task end-to-end (GATE mode) — see examples/ for runnable scenarios
 veridict --help

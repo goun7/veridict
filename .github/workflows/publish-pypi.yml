@@ -1,0 +1,49 @@
+name: publish-pypi
+
+# Publish veridict-standard to PyPI on release tags (v*).
+# Publishing is the only privileged step in the repo: it runs only on a
+# tag push by the maintainer, never on branch pushes.
+# PyPI trust model: PyPI Trusted Publishing (OIDC) — no API token stored
+# anywhere; PyPI verifies the workflow's repo/tag/identity itself.
+# First-time setup (once, by the maintainer):
+#   pypi.org → account → Publishing → Add a new pending publisher:
+#     PyPI project name: veridict-standard
+#     owner: goun7   repository: veridict   workflow: publish-pypi.yml
+#     environment: pypi
+# After the first successful publish the pending publisher becomes active.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi   # requires a repo Environment named "pypi"
+    permissions:
+      id-token: write    # OIDC for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

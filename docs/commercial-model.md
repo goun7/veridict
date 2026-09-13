@@ -18,7 +18,7 @@ not on our servers.
 | Stream | Capital need | When | Why it fits the ethics |
 |---|---|---|---|
 | **Watcher certification** | $0 (review time only) | after ≥10 community manifests | We are PAID TO REJECT. Income depends on failing bad watchers — the incentive aligns with the no-silent-pass invariant instead of against it |
-| **Enterprise adoption support** | $0 | immediately on first inbound inquiry | Consulting on embedding Veridict in a company's CI: policy tuning, audit pipelines, verifier integration |
+| **Enterprise adoption support** | $0 | immediately on first inbound inquiry — inbox is LIVE: repo Discussions (enabled 2026-09-13), seeded thread "Adopting Veridict in your CI" | Consulting on embedding Veridict in a company's CI: policy tuning, audit pipelines, verifier integration |
 | **Crypto donations** (multi-chain: Solana + EVM + BTC + Sui + TRC-20 all LIVE in FUNDING.yml as of 2026-09-12 — receive-only, no signing authority; TRC-20 standard address chosen over GasFree for universal exchange acceptance) | $0 | LIVE (decision 2026-09-10, fully activated 2026-09-12) | Global donors pick their cheapest rail; no custody, no payout setup, no tax-setup friction. Honest note: the tax character of income does not change with the rail — declaration goes through a professional once amounts matter |
 | **GitHub Sponsors** | $0 | DEACTIVATED by decision (2026-09-11) — pending professional tax advice; handle reserved in FUNDING.yml | Sponsors stays off until a tax professional is consulted; crypto is the active rail meanwhile |
 | **Hosted platform / SaaS** | HIGH (servers, ops) | **gated** — see below | The deferred prize: hosted registries, continuous dogfood, dashboards. Only worth building when demand exists |

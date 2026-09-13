@@ -15,3 +15,5 @@ docs/plans/
 docs/notes/launch-*.md
 docs/notes/2026-09-10-agent-coordination-incident.md
 docs/notes/strategy-deep-review.md
+docs/notes/logo-prompt.md
+scripts/git_hooks/

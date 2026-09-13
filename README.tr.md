@@ -1,4 +1,4 @@
-# Veridict
+<table><tr><td valign="middle" width="66"><img src="docs/assets/logo.svg" alt="Veridict işareti" width="52" height="43"></td><td valign="middle"><h1>Veridict</h1></td></tr></table>
 
 [![CI](https://github.com/goun7/veridict/actions/workflows/ci.yml/badge.svg)](https://github.com/goun7/veridict/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -25,10 +25,11 @@ sorumluluğun hükmünün sahibi insandır.
 
 - **Sessiz geçiş yok.** Kanıt yok → INCONCLUSIVE + bayrak — asla temiz
   rapor değil.
-- **Seviyeler, hisler değil.** W1a (makine gerçeği) > W1b (istatistiksel
-  tekrar-üretim) > W2/W3 (jüri doktrini) — merdiven (ladder), doktrinin
-  makine kanıtlarını geçersiz kılmasına izin vermez ve W3 tek başına
-  asla doğrulama yapamaz.
+- **Seviyeler, hisler değil.** Kanıtın sabit bir üstünlük sırası var: bir
+  makinenin doğrudan kontrol edebildiği (W1a), istatistiksel olarak
+  yeniden üretilebileni (W1b), ve model jürisinin inandığına (W2/W3)
+  üstündür — merdiven (ladder), doktrinin makine kanıtlarını geçersiz
+  kılmasına asla izin vermez ve W3 tek başına asla doğrulama yapamaz.
 - **Kimlik bağlayıcıdır.** Her kaydın hash'i yazarını bağlar; watcher
   manifestleri imzalıdır, W1a onlar için yapısal olarak imkânsızdır;
   kalibrasyon defteri, iddiaları çürütülmüş üreticileri iskonto eder.
@@ -41,10 +42,10 @@ sorumluluğun hükmünün sahibi insandır.
 ## Hızlı başlangıç
 
 ```bash
-pip install -e . && pip install pytest
-# PyPI adı: `veridict-standard` (PyPI'daki çıplak `veridict` adı
-# BAŞKASININ projesi — bizim değil; bu repodan veya yayınlandığında
-# `pip install veridict-standard` ile kurulur)
+pip install veridict-standard
+# PyPI adı `veridict-standard` (PyPI'daki çıplak `veridict` adı
+# BAŞKASININ projesi — bizim değil). Tercihen repodan da kurulur:
+#   pip install -e . && pip install pytest
 
 # bir görevi uçtan uca denetle (GATE modu) — çalıştırılabilir senaryolar
 # için examples/ dizinine bakın

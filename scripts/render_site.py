@@ -104,12 +104,22 @@ def render(md_path: str, title: str) -> str:
     body = markdown.markdown(text, extensions=["tables", "fenced_code", "toc"])
     return (f"<!doctype html><meta charset=utf-8>"
             f"<meta name=viewport content='width=device-width,initial-scale=1'>"
+            f"<link rel=icon type='image/svg+xml' href='assets/logo.svg'>"
+            f"<link rel='alternate icon' type='image/png' href='assets/favicon-32.png'>"
             f"<title>{title} — Veridict</title><style>{STYLE}</style>"
             f"{NAV}{body}</html>")
 
 
 def main() -> int:
     os.makedirs(OUT, exist_ok=True)
+    # ship the brand assets with the site (favicon + logo)
+    import shutil
+    site_assets = os.path.join(OUT, "assets")
+    os.makedirs(site_assets, exist_ok=True)
+    for fn in ("logo.svg", "favicon-32.png", "favicon-16.png", "favicon.ico"):
+        src = os.path.join(REPO, "docs", "assets", fn)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(site_assets, fn))
     pages = {
         "index.html": (None, "An audit standard for AI-generated work"),
         "standard.html": (os.path.join(REPO, "docs", "specs",
