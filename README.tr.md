@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
 [![Standard](https://img.shields.io/badge/standard-v1.0.0--draft-8A2BE2.svg)](docs/specs/2026-09-10-veridict-standard-v1.0.md)
-[![Veridict self-audit](https://raw.githubusercontent.com/goun7/veridict/main/docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/releases/download/v0.3.1/dogfood_cert.json)
+[![Veridict self-audit](https://raw.githubusercontent.com/goun7/veridict/main/docs/assets/veridict-badge.svg)](https://github.com/goun7/veridict/releases/download/v0.3.2/dogfood_cert.json)
 
 *Doğrulamadan geçen hüküm.* | **[English](README.md)**
 
@@ -57,7 +57,7 @@ veridict --help
 python scripts/dogfood.py
 
 # bir sertifikayı offline doğrula (üçüncü tarafların umursadığı özellik)
-# (defter + sertifika release asset'idir: gh release download v0.3.1
+# (defter + sertifika release asset'idir: gh release download v0.3.2
 #  veya https://github.com/goun7/veridict/releases)
 veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
 
