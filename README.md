@@ -125,16 +125,28 @@ claim says exactly which evidence refuted it.
 
 ### Audit on every push (GitHub Action)
 
-Run Veridict inside your own CI without installing anything locally:
+Run Veridict inside your own CI without installing anything locally — two
+equivalent styles:
 
 ```yaml
+# style 1 — the composite action (root action.yml; appears on the
+# GitHub Marketplace as "veridict audit")
 jobs:
   audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: goun7/veridict@v1
+        with:
+          intent: "DOCTRINE: modules are idiomatic python"
+          mode: HYBRID          # GATE / WATCH / CERTIFICATE also available
+          fail-on-refuted: false # flip to true once you trust the audit
+
+# style 2 — the reusable workflow (same engine, same inputs)
+  audit-wf:
     uses: goun7/veridict/.github/workflows/veridict-audit.yml@v1
     with:
       intent: "DOCTRINE: modules are idiomatic python"
-      mode: HYBRID          # GATE / WATCH / CERTIFICATE also available
-      fail-on-refuted: false # flip to true once you trust the audit
+      mode: HYBRID
 ```
 
 The run uploads `veridict-audit` artifacts (ledger + certificate) — download

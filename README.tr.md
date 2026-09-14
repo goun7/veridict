@@ -117,9 +117,11 @@ koşun, sertifikayı offline doğrulayın — sonra çifti README'nizden bağlay
 komutlar birebir geçerlidir; issue şablonu:
 [Audit my repo](https://github.com/goun7/veridict/issues/new?template=audit-my-repo.md).)
 
-Her push'ta kendi CI'ınızda koşmak isterseniz reusable GitHub Action
-hazır: `goun7/veridict/.github/workflows/veridict-audit.yml@v1`
-(girdilerin tamamı workflow dosyasında).
+Her push'ta kendi CI'ınızda koşmak isterseniz iki eşdeğer yol var:
+composite action `goun7/veridict@v1` (repo kökündeki `action.yml`;
+GitHub Marketplace'te "veridict audit" olarak listelenir) veya reusable
+workflow `goun7/veridict/.github/workflows/veridict-audit.yml@v1`
+(aynı motor, aynı girdiler; girdilerin tamamı workflow dosyasında).
 
 ## Genel site
 

@@ -47,11 +47,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         path: auditee
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: ${{ inputs.python-version }}
 
@@ -102,7 +102,7 @@ runs:
         sys.exit(0 if risk == "low" else 1)
         EOF
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: veridict-audit
         path: artifacts/

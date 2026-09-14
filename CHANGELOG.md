@@ -3,6 +3,21 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## 0.3.3 — 2026-09-14 (marketplace listing + CI deprecation cleanup)
+
+- action: **`action.yml` moved to the repository root** (`audit/` → `/`).
+  GitHub Marketplace only lists actions whose `action.yml` lives at the
+  repo root — the 0.3.2 layout (`audit/action.yml`) worked via
+  `uses:` but could never appear on the Marketplace (verified: the
+  listing URL 404'd until the move). Invocation is now
+  `uses: goun7/veridict@v1`; `v1` re-tagged to this commit. This closes
+  L0-2 for real (0.3.2 claimed it prematurely).
+- ci: all `actions/*` steps upgraded to Node-24-native majors
+  (checkout v4→v7, setup-python v5→v7, upload-artifact v4→v7,
+  download-artifact v4→v8, upload-pages-artifact v3→v4,
+  deploy-pages v4→v5, configure-pages v5→v6) — clears the Node-20
+  deprecation warnings that appeared on every run of 0.3.2.
+
 ## 0.3.2 — 2026-09-13 (launch follow-through)
 
 - receipts: **real-LLM jury run** — the launch texts' last honest
@@ -15,11 +30,12 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   `inconclusive-unresolved`, GATE blocked). Workflow:
   `real-jury-receipt.yml` (manual dispatch, key via repo secret, never
   committed). Roadmap #10 L0-3; run 34787467296.
-- action: composite `audit/action.yml` added — the audit as a
+- action: composite audit action added — the audit as a
   Marketplace-listable GitHub Action (reusable workflows cannot be
   Marketplace-listed; only actions with action.yml metadata can). Same
-  engine, same inputs as the reusable workflow; invocation:
-  `uses: goun7/veridict/audit@v1`. L0-2 of roadmap issue #10.
+  engine, same inputs as the reusable workflow. L0-2 of roadmap issue #10
+  (moved to repo root in 0.3.3 — see above; the 0.3.2 `audit/` layout
+  predated the Marketplace root-file rule).
 
 - launch hygiene (roadmap v2, issue #10): `v1` major-tracking tag created
   for the audit Action's `@v1` reference (README example was broken — no
