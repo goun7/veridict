@@ -86,6 +86,11 @@ def test_valid_cert_yields_verified_badge(tmp_path):
     assert 'fill="#2da44e"' in svg
     assert cert["cert_id"][:12] in svg
     assert "goun7.github.io/veridict/standard.html" in svg
+    # Receipt, not narrative: the emitted SVG must parse as XML. The 0.3.x
+    # badge shipped with "--" inside an XML comment (illegal per XML 1.0) —
+    # every browser showed a broken image while CI stayed green for a day.
+    import xml.etree.ElementTree as ET
+    ET.fromstring(svg)  # raises ParseError → test fails
 
 
 def test_badge_status_worst_verdict_wins():

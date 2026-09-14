@@ -37,7 +37,9 @@ COLORS = {
 
 SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="20" role="img" aria-label="{label}: {status}">
 <!-- Veridict audit badge. Claim: certificate {cert_id} verified offline.
-     Audit it yourself: veridict verify --ledger <ledger.jsonl> --cert <cert.json>
+     Audit it yourself: veridict verify with the ledger and cert JSON files
+     (see the README for the exact command; XML comments may not contain
+     double hyphens, so it is not spelled out here).
      Standard: https://goun7.github.io/veridict/standard.html -->
 <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
 <rect rx="3" width="{width}" height="20" fill="#555"/>
@@ -88,6 +90,17 @@ def main() -> int:
         width=width, left_w=left_w, right_w=right_w,
         left_cx=left_w // 2, right_cx=left_w + right_w // 2,
         label=label, status=status, color=color, cert_id=cert_id)
+    # Receipt, not narrative: an unparseable badge is a broken badge. The
+    # 0.3.x badge shipped for a day with "--" inside an XML comment (illegal
+    # per XML 1.0) — every browser rendered it as a broken image while CI
+    # stayed green. Never again: the generator now refuses to emit invalid XML.
+    import xml.etree.ElementTree as ET
+    try:
+        ET.fromstring(svg)
+    except ET.ParseError as exc:
+        print(f"refusing badge: generated SVG is not well-formed XML — {exc}",
+              file=sys.stderr)
+        return 1
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(svg)
     print(f"badge: {status} (cert {cert_id}) -> {args.out}")

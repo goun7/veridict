@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="304" height="20" role="img" aria-label="veridict self-audit: VERIFIED">
-<!-- Veridict audit badge. Claim: certificate a371f71a56f5 verified offline.
-     Audit it yourself: veridict verify --ledger <ledger.jsonl> --cert <cert.json>
+<!-- Veridict audit badge. Claim: certificate 9334df95027f verified offline.
+     Audit it yourself: veridict verify with the ledger and cert JSON files
+     (see the README for the exact command; XML comments may not contain
+     double hyphens, so it is not spelled out here).
      Standard: https://goun7.github.io/veridict/standard.html -->
 <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
 <rect rx="3" width="304" height="20" fill="#555"/>
