@@ -3,6 +3,28 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## Unreleased (post-0.3.3 hygiene, on `main`, riding the `v1` tag)
+
+- marketplace: **listing published** (2026-09-14) —
+  https://github.com/marketplace/actions/veridict-audit, primary category
+  **Security**. Lane 0 is fully closed; the only remaining work is external
+  (Lane 1: first real auditee).
+- action: description shortened under Marketplace's 125-char limit
+  (5de1eba) — the listing draft rejected the 0.3.3 text.
+- badge: **the self-audit badge never rendered, ever** — the SVG template's
+  XML comment contained `--ledger` / `--cert`, and XML 1.0 §2.5 forbids
+  double hyphens inside comments, so every browser failed to parse the SVG
+  while CI stayed green for a day. Fixed in fd2bb4d: comment rewritten,
+  generator now refuses to emit non-well-formed XML (`ET.fromstring` guard),
+  `test_badge.py` asserts well-formedness (would have been RED on 0.3.3).
+  READMEs point the badge link at v0.3.3's dogfood receipt.
+- v1: **major-tracking tag re-pointed to fd2bb4d** (badge fix inside the
+  tag's tree — the listing renders the README from this commit; it would
+  have re-shipped the broken badge).
+- v1 release: dogfood receipts (`dogfood_cert.json` + `dogfood_ledger.jsonl`
+  from the fd2bb4d CI run) attached — release notes' "dogfood certificate
+  attached to each release" is now literally true for v1.
+
 ## 0.3.3 — 2026-09-14 (marketplace listing + CI deprecation cleanup)
 
 - action: **`action.yml` moved to the repository root** (`audit/` → `/`).
