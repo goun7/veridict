@@ -8,15 +8,11 @@
 #
 # Two invocation styles exist for this repo — both supported:
 #   1) Composite action (this file; listable on the GitHub Marketplace):
-#        - uses: goun7/veridict/audit@v1
+#        uses: goun7/veridict@v1
 #   2) Reusable workflow (fuller, same engine; not Marketplace-listable):
 #        uses: goun7/veridict/.github/workflows/veridict-audit.yml@v1
 name: 'Veridict audit'
-description: >-
-  Audit a repository with Veridict — an append-only, hash-chained evidence
-  ledger for auditing AI-generated work. Produces a ledger + signed
-  certificate as artifacts; certificates verify offline with no trust in
-  the auditor required.
+description: 'Append-only, hash-chained evidence ledger + offline-verifiable audit certificate for AI-generated work.'
 
 branding:
   icon: 'check-circle'
