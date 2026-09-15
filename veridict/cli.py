@@ -46,7 +46,8 @@ def _build_jury() -> tuple[Jury, list[str]]:
                         "configure VERIDICT_JURY_URL[/URL2] for real doctrine")
         providers.append(ScriptedProvider(family=f"stub-{n}", identity=f"stub-{n}-1",
                                           default=Opinion("SUPPORTS", 0.8, "stub")))
-    return Jury(providers), warnings
+    return Jury(providers, author_family=os.environ.get("VERIDICT_ACTOR_FAMILY")
+                or None), warnings
 
 
 def _load_watchers(specs, ledger, keystore, key_id, warnings,

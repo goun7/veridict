@@ -43,6 +43,9 @@ jobs:
           VERIDICT_JURY_URL: "https://api.b.ai/v1"
           VERIDICT_JURY_MODEL: "qwen3.8-flash"
           VERIDICT_JURY_KEY: ${{ secrets.VERIDICT_JURY_KEY }}
+          VERIDICT_JURY_SAMPLES: "3"   # sample calibration: 3 independent
+                                       # draws, majority stance + agreement
+                                       # discount (split => abstain)
         run: |
           veridict audit --task task.json \
             --mode CERTIFICATE \

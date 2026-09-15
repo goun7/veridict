@@ -1,8 +1,25 @@
-"""Blind heterogeneous jury (§5.2). Members never see each other's doctrine."""
+"""Blind heterogeneous jury (§5.2). Members never see each other's doctrine.
+
+Calibration layer (added 0.4.0, grounded in the LLM-as-judge literature):
+
+- **Self-preference exclusion** — an AI from the same model family as the
+  audited artifact's author cannot sit on its jury (self-enhancement bias:
+  Zheng et al., arXiv:2306.05685; self-preference bias: Watai et al.,
+  arXiv:2410.21819). The author's family is declared by the auditor
+  (`author_family` / VERIDICT_ACTOR_FAMILY); undeclared means no exclusion.
+- **Evidence-first (MEC)** — jurors must list concrete observations BEFORE
+  rating (Multiple Evidence Calibration, Wang et al., arXiv:2305.17926).
+- **Sample calibration** — optional repeated independent calls
+  (VERIDICT_JURY_SAMPLES>1, temperature floored at 0.7 so repeats are
+  genuinely sampled): strict-majority stance wins, confidence is discounted
+  by the agreement fraction, and a split with no majority abstains
+  ("sample-split") instead of silently averaging an inconsistency.
+"""
 from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from dataclasses import dataclass
 
 import httpx
@@ -59,11 +76,53 @@ class OpenAICompatProvider:
         self.api_key = os.environ.get("VERIDICT_JURY_KEY", "")
         self.model = os.environ.get("VERIDICT_JURY_MODEL", "gpt-4o-mini")
 
+    # -- calibration knobs (env so CI workflows can set them per-run) ----
+    def _samples(self) -> int:
+        try:
+            return max(1, int(os.environ.get("VERIDICT_JURY_SAMPLES", "1")))
+        except ValueError:
+            return 1
+
+    def _temperature(self, samples: int) -> float:
+        env = os.environ.get("VERIDICT_JURY_TEMPERATURE")
+        if env is not None:
+            try:
+                return float(env)
+            except ValueError:
+                pass
+        # Repeated calls at temperature 0 return identical strings — they
+        # measure nothing. If samples are requested, actually sample.
+        return 0.0 if samples <= 1 else 0.7
+
     def doctrine(self, claim_summary: str, artifact_digest: str) -> Opinion:
+        n = self._samples()
+        if n <= 1:
+            return self._one(claim_summary, artifact_digest, self._temperature(n))
+        ops: list[Opinion] = []
+        temp = self._temperature(n)
+        for _ in range(n):
+            ops.append(self._one(claim_summary, artifact_digest, temp))
+        counts = Counter(o.stance for o in ops)
+        top_stance, top_n = counts.most_common(1)[0]
+        if top_n * 2 <= n:                       # no strict majority
+            # Honest degradation: an unresolved sample split is NOT evidence.
+            raise ProviderError(f"sample-split, no majority: {dict(counts)}")
+        agree = top_n / n
+        same = [o.confidence for o in ops if o.stance == top_stance]
+        conf = (sum(same) / len(same)) * agree
+        base_rationale = next(o.rationale for o in ops if o.stance == top_stance)
+        note = f" [sample-calibration: {top_n}/{n} {top_stance}]"
+        return Opinion(top_stance, conf, base_rationale + note)
+
+    def _one(self, claim_summary: str, artifact_digest: str,
+             temperature: float) -> Opinion:
         prompt = (
             "You are an independent audit juror. You see ONE claim and an artifact "
             "digest. You do NOT see other jurors' opinions. Respond ONLY with JSON: "
-            '{"stance": "SUPPORTS"|"REFUTES", "confidence": 0..1, "rationale": "..."}\n'
+            '{"evidence": ["<concrete observation>", "..."], '
+            '"stance": "SUPPORTS"|"REFUTES", "confidence": 0..1, "rationale": "..."}\n'
+            "List at least two concrete observations in `evidence` BEFORE deciding "
+            "— evidence first, verdict second.\n"
             f"Claim: {claim_summary}\nArtifact digest: {artifact_digest}")
         try:
             resp = httpx.post(
@@ -72,7 +131,7 @@ class OpenAICompatProvider:
                          if self.api_key else {}),
                 json={"model": self.model,
                       "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0},
+                      "temperature": temperature},
                 timeout=60)
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"]
@@ -80,7 +139,22 @@ class OpenAICompatProvider:
             stance = data["stance"]
             if stance not in ("SUPPORTS", "REFUTES"):
                 raise ProviderError(f"bad stance: {stance}")
-            return Opinion(stance, float(data["confidence"]), str(data["rationale"]))
+            rationale = str(data["rationale"])
+            evidence = data.get("evidence")
+            if evidence is not None:
+                # MEC shape check: non-empty list of real observations.
+                if (not isinstance(evidence, list) or len(evidence) < 2
+                        or not all(isinstance(e, str) and e.strip()
+                                   for e in evidence)):
+                    raise ProviderError(f"bad evidence: {evidence!r}")
+                rationale = "evidence: " + "; ".join(
+                    e.strip() for e in evidence) + " | " + rationale
+            else:
+                # Legacy single-rationale replies stay acceptable (a strict
+                # reject would silently shrink juries in the field), but the
+                # receipt records that this opinion was NOT evidence-first.
+                rationale += " [no-evidence-field]"
+            return Opinion(stance, float(data["confidence"]), rationale)
         except Exception as exc:   # noqa: BLE001 — transport AND contract
             # failures must degrade to ProviderError (an abstaining juror),
             # never crash the audit. Found by the local-mock e2e test: an
@@ -90,7 +164,22 @@ class OpenAICompatProvider:
 
 
 class Jury:
-    def __init__(self, providers: list) -> None:
+    def __init__(self, providers: list, *, author_family: str | None = None) -> None:
+        # Self-preference exclusion (see module docstring): a juror from the
+        # audited author's own model family must not rate the author's work.
+        # The filter runs BEFORE the >=2-family validation — if the author's
+        # family was all the jury had, the jury fails closed (ValueError),
+        # it never quietly shrinks to a conflicted panel.
+        self.excluded: list = []
+        if author_family:
+            af = author_family.strip().lower()
+            kept = []
+            for p in providers:
+                if p.family.strip().lower() == af:
+                    self.excluded.append(p)
+                else:
+                    kept.append(p)
+            providers = kept
         families = {p.family for p in providers}
         if len(providers) < 2 or len(families) < 2:
             raise ValueError("jury requires >=2 providers from >=2 distinct families (§5.2)")
@@ -98,7 +187,9 @@ class Jury:
 
     def evaluate(self, claim: Claim, artifact_digest: str) -> tuple[list[EvidenceItem], list[str]]:
         items: list[EvidenceItem] = []
-        abstained: list[str] = []
+        abstained: list[str] = [f"{p.identity} (self-preference: "
+                                f"author family '{p.family}')"
+                                for p in self.excluded]
         for p in self.providers:                     # sequential, isolated: blind by construction
             try:
                 op = p.doctrine(claim.summary, artifact_digest)

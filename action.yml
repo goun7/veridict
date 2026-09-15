@@ -39,6 +39,10 @@ inputs:
     description: 'Fail the job when the audit risk level is not low (worst-verdict-wins)'
     required: false
     default: 'false'
+  actor-family:
+    description: 'Model family of the artifact author; same-family jurors are excluded (self-preference guard). Empty: no exclusion'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -74,6 +78,8 @@ runs:
 
     - name: Run the audit (ledger + certificate)
       shell: bash
+      env:
+        VERIDICT_ACTOR_FAMILY: ${{ inputs.actor-family }}
       run: |
         veridict audit --task "$GITHUB_WORKSPACE/task.json" \
           --mode ${{ inputs.mode }} \

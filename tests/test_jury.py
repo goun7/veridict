@@ -72,3 +72,72 @@ def test_blindness_providers_receive_no_cross_context():
     j.evaluate(CLAIM, "digest")
     assert len(seen) == 1
     assert "other opinions" not in seen[0]
+
+
+# ---------------------------------------------------------------------------
+# Self-preference guard (0.4.0): an AI from the audited author's own model
+# family cannot rate the author's work (Zheng et al. arXiv:2306.05685
+# self-enhancement; Watai et al. arXiv:2410.21819 self-preference).
+
+def _jury3():
+    return Jury([
+        ScriptedProvider(family="famA", identity="a1",
+                         default=Opinion("SUPPORTS", 0.9, "kin says ok")),
+        ScriptedProvider(family="famB", identity="b1",
+                         default=Opinion("SUPPORTS", 0.8, "independent")),
+        ScriptedProvider(family="famC", identity="c1",
+                         default=Opinion("SUPPORTS", 0.8, "independent")),
+    ])
+
+def test_author_family_juror_is_excluded_and_abstains():
+    jury = Jury([
+        ScriptedProvider(family="famA", identity="a1",
+                         default=Opinion("SUPPORTS", 0.9, "kin says ok")),
+        ScriptedProvider(family="famB", identity="b1",
+                         default=Opinion("SUPPORTS", 0.8, "independent")),
+        ScriptedProvider(family="famC", identity="c1",
+                         default=Opinion("REFUTES", 0.8, "independent")),
+    ], author_family="famA")
+    items, abstained = jury.evaluate(CLAIM, "digest")
+    assert {i.producer["identity"] for i in items} == {"b1", "c1"}
+    assert abstained == ["a1 (self-preference: author family 'famA')"]
+
+def test_exclusion_is_case_insensitive():
+    jury = Jury([
+        ScriptedProvider(family="FamA", identity="a1",
+                         default=Opinion("SUPPORTS", 0.9, "x")),
+        ScriptedProvider(family="famB", identity="b1",
+                         default=Opinion("SUPPORTS", 0.8, "x")),
+        ScriptedProvider(family="famC", identity="c1",
+                         default=Opinion("SUPPORTS", 0.8, "x")),
+    ], author_family="  faMA ")
+    _, abstained = jury.evaluate(CLAIM, "digest")
+    assert any(ab.startswith("a1 (self-preference") for ab in abstained)
+
+def test_jury_fails_closed_when_author_family_would_gut_it():
+    # Excluding the author's kin must never leave a single-family jury:
+    # validation runs AFTER the filter.
+    with pytest.raises(ValueError):
+        Jury([
+            ScriptedProvider(family="famA", identity="a1",
+                             default=Opinion("SUPPORTS", 0.9, "x")),
+            ScriptedProvider(family="famB", identity="b1",
+                             default=Opinion("SUPPORTS", 0.8, "x")),
+        ], author_family="famA")
+
+def test_no_author_family_keeps_legacy_behavior():
+    items, abstained = _jury3().evaluate(CLAIM, "digest")
+    assert len(items) == 3 and abstained == []
+
+def test_deliberation_cannot_revive_an_excluded_juror():
+    jury = Jury([
+        ScriptedProvider(family="famA", identity="a1",
+                         default=Opinion("SUPPORTS", 0.9, "x")),
+        ScriptedProvider(family="famB", identity="b1",
+                         default=Opinion("SUPPORTS", 0.8, "x")),
+        ScriptedProvider(family="famC", identity="c1",
+                         default=Opinion("REFUTES", 0.9, "x")),
+    ], author_family="famA")
+    first, _ = jury.evaluate(CLAIM, "digest")
+    revised, _abst = jury.deliberate(CLAIM, "digest", first, 1 / 3)
+    assert {i.producer["identity"] for i in revised} == {"b1", "c1"}
