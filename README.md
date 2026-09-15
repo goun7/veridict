@@ -231,16 +231,24 @@ better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their
 
 ## Status & roadmap
 
-**Formal core (Sep 2026):** the adjudication ladder is machine-checked in
-Lean — `proofs/ladder/Ladder.lean` proves seven invariants over evidence
-lists of *arbitrary* length (fail-safe-empty, no-silent-pass, W1a-
-decisiveness, doctrine-can-never-topple, escalation conditions, split
-visibility, meta-budget), and a generated oracle (`TruthTable.lean`,
-digest-tied to the bounded receipt) re-verifies the model against all
-28,080 sampled cases on every CI run of `proofs.yml`. The oracle's first
-build caught a real model-vs-code divergence and the model moved. Trust
-placement (kernel `decide`; disclosed `native_decide` for the oracle only)
-is stated in the file headers, per house doctrine: receipts, not narrative.
+**Formal core (Sep 2026):** both provable halves of the core are
+machine-checked in Lean (v4.34, kernel-only). The ladder
+(`proofs/ladder/Ladder.lean`) proves seven invariants over evidence lists
+of *arbitrary* length — fail-safe-empty, no-silent-pass, W1a-decisiveness,
+doctrine-can-never-topple, escalation conditions, split visibility,
+meta-budget — and a generated oracle (`TruthTable.lean`, digest-tied to the
+bounded receipt) re-verifies the model against all 28,080 sampled cases on
+every CI run; its first build caught a real model-vs-code divergence and
+the model moved. The ledger chaining (`proofs/ledger/Chain.lean`) proves
+six theorems over chains of *arbitrary* length — writer/reader agreement,
+prefix-closure, payload-edit and honest-remint tamper detection (the one
+collision hypothesis is *stated*, not smuggled), genesis-rooting. Anchor
+verification (ECDSA) stays honest TCB: no structural proof discharges a
+computational assumption. Trust placement (kernel `decide`; disclosed
+`native_decide` for the oracle lane only) and the measured axiom footprints
+(C1 and I1/I7 axiom-free; the rest `[propext]`/`Quot.sound`-maximal) are
+disclosed in the file headers and re-printed by `proofs.yml` on every run —
+per house doctrine: receipts, not narrative.
 
 Phase 1 (core) and Phase 2 (watcher layer) are implemented with end-to-end
 receipts in the dogfood run. Phase 3 (platform + standard) substrate is in

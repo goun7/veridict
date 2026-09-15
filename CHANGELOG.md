@@ -3,6 +3,20 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## Unreleased
+
+- **proofs(ledger):** `proofs/ledger/Chain.lean` — hash-chaining
+  tamper-evidence for `verify_chain`, machine-checked over chains of
+  *arbitrary* length: C1 empty-verifies (axiom-free), C2 wellformed-accepted
+  (no valid ledger ever rejected), C3 prefix-closed, C4 payload-edit
+  detected, C5 honest-remint detected modulo ONE stated collision
+  hypothesis, C6 genesis-rooted. Structural induction only — no `decide`,
+  no oracle needed, so no truth table by design; measured axiom footprint
+  `[propext]`-maximal (C1: none), disclosed in the header and re-printed on
+  every `proofs.yml` run (now three lanes: ladder, oracle, chain).
+  Issue #8 remainder narrowed to anchor verification (ECDSA — computational
+  assumption, out of structural model by honest design).
+
 ## 0.5.0 — 2026-09-15 (machine-checked ladder, SPDX interop, Marketplace hardening)
 
 The formal layer shipped (Lean proofs over arbitrary evidence + a CI re-check
