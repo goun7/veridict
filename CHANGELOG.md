@@ -3,8 +3,71 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
-## Unreleased (post-0.3.3 hygiene, on `main`, riding the `v1` tag)
+## Unreleased (post-0.3.3, riding the `v1` tag) — 0.4.0 candidate
 
+Research-grounded gap closure: every item below traces to the 2026-09-14
+literature/regulatory sweep (jury-bias papers, AuditWeave, SLSA v1.2, EU
+AI Act GPAI Code of Practice, patent watch) — the roadmap's "current data"
+deficit, closed autonomously, receipts-first.
+
+### Protocol & engine
+
+- **jury calibration layer** — the three documented LLM-as-judge failure
+  modes now have structural mitigations shipping in the reference jury
+  (Zheng et al. arXiv:2306.05685, Wang et al. arXiv:2305.17926, Watai et
+  al. arXiv:2410.21819 cited in-module): multi-sample self-consistency
+  voting (`VERIDICT_JURY_SAMPLES`, temperature 0.7 for n>1, majority or
+  honest abstention — a sample-split can never fabricate a stance),
+  evidence-first extraction (verdict without ≥2 evidence pointers is
+  flagged, not silently trusted), and **self-preference exclusion**
+  (jurors of the audited actor's provider family abstain before the
+  jury is validated; `VERIDICT_ACTOR_FAMILY` / new `actor-family` action
+  input). Real-jury CI receipt now runs 3 samples.
+- **external anchoring** (`veridict/anchor.py`) — the design doc's
+  checkpoint-hardening promise, kept: `audit --anchor rekor` /
+  `anchor publish` pins {cert_id, key_id, checkpoint_seq, chain_hash}
+  to the Sigstore Rekor public-good log; `verify --anchor` checks
+  existence-at-time fully offline against the pinned Rekor key
+  (TUF-hash-verified; rotation fails CLOSED with a documented recipe).
+  Existence proof, not authority transfer — the ephemeral anchor key is
+  by design. v1 release's dogfood cert is anchored live
+  (`docs/receipts-anchor-v1-dogfood.json`, logIndex 2843194981).
+- **SLSA v1.2 VSA export** (`veridict export --format vsa`) — lossy,
+  honest projection (PASSED only for risk=low; `verifiedLevels` empty —
+  Veridict asserts no build level; `timeVerified` from the ledger's
+  issuance entry; cert named by digest in `inputAttestations`; full
+  binding as a spec-sanctioned URI extension). Optional DSSE envelope
+  under the issuing key.
+- **ladder bounded-exhaustive verification** (`scripts/verify_ladder.py`)
+  — 28,080 cases covering the complete finite input space (evidence
+  sequences ≤3 × tiers × stances × claim/policy dimensions), 10 safety
+  invariants PASS incl. no-silent-pass, W1a-decisiveness, doctrine-
+  cannot-topple, split-visibility; determinism double-checked per case.
+  Receipt `docs/receipts-ladder-verification.json`; CI locks the truth-
+  table digest, and a meta-test proves the invariants see an injected
+  silent-pass bug. Issue #8 annotated (general proofs remain open).
+
+### Ecosystem
+
+- **11th example watcher: EU AI Act transparency**
+  (`watchers/aiact_watcher.py`) — deterministic Art. 50 / GPAI CoP
+  checks (disclosure anchor, `ai_outputs/` provenance sidecars,
+  training-data summary for shipped weights); vacuous-SUPPORTS for
+  non-AI repos; conformance-kit clean; manifest example shipped.
+- **governance**: IP & prior-art watch section — US App 19/561,229
+  overlap assessed against RFC 6962 + AuditWeave intervening art and
+  our dated public record; defensive publication named as doctrine
+  (anchored receipts as a side effect of operating). Not legal advice.
+- **design doc §10.5**: AuditWeave (arXiv:2607.09682) positioned as
+  closest neighbor — convergent validation of the ledger primitive and
+  of mutation-testing doctrine; differentiation: adjudication-vs-
+  recording, protocol-vs-tool. Niche paragraph updated honestly.
+
+### Housekeeping
+
+- tests: 260 → **297** (anchor 9, export 7, aiact 8, ladder 2, jury 16 —
+  incl. tamper/meta/refusal cases throughout); ledger format untouched —
+  every change additive-minor per §14.
 - marketplace: **listing published** (2026-09-14) —
   https://github.com/marketplace/actions/veridict-audit, primary category
   **Security**. Lane 0 is fully closed; the only remaining work is external
