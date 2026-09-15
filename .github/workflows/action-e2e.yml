@@ -33,6 +33,6 @@ jobs:
           intent: 'DOCTRINE: the composite action inputs (mode, actor-family, anchor) wire through to the veridict CLI correctly'
           mode: CERTIFICATE
           run-tests: 'false'
-          anchor: ${{ github.event.inputs.anchor || 'none' }}
+          anchor: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.anchor || 'rekor' }}
       - name: Show what the action produced
         run: ls -la artifacts/ && python3 -m json.tool artifacts/veridict-cert.json | head -20
