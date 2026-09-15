@@ -3,7 +3,14 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
-## Unreleased (post-0.4.0)
+## 0.5.0 — 2026-09-15 (machine-checked ladder, SPDX interop, Marketplace hardening)
+
+The formal layer shipped (Lean proofs over arbitrary evidence + a CI re-check
+against the full bounded receipt), SPDX 3.0.1 export validated against the
+pinned official schema, the action's input surfaces de-drifted and now
+e2e-tested through the public `uses: ./` path, and one real jury credential
+bug fixed in the open. Ledger format, payload schemas, and tier rules:
+unchanged — verification got louder, bytes stayed put.
 
 - action: `anchor` + `anchor-required` inputs on BOTH invocation surfaces
   (composite + reusable workflow), with the offline-verify step consuming
