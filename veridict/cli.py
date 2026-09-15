@@ -195,6 +195,29 @@ def _cmd_anchor(args) -> int:
     return 0 if res["valid"] else 1
 
 
+def _cmd_export(args) -> int:
+    from . import export as export_mod
+    with open(args.cert, encoding="utf-8") as f:
+        cert = json.load(f)
+    entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
+               if l.strip()]
+    statement = export_mod.to_vsa(cert, entries)
+    doc = statement
+    if args.sign:
+        with open(args.sign, encoding="utf-8") as f:
+            pem = f.read()
+        key_id = args.key_id or (cert.get("signatures") or [{}])[0].get(
+            "key_id", "")
+        doc = {"envelope": export_mod.dsse_envelope(statement, pem, key_id),
+               "statement": statement}
+    text = json.dumps(doc, indent=2, sort_keys=True)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+    print(text)
+    return 0
+
+
 def _cmd_quality_sheet(args) -> int:
     import os
 
@@ -382,6 +405,20 @@ def main(argv=None) -> int:
     an.add_argument("--anchor", help="verify: the sidecar JSON to check")
     an.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
     an.set_defaults(func=_cmd_anchor)
+    e = sub.add_parser("export")
+    e.add_argument("--format", choices=("vsa",), required=True,
+                   help="vsa: SLSA v1.2 Verification Summary Attestation "
+                        "(in-toto Statement; lossy projection — the "
+                        "certificate stays authoritative)")
+    e.add_argument("--cert", required=True)
+    e.add_argument("--ledger", required=True)
+    e.add_argument("--out")
+    e.add_argument("--sign", metavar="KEYFILE",
+                   help="wrap in a DSSE envelope signed with this Ed25519 "
+                        "PEM private key (default: unsigned statement)")
+    e.add_argument("--key-id", help="keyid for the DSSE signature "
+                                     "(default: the certificate's signer key)")
+    e.set_defaults(func=_cmd_export)
     r = sub.add_parser("registry")
     r.add_argument("action", choices=("init", "register", "revoke", "list", "index"))
     r.add_argument("--registry", required=True)

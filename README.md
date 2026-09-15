@@ -153,6 +153,26 @@ The run uploads `veridict-audit` artifacts (ledger + certificate) — download
 once, verify forever: `veridict verify --ledger veridict-ledger.jsonl --cert
 veridict-cert.json`. See the workflow file for all inputs.
 
+## Interoperability
+
+Two ways a Veridict verdict reaches tooling that never heard of us:
+
+- **External anchoring** — `veridict audit … --anchor rekor` (or
+  `veridict anchor publish`) pins the certificate's checkpoint to the Sigstore
+  Rekor public-good transparency log. The anchor proves *existence at time T*;
+  authority stays with the certificate's own key. Anyone holding cert + ledger
+  + anchor sidecar checks it fully offline:
+  `veridict verify --ledger L --cert C --anchor A` (pinned Rekor key, no
+  network, no trust in us). The v1 release's dogfood certificate is anchored
+  live — see `docs/receipts-anchor-v1-dogfood.json`.
+- **SLSA export** — `veridict export --format vsa` projects a certificate onto
+  a SLSA v1.2 Verification Summary Attestation (in-toto Statement) so existing
+  supply-chain policy engines can consume the verdict. The VSA is a lossy
+  projection: it names the certificate by digest (`inputAttestations`) and
+  embeds the full binding as a spec-sanctioned extension field; the
+  certificate remains the authoritative object. Optional `--sign KEYFILE`
+  wraps it in a DSSE envelope under the issuing key.
+
 ## Public site
 
 The standard and the design document are readable (and linkable) at
