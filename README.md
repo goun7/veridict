@@ -228,6 +228,7 @@ better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their
 - **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — module map to standard sections
 - **Commercial model:** [`docs/commercial-model.md`](docs/commercial-model.md) — open-core model, growth levers, anti-corruption guardrails
 - **Contributing / Governance / Security:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`GOVERNANCE.md`](GOVERNANCE.md) · [`SECURITY.md`](SECURITY.md)
+- **Building your own verifier** (independent of this codebase, issue #1): [`docs/verifier-onboarding.md`](docs/verifier-onboarding.md) — closure kit: trusted-artifact table, byte-level traps list, one-command parity harness, proofs-as-behavioral-spec
 
 ## Status & roadmap
 
