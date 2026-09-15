@@ -61,16 +61,18 @@ defense is publication, not litigation. Two watches, reviewed at each
 MAJOR bump:
 
 1. **Third-party filings.** US patent application 19/561,229 (Adaptive
-   Query LLC, "methods for adaptive query processing in AI systems", filed
-   2025) claims an integrity-chained log recording AI-generated
-   interactions for governance/audit purposes — surface-level overlap with
-   the ledger primitive. Veridict's published record predates its filing:
-   the design doc and public repository date to September 2026 in the
-   PRIORITY_NOTES lineage below, the ledger concept itself to RFC 6962
-   (Ylonen, 2013 — Merkle-tree transparency logs, the field's common
-   prior art), and AuditWeave (arXiv:2607.09682, 14 June 2026) provides
-   independent intervening publication of hash-chained AI-evidence
-   ledgers. The claim structures also diverge materially: 19/561,229
+   Query LLC, "methods for adaptive query processing in AI systems")
+   claims an integrity-chained log recording AI-generated interactions
+   for governance/audit purposes — surface-level overlap with the ledger
+   primitive. Our posture is evidentiary, not chronological bravado: an
+   effective filing date is not publicly knowable, but the field's common
+   prior art (RFC 6962, Ylonen 2013 — Merkle-tree transparency logs) and
+   independent intervening publications — AuditWeave (arXiv:2607.09682,
+   14 June 2026) above all — bound any broad claim on "chained AI
+   evidence logs" generically, and Veridict's own dated public record
+   (design doc in git since 2026-09-09, public releases, Rekor-anchored
+   checkpoints) is prior art against anything effective later than that.
+   The claim structures also diverge materially: 19/561,229
    centers on ordering/consensus validation inside a federation, while
    Veridict's chains deliberately carry **no inclusion or ordering
    proofs** (a documented design choice — external anchoring to Rekor
