@@ -54,6 +54,11 @@ unchanged — verification got louder, bytes stayed put.
   surveys are not oracles. Regulatory lines refreshed (Art. 50 + GPAI
   enforcement live 2026-08-02; Omnibus legacy-marking grace 2026-12-02),
   mirrored in the aiact watcher docstring and re-exported manifests.
+- fix(cli): `veridict --version`; and a real one — the VSA/SPDX version
+  probe queried `importlib.metadata("veridict")` while the distribution is
+  `veridict-standard` (bare name belongs to another project), so every
+  installed-wheel VSA mislabeled its verifier "0.3.3+source". Both names
+  probed now; the drift was caught by the 0.5.0 first-run UX walkthrough.
 - corrections: an earlier sweep commit claimed "316 tests"; the suite was
   306 (313 now, with the SPDX additions). Receipts amended forward rather
   than rewriting pushed history.
