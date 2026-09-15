@@ -24,6 +24,14 @@
   * The cross-check uses `native_decide` — kernel-trusted execution of the
     checker on literal data; the trust placement is disclosed, and the
     general theorems below do NOT rely on it.
+  Axiom audit (`#print axioms` on Lean v4.34.0, measured not asserted):
+    I1, I7            : NO axioms at all
+    I5, I6, I10       : [propext]
+    I2, I4            : [propext, Quot.sound]
+  — no sorryAx, no Classical.choice, no native_decide anywhere in the
+  general lane; the oracle lane (`rowLen`, `agree` in TruthTable.lean)
+  depends on the disclosed native_decide axiom, visible by name in the
+  proofs.yml CI log.
 -/
 
 set_option maxHeartbeats 2000000
