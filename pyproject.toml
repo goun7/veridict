@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 # agent actually did what it claimed", since 2026-06). Same package, same
 # import, same CLI: only `pip install veridict-standard` differs.
 name = "veridict-standard"
-version = "0.3.3"
+version = "0.4.0"
 description = "The verdict that survived verification — audit AI with AI"
 readme = "README.md"
 license = {file = "LICENSE"}

@@ -3,7 +3,7 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
-## Unreleased (post-0.3.3, riding the `v1` tag) — 0.4.0 candidate
+## 0.4.0 — 2026-09-15 (research-grounded gap closure: calibrated jury, external anchoring, SLSA export, ladder proofs)
 
 Research-grounded gap closure: every item below traces to the 2026-09-14
 literature/regulatory sweep (jury-bias papers, AuditWeave, SLSA v1.2, EU
