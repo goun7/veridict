@@ -6,6 +6,7 @@ import json
 import os
 import sys
 
+from . import anchor
 from .audit import AuditOrchestrator
 from .certificate import verify_certificate
 from .dossier import dossier_for, render_markdown, resolve_dossier
@@ -134,16 +135,64 @@ def _cmd_audit(args) -> int:
     ledger.save(args.ledger)
     with open(args.cert_out, "w", encoding="utf-8") as f:
         json.dump(result["cert"], f, indent=2, sort_keys=True)
+    anchor_info = None
+    if getattr(args, "anchor", "none") == "rekor":
+        from . import anchor as anchor_mod     # lazy: offline-first surface
+        target = args.anchor_out or (args.cert_out + ".anchor.json")
+        entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
+                   if l.strip()]
+        try:
+            sidecar = anchor_mod.publish(entries, result["cert"],
+                                         rekor_url=args.rekor_url)
+            with open(target, "w", encoding="utf-8") as f:
+                json.dump(sidecar, f, indent=2, sort_keys=True)
+            anchor_info = {"out": target, "uuid": sidecar["rekor"]["uuid"],
+                           "logIndex": sidecar["rekor"]["entry"].get("logIndex")}
+        except Exception as exc:               # anchor is hardening, never a
+            anchor_info = {"error": str(exc)}  # silent-pass risk: it reports
+            if getattr(args, "anchor_required", False):
+                raise
     print(json.dumps({"report": result["report"],
                       "blocked": result["outcome"].blocked,
+                      "anchor": anchor_info,
                       "warnings": warnings}, indent=2))
     return 2 if result["outcome"].blocked else 0
 
 
 def _cmd_verify(args) -> int:
     report = verify_certificate(args.ledger, args.cert)
+    if getattr(args, "anchor", None):
+        from . import anchor as anchor_mod
+        with open(args.anchor, encoding="utf-8") as f:
+            sidecar = json.load(f)
+        with open(args.cert, encoding="utf-8") as f:
+            cert = json.load(f)
+        a_res = anchor_mod.verify(sidecar, cert)
+        report["anchor"] = a_res
+        report["valid"] = report["valid"] and a_res["valid"]
     print(json.dumps(report, indent=2))
     return 0 if report["valid"] else 1
+
+
+def _cmd_anchor(args) -> int:
+    from . import anchor as anchor_mod
+    with open(args.cert, encoding="utf-8") as f:
+        cert = json.load(f)
+    if args.action == "publish":
+        entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
+                   if l.strip()]
+        sidecar = anchor_mod.publish(entries, cert, rekor_url=args.rekor_url)
+        text = json.dumps(sidecar, indent=2, sort_keys=True)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+        print(text)
+        return 0
+    with open(args.anchor, encoding="utf-8") as f:
+        sidecar = json.load(f)
+    res = anchor_mod.verify(sidecar, cert)
+    print(json.dumps(res, indent=2))
+    return 0 if res["valid"] else 1
 
 
 def _cmd_quality_sheet(args) -> int:
@@ -314,7 +363,25 @@ def main(argv=None) -> int:
                         "and ACTIVE there (§6.6); revocation is enforced")
     a.add_argument("--disclosure", default="REDACTED",
                    choices=("LOCAL_ONLY", "REDACTED", "FULL"))
+    a.add_argument("--anchor", choices=("none", "rekor"), default="none",
+                   help="pin the certificate's checkpoint to an external "
+                        "transparency log (Sigstore Rekor public-good)")
+    a.add_argument("--anchor-out",
+                   help="where to write the anchor sidecar JSON "
+                        "(default: <cert-out>.anchor.json)")
+    a.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
+    a.add_argument("--anchor-required", action="store_true",
+                   help="fail the run if the anchor cannot be published "
+                        "(default: report the failure and keep the certificate)")
     a.set_defaults(func=_cmd_audit)
+    an = sub.add_parser("anchor")
+    an.add_argument("action", choices=("publish", "verify"))
+    an.add_argument("--ledger", required=True)
+    an.add_argument("--cert", required=True)
+    an.add_argument("--out", help="publish: write the sidecar here")
+    an.add_argument("--anchor", help="verify: the sidecar JSON to check")
+    an.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
+    an.set_defaults(func=_cmd_anchor)
     r = sub.add_parser("registry")
     r.add_argument("action", choices=("init", "register", "revoke", "list", "index"))
     r.add_argument("--registry", required=True)
@@ -329,6 +396,8 @@ def main(argv=None) -> int:
     v = sub.add_parser("verify")
     v.add_argument("--ledger", required=True)
     v.add_argument("--cert", required=True)
+    v.add_argument("--anchor", help="also verify an external anchor sidecar "
+                                    "(transparency-log receipt) against the cert")
     v.set_defaults(func=_cmd_verify)
     q = sub.add_parser("quality-sheet")
     q.add_argument("--corpus", required=True)
