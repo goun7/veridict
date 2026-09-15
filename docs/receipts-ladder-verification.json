@@ -1,0 +1,29 @@
+{
+  "all_invariants_pass": true,
+  "invariants": {
+    "I1 fail-safe-empty": "PASS",
+    "I10 meta-budget-honored": "PASS",
+    "I2 no-silent-pass": "PASS",
+    "I3 w3-only-never-passed": "PASS",
+    "I4 w1a-decisive": "PASS",
+    "I5 doctrine-cannot-topple": "PASS",
+    "I6 escalated-conditions": "PASS",
+    "I7 split-stays-visible": "PASS",
+    "I8 determinism": "PASS",
+    "I9 domain-closure": "PASS"
+  },
+  "ladder_source_sha256": "5f925dc709173f2b80a50f3a6bd831303f7dfb6b959e121a1538829792e62ce9",
+  "method": "bounded-exhaustive enumeration of the full finite adjudication-ladder input space (evidence sequences of length <= 3 over 4 tiers x 2 stances x all claim/policy/deliberation dimensions); no theorem prover claimed \u2014 that would be Lean's job (issue #8 stays open for the unbounded/general proof)",
+  "outcome_distribution": {
+    "ESCALATED": 384,
+    "INCONCLUSIVE": 7632,
+    "REFUTED": 12096,
+    "VERIFIED": 7968
+  },
+  "receipt": "veridict-ladder-bounded-verification-1",
+  "reproduce": "python3 scripts/verify_ladder.py  # deterministic; same table digest",
+  "seconds": 1.436,
+  "total_cases": 28080,
+  "truth_table_sha256": "d0ab99782a479a1c422ea4a0b45707670b86e248b0f41f2f12760140ae23787d",
+  "verified_at": "2026-09-15T10:18:12Z"
+}
