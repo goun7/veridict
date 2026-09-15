@@ -1,0 +1,7 @@
+name = "veridict-anchor"
+version = "0.1.0"
+defaultTargets = ["Anchor"]
+
+[[lean_lib]]
+name = "Anchor"
+globs = ["Anchor"]

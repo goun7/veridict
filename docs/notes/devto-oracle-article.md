@@ -18,8 +18,8 @@ Here is what happened when I actually held myself to that.
 
 ## The setup
 
-Two lanes, both in plain Lean 4.34 (core only — no Std, no Mathlib, no network at
-build time):
+Two proof files about the ladder, both in plain Lean 4.34 (core only — no Std, no
+Mathlib, no network at build time):
 
 1. **General theorems.** Seven invariants over evidence lists of *arbitrary* length:
    fail-safe-empty, no-silent-pass, W1a-decisiveness, *doctrine-can-never-topple-a-
@@ -63,7 +63,7 @@ run. Receipts, not narrative — including about the proofs themselves.
 
 ## Then I proved the ledger itself
 
-The second lane (`proofs/ledger/Chain.lean`, same doctrine) covers the hash-chained
+The next lane (`proofs/ledger/Chain.lean`, same doctrine) covers the hash-chained
 append-only ledger — six theorems over chains of arbitrary length, proved by pure
 structural induction (this time no `decide` and no truth table by design: relational
 properties of unbounded lists aren't enumerable domains). The headline:
@@ -90,7 +90,12 @@ properties of unbounded lists aren't enumerable domains). The headline:
   decidable; `cases d <;> revert … <;> decide` is.
 - **Write down what your proofs can't do.** Our anchor verification is ECDSA — a
   computational assumption. No structural proof discharges it, so we don't fake one;
-  the roadmap says so verbatim, and the axiom audit says the rest.
+  the roadmap says so verbatim, and the axiom audit says the rest. What we *did*
+  prove is the architecture around the signatures (`proofs/anchor/Anchor.lean`,
+  nine theorems, same kernel-only discipline): with a mismatched binding, an anchor
+  is invalid **regardless of both ECDSA verdicts** — a fully compromised log
+  operator signing perfect signatures over the wrong certificate still fails
+  verification. The assumption is named; the wiring is proved.
 
 The bug I didn't have: a mis-ported guard that would have made doctrine overrides
 *stronger in the model than in reality* — the exact direction that quietly
@@ -98,7 +103,8 @@ over-certifies an audit standard. The tool that caught it cost one afternoon and
 about 250 lines of Lean plus a generator.
 
 Repo: [goun7/veridict](https://github.com/goun7/veridict) ·
-proofs: `proofs/ladder/`, `proofs/ledger/` · CI: `proofs.yml` (three lanes).
+proofs: `proofs/ladder/`, `proofs/ledger/`, `proofs/anchor/` · CI: `proofs.yml`
+(four lanes, three axiom audits re-printed per run).
 
 ---
 

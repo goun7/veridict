@@ -232,7 +232,7 @@ better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their
 
 ## Status & roadmap
 
-**Formal core (Sep 2026):** both provable halves of the core are
+**Formal core (Sep 2026):** every structural layer of the core is
 machine-checked in Lean (v4.34, kernel-only). The ladder
 (`proofs/ladder/Ladder.lean`) proves seven invariants over evidence lists
 of *arbitrary* length — fail-safe-empty, no-silent-pass, W1a-decisiveness,
@@ -243,13 +243,18 @@ every CI run; its first build caught a real model-vs-code divergence and
 the model moved. The ledger chaining (`proofs/ledger/Chain.lean`) proves
 six theorems over chains of *arbitrary* length — writer/reader agreement,
 prefix-closure, payload-edit and honest-remint tamper detection (the one
-collision hypothesis is *stated*, not smuggled), genesis-rooting. Anchor
-verification (ECDSA) stays honest TCB: no structural proof discharges a
-computational assumption. Trust placement (kernel `decide`; disclosed
-`native_decide` for the oracle lane only) and the measured axiom footprints
-(C1 and I1/I7 axiom-free; the rest `[propext]`/`Quot.sound`-maximal) are
-disclosed in the file headers and re-printed by `proofs.yml` on every run —
-per house doctrine: receipts, not narrative.
+collision hypothesis is *stated*, not smuggled), genesis-rooting. The
+anchor sidecar (`proofs/anchor/Anchor.lean`) proves nine theorems about
+certificate⇄CT cross-verification — its headline (A4): with the wrong
+binding, valid ECDSA signatures cannot rescue a sidecar; structural
+rejection is unconditional. ECDSA itself stays honest TCB: no structural
+proof discharges a computational assumption, so it enters the model as a
+disclosed opaque boolean rather than being silently "proven". Trust
+placement (kernel `decide`; disclosed `native_decide` for the oracle lane
+only) and the measured axiom footprints (C1 and I1/I7 axiom-free; the rest
+`[propext]`/`Quot.sound`-maximal) are disclosed in the file headers and
+re-printed by `proofs.yml` on every run — per house doctrine: receipts,
+not narrative.
 
 Phase 1 (core) and Phase 2 (watcher layer) are implemented with end-to-end
 receipts in the dogfood run. Phase 3 (platform + standard) substrate is in
