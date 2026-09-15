@@ -2,9 +2,13 @@
 
 Regulation (EU) 2024/1689 puts machine-readable transparency duties on
 systems that generate synthetic content (Art. 50: outputs must be
-identifiable as AI-generated, in a machine-readable form) and on general-
-purpose AI providers (the GPAI Code of Practice, published 2025-07-10,
-operationalizes training-data documentation). This watcher checks a repo
+identifiable as AI-generated, in a machine-readable form — applicable
+since 2026-08-02, when Commission enforcement powers also took effect;
+the Omnibus proposal extends the machine-readable-marking grace for
+legacy systems to 2026-12-02) and on general-purpose AI providers (the
+GPAI Code of Practice, published 2025-07-10 with 180+ signatories listed
+as adhering on 2026-08-02, operationalizes training-data documentation).
+This watcher checks a repo
 for the *artifacts those duties mechanically reduce to* — no legal
 judgment, just existence and shape, deterministic on the bytes:
 

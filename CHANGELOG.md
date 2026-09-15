@@ -21,6 +21,35 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   transparency-log, …); adoption thread updated for 0.4.0 surfaces;
   `v1` re-pointed to include the anchor inputs.
 - discovery: PR open against ProjectRecon/awesome-ai-agents-security (#123).
+- proofs: the adjudication ladder is machine-checked in Lean (`proofs/ladder/`,
+  core-only, no mathlib): seven invariants over evidence lists of ARBITRARY
+  length (fail-safe-empty, no-silent-pass, W1a-decisive, doctrine-cannot-
+  topple, escalated-conditions, split-stays-visible, meta-budget-honored, +
+  divergence coherence) and a generated oracle re-checking the model against
+  ALL 28,080 bounded-receipt cases at build time (digest-tied to ladder.py
+  and the receipt's table sha256; `native_decide` trust placement disclosed,
+  general theorems never use it). The oracle's first run caught a genuine
+  model/implementation divergence (R0's refute-anywhere guard) — the MODEL
+  moved, the data did not. `proofs.yml` kernel-checks on every ladder touch.
+- export: `--format spdx` emits an SPDX 3.0.1 AI-profile JSON-LD document
+  validated against the official schema (pinned under `docs/data/`, sha256
+  locked in tests). Honest envelope: audited artifact as `ai_AIPackage`,
+  every audit semantic as core Annotation/Relationship/ExternalRef; no ai_*
+  field carries a meaning SPDX doesn't give it (test locks the refusal to
+  map risk_level into ai_safetyRiskAssessment). Deterministic — timestamps
+  are ledger-issuance, not export-time. `--anchor-file` embeds the Rekor
+  receipt as an ExternalRef.
+- docs: §10.5 competitive landscape re-scanned with dated primary sources
+  (HANSARD 2608.22512, VCT 2606.23003, IET 2603.17445, MedAgentAudit
+  2510.10185, the judge-calibration cluster, microsoft/agent-governance-
+  toolkit runtime-vs-posthoc positioning); an unverifiable "AegisChain"
+  entry circulating in secondary surveys dropped after source hunt —
+  surveys are not oracles. Regulatory lines refreshed (Art. 50 + GPAI
+  enforcement live 2026-08-02; Omnibus legacy-marking grace 2026-12-02),
+  mirrored in the aiact watcher docstring and re-exported manifests.
+- corrections: an earlier sweep commit claimed "316 tests"; the suite was
+  306 (313 now, with the SPDX additions). Receipts amended forward rather
+  than rewriting pushed history.
 
 ## 0.4.0 — 2026-09-15 (research-grounded gap closure: calibrated jury, external anchoring, SLSA export, ladder proofs)
 

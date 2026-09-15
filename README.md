@@ -177,6 +177,13 @@ composite steps:
 
 ## Interoperability
 
+**Positioning vs runtime governance** (e.g. microsoft/agent-governance-
+toolkit): those constrain agents *before/during* actions; Veridict
+adjudicates *after* the fact into a certificate a counterparty verifies
+without trusting vendor, auditor, or runtime. Directions of flow differ —
+a deployment can run both, and the runtime's own action logs are exactly
+the evidence class an audit anchors on.
+
 Two ways a Veridict verdict reaches tooling that never heard of us:
 
 - **External anchoring** — `veridict audit … --anchor rekor` (or in CI, the
@@ -194,6 +201,16 @@ Two ways a Veridict verdict reaches tooling that never heard of us:
   embeds the full binding as a spec-sanctioned extension field; the
   certificate remains the authoritative object. Optional `--sign KEYFILE`
   wraps it in a DSSE envelope under the issuing key.
+- **SPDX 3.0.1 export** — `veridict export --format spdx` emits an SPDX 3.0.1
+  AI-profile JSON-LD document, validated in CI against the pinned official
+  schema. The audited artifact rides as an `ai_AIPackage` (identity, digest,
+  supplier); every audit semantic — claims, evidence, jury composition, risk,
+  Rekor anchor — rides on core Annotation/Relationship/ExternalRef elements.
+  Deliberate limit: the AI profile models AI *systems*, not audit verdicts,
+  so no `ai_*` field is made to carry a meaning the spec does not give it
+  (our risk_level never occupies ai_safetyRiskAssessment — there is a test
+  locking that refusal in). The `certificationReport` externalRef binds the
+  authoritative certificate by canonical digest.
 
 ## Public site
 
@@ -213,6 +230,17 @@ better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their
 
 ## Status & roadmap
 
+**Formal core (Sep 2026):** the adjudication ladder is machine-checked in
+Lean — `proofs/ladder/Ladder.lean` proves seven invariants over evidence
+lists of *arbitrary* length (fail-safe-empty, no-silent-pass, W1a-
+decisiveness, doctrine-can-never-topple, escalation conditions, split
+visibility, meta-budget), and a generated oracle (`TruthTable.lean`,
+digest-tied to the bounded receipt) re-verifies the model against all
+28,080 sampled cases on every CI run of `proofs.yml`. The oracle's first
+build caught a real model-vs-code divergence and the model moved. Trust
+placement (kernel `decide`; disclosed `native_decide` for the oracle only)
+is stated in the file headers, per house doctrine: receipts, not narrative.
+
 Phase 1 (core) and Phase 2 (watcher layer) are implemented with end-to-end
 receipts in the dogfood run. Phase 3 (platform + standard) substrate is in
 place: spec draft, conformance kit (C1–C10), marketplace index, test vectors,
@@ -228,21 +256,3 @@ expansion plan is [Roadmap v2 (#10)](https://github.com/goun7/veridict/issues/10
 formal verification); the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
-## Contributing
-
-Start with the issue tracker — the tracker is seeded with the project's own
-exit criteria:
-
-- **[Independent verifier from the standard alone](https://github.com/goun7/veridict/issues/1)** (exit criterion ①) — write a verifier without reading our code; where you and the reference disagree, either the standard is ambiguous or someone is wrong, and both findings earn errata credit.
-- **[Good-first issues](https://github.com/goun7/veridict/labels/good-first-issue)** — e.g. canary corpus expansion (self-contained, tests included as reference).
-- **[Errata proposals](https://github.com/goun7/veridict/issues/new?template=standard_errata.md)** — a normative sentence that is wrong, ambiguous, or unimplementable. Accepted errata land in §14.2 with credit.
-
-All work is governed by the receipts culture: tests and regenerated
-evidence over claims. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Model
-
-Open-core: the standard, the ledger core, and the offline verifier are
-Apache-2.0 — forever. Commercial offerings (hosted platform, watcher
-certification, enterprise integrations) build on top and never gate the
-open core. See [`docs/commercial-model.md`](docs/commercial-model.md).
