@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        run: pip install -e . && pip install pytest cryptography pyyaml
+        run: pip install -e . && pip install pytest cryptography pyyaml jsonschema
       - name: Full suite (python -m pytest)
         run: python -m pytest -q
       - name: Full suite (pytest entrypoint)

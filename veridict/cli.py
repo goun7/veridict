@@ -203,6 +203,24 @@ def _cmd_export(args) -> int:
         cert = json.load(f)
     entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
                if l.strip()]
+    if args.format == "spdx":
+        if args.sign:
+            print("error: --sign produces a DSSE/in-toto envelope, which "
+                  "only wraps VSA statements; SPDX exports carry the "
+                  "certificate's own signatures — export the VSA to sign.",
+                  file=sys.stderr)
+            return 2
+        anchor = None
+        if args.anchor_file:
+            with open(args.anchor_file, encoding="utf-8") as f:
+                anchor = json.load(f)
+        doc = export_mod.to_spdx(cert, entries, anchor=anchor)
+        text = json.dumps(doc, indent=2, sort_keys=True)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+        print(text)
+        return 0
     statement = export_mod.to_vsa(cert, entries)
     doc = statement
     if args.sign:
@@ -418,12 +436,16 @@ def main(argv=None) -> int:
     an.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
     an.set_defaults(func=_cmd_anchor)
     e = sub.add_parser("export")
-    e.add_argument("--format", choices=("vsa",), required=True,
+    e.add_argument("--format", choices=("vsa", "spdx"), required=True,
                    help="vsa: SLSA v1.2 Verification Summary Attestation "
-                        "(in-toto Statement; lossy projection — the "
+                        "(in-toto Statement); spdx: SPDX 3.0.1 AI-profile "
+                        "JSON-LD document. Both lossy projections — the "
                         "certificate stays authoritative)")
     e.add_argument("--cert", required=True)
     e.add_argument("--ledger", required=True)
+    e.add_argument("--anchor-file", metavar="SIDECAR",
+                   help="with --format spdx: embed the anchoring receipt "
+                        "(written by audit --anchor-out) as an ExternalRef")
     e.add_argument("--out")
     e.add_argument("--sign", metavar="KEYFILE",
                    help="wrap in a DSSE envelope signed with this Ed25519 "
