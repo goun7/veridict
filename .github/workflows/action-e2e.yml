@@ -27,6 +27,10 @@ jobs:
   audit-via-action:
     runs-on: ubuntu-latest
     steps:
+      # required: `uses: ./` resolves a LOCAL action from disk — the runner
+      # starts empty. The action's own checkout lands the code under
+      # ./auditee separately; this one lands the action.yml itself.
+      - uses: actions/checkout@v7
       - name: Audit this repo through the public action surface
         uses: ./
         with:
