@@ -3,6 +3,25 @@
 Semver applies to the LEDGER FORMAT and the standard (§14): changes to a
 digest preimage, a payload schema, or a tier rule are MAJOR.
 
+## Unreleased (post-0.4.0)
+
+- action: `anchor` + `anchor-required` inputs on BOTH invocation surfaces
+  (composite + reusable workflow), with the offline-verify step consuming
+  the sidecar when present; closes the `actor-family` reusable-workflow
+  parity gap it also uncovered. New `tests/test_action_surface.py` pins
+  the input-SET equality so surfaces can no longer drift silently.
+- ci: `action-e2e.yml` runs the repo through its own public action surface
+  (`uses: ./` — exactly what Marketplace serves) on every release tag,
+  anchoring the receipt in Rekor; first dispatch caught a real bug (missing
+  caller checkout), first green proved input→CLI→log→verify wiring
+  end-to-end (logIndex 2844439400).
+- ci(test-deps): pyyaml added to the test install line (maintainer/CI
+  environment skew caught red-handed by CI, not by narrative).
+- repo: GitHub topics set (evidence-ledger, llm-as-a-judge, slsa,
+  transparency-log, …); adoption thread updated for 0.4.0 surfaces;
+  `v1` re-pointed to include the anchor inputs.
+- discovery: PR open against ProjectRecon/awesome-ai-agents-security (#123).
+
 ## 0.4.0 — 2026-09-15 (research-grounded gap closure: calibrated jury, external anchoring, SLSA export, ladder proofs)
 
 Research-grounded gap closure: every item below traces to the 2026-09-14
