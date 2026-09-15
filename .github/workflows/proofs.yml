@@ -1,0 +1,56 @@
+name: Formal proofs
+
+# Issue #8 machine-checking lane. Two receipts per run:
+#   1. Ladder.lean — the general invariant theorems (arbitrary evidence
+#      length), kernel-checked by `lake build`.
+#   2. TruthTable.lean — the Lean model re-checked against ALL 28,080
+#      bounded cases regenerated live from the shipped Python ladder
+#      (digest-tied to docs/receipts-ladder-verification.json), so model/
+#      implementation divergence inside the sampled domain fails the build.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'veridict/ladder.py'
+      - 'veridict/divergence.py'
+      - 'proofs/**'
+      - 'scripts/export_lean_truth_table.py'
+      - 'scripts/verify_ladder.py'
+      - 'docs/receipts-ladder-verification.json'
+      - '.github/workflows/proofs.yml'
+  pull_request:
+    paths:
+      - 'veridict/ladder.py'
+      - 'veridict/divergence.py'
+      - 'proofs/**'
+      - 'scripts/export_lean_truth_table.py'
+      - 'scripts/verify_ladder.py'
+      - 'docs/receipts-ladder-verification.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ladder-proofs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: leanprover/elan-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Regenerate the oracle from the shipped ladder
+        run: python3 scripts/export_lean_truth_table.py
+      - name: Kernel-check the general theorems
+        working-directory: proofs/ladder
+        run: lake build Ladder
+      - name: Model vs 28,080 live Python cases
+        working-directory: proofs/ladder
+        run: lake build TruthTable
+      - name: Disclose trust placement
+        working-directory: proofs/ladder
+        run: |
+          grep -r "ofBoolReduce\|native_decide" .lake/build/log/ 2>/dev/null | head -2 || true
+          lake env print-axioms TruthTable.agree 2>/dev/null || \
+            grep -h 'depends on axioms' $(lake path)/../log/*TruthTable* 2>/dev/null || true

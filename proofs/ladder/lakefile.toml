@@ -1,0 +1,11 @@
+name = "veridict-ladder"
+version = "0.1.0"
+defaultTargets = ["Ladder"]
+
+[[lean_lib]]
+name = "Ladder"
+globs = ["Ladder"]
+
+[[lean_lib]]
+name = "TruthTable"
+globs = ["TruthTable"]
