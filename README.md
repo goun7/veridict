@@ -151,7 +151,29 @@ jobs:
 
 The run uploads `veridict-audit` artifacts (ledger + certificate) — download
 once, verify forever: `veridict verify --ledger veridict-ledger.jsonl --cert
-veridict-cert.json`. See the workflow file for all inputs.
+veridict-cert.json`. See the workflow file for all inputs — notably
+`anchor: rekor` (pin the checkpoint to the public transparency log; the
+verify step checks the sidecar automatically) and `actor-family` (declare
+the authoring model's family and same-family jury opinions are excluded —
+the self-preference guard).
+
+By default the jury runs on scripted stubs (loudly marked in the report —
+stubs never pretend to be judges). To bring a real model jury, the action
+reads the same environment as the CLI — step-level `env:` flows into
+composite steps:
+
+```yaml
+      - uses: goun7/veridict@v1
+        env:
+          VERIDICT_JURY_URL: https://api.openai.com/v1      # any OpenAI-compat
+          VERIDICT_JURY_KEY: ${{ secrets.JURY_KEY }}
+          VERIDICT_JURY_MODEL: gpt-4o
+          VERIDICT_JURY_URL2: https://api.anthropic.com/... # a 2nd FAMILY
+          VERIDICT_JURY_KEY2: ${{ secrets.JURY_KEY2 }}      # (required: juries
+          VERIDICT_JURY_MODEL2: claude-sonnet-4-5           #  need ≥2 families)
+        with:
+          intent: "DOCTRINE: ..."
+```
 
 ## Interoperability
 

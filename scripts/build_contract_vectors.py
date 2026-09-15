@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from examples.spec_verifier import adjudicate_spec, classify_divergence
+from examples.spec_verifier import adjudicate_spec
 from veridict.ladder import adjudicate
 from veridict.policy import PolicyDeclaration, Thresholds
 from veridict.schemas import Claim, EvidenceItem

@@ -23,7 +23,7 @@
     "sandbox_level": "inprocess"
   },
   "integrity": {
-    "code_hash": "b0ed18bd24936f64cf384f586146d9a25f80d653e6be016003a66cc3916ddaf5",
+    "code_hash": "177dce53bcc4e3b65d485bb45d6241d7b504085a17323fba4b59fa9ac5354572",
     "update_policy": "manual"
   }
 }

@@ -6,7 +6,6 @@ Its doctrine is a W3 judgment (SPDX-style software bill of materials
 completeness), reading only declared facts — never inventing components.
 """
 import hashlib
-import json
 import os
 import re
 

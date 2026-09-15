@@ -25,6 +25,7 @@ OUT = os.path.join(REPO, "examples", "manifests")
 def main() -> int:
     sys.path.insert(0, os.path.join(REPO, "watchers"))
     import a11y_watcher
+    import aiact_watcher
     import compliance_watcher
     import cost_watcher
     import docker_watcher
@@ -39,7 +40,7 @@ def main() -> int:
     for mod in (security_watcher, compliance_watcher, cost_watcher,
                 secret_scan_watcher, license_scan_watcher, docker_watcher,
                 doc_sync_watcher, sbom_watcher, a11y_watcher,
-                import_weight_watcher):
+                import_weight_watcher, aiact_watcher):
         manifest = mod.MANIFEST.to_dict()
         module_file = mod.__file__
         manifest["integrity"]["code_hash"] = hashlib.sha256(

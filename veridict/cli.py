@@ -39,7 +39,9 @@ def _build_jury() -> tuple[Jury, list[str]]:
     if os.environ.get("VERIDICT_JURY_URL2"):
         providers.append(OpenAICompatProvider(
             family="openai-compat-2", identity="http-2",
-            base_url=os.environ["VERIDICT_JURY_URL2"]))
+            base_url=os.environ["VERIDICT_JURY_URL2"],
+            api_key=os.environ.get("VERIDICT_JURY_KEY2"),
+            model=os.environ.get("VERIDICT_JURY_MODEL2")))
     n = 0
     while len(providers) < 2:
         n += 1
@@ -206,7 +208,17 @@ def _cmd_export(args) -> int:
     if args.sign:
         with open(args.sign, encoding="utf-8") as f:
             pem = f.read()
-        key_id = args.key_id or (cert.get("signatures") or [{}])[0].get(
+        # Accept BOTH shapes adopters actually have on disk: a raw PEM, or
+        # the JSON key file written by `registry init` (keys.export_key_file).
+        # In the JSON case its key_id is the default signer — a VSA signer
+        # need not be the certificate's issuer, but silently signing with a
+        # key whose id we had to invent would be worse than refusing.
+        key_hint = ""
+        if pem.lstrip().startswith("{"):
+            keydata = json.loads(pem)
+            pem = keydata["private_pem"]
+            key_hint = keydata.get("key_id", "")
+        key_id = args.key_id or key_hint or (cert.get("signatures") or [{}])[0].get(
             "key_id", "")
         doc = {"envelope": export_mod.dsse_envelope(statement, pem, key_id),
                "statement": statement}

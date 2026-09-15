@@ -68,13 +68,20 @@ class ScriptedProvider:
 class OpenAICompatProvider:
     """Any OpenAI-compatible chat endpoint; expects strict-JSON opinion back."""
     def __init__(self, family: str, identity: str, version: str = "0.1.0",
-                 base_url: str | None = None):
+                 base_url: str | None = None, api_key: str | None = None,
+                 model: str | None = None):
+        # Explicit params exist because a two-FAMILY jury genuinely needs
+        # two credentials: before this, VERIDICT_JURY_URL2 jurors silently
+        # borrowed provider 1's key and model — "heterogeneous jury" was
+        # then one model answering itself through two gateways.
         self.family = family
         self.identity = identity
         self.version = version
         self.base_url = base_url or os.environ["VERIDICT_JURY_URL"]
-        self.api_key = os.environ.get("VERIDICT_JURY_KEY", "")
-        self.model = os.environ.get("VERIDICT_JURY_MODEL", "gpt-4o-mini")
+        self.api_key = (api_key if api_key is not None
+                        else os.environ.get("VERIDICT_JURY_KEY", ""))
+        self.model = (model if model is not None
+                      else os.environ.get("VERIDICT_JURY_MODEL", "gpt-4o-mini"))
 
     # -- calibration knobs (env so CI workflows can set them per-run) ----
     def _samples(self) -> int:
@@ -223,7 +230,6 @@ class Jury:
         without a revise hook the provider keeps its first-round opinion. The
         first-round items stay in the ledger untouched.
         """
-        by_identity = {p.identity: p for p in self.providers}
         packets: dict[str, list[dict]] = {
             p.identity: [{"identity": it.producer["identity"],
                           "family": it.producer.get("family"),

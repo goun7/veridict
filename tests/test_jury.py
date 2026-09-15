@@ -141,3 +141,28 @@ def test_deliberation_cannot_revive_an_excluded_juror():
     first, _ = jury.evaluate(CLAIM, "digest")
     revised, _abst = jury.deliberate(CLAIM, "digest", first, 1 / 3)
     assert {i.producer["identity"] for i in revised} == {"b1", "c1"}
+
+
+def test_second_family_gets_own_credentials(monkeypatch):
+    """Two families must be two MODELS with two KEYS — the env-var suffix
+    wiring (URL2/KEY2/MODEL2) that adopted providers rely on; before the
+    2026-09-15 fix URL2 jurors silently borrowed provider 1's model+key."""
+    from veridict import cli
+    monkeypatch.setenv("VERIDICT_JURY_URL", "https://p1.invalid/v1")
+    monkeypatch.setenv("VERIDICT_JURY_KEY", "k1")
+    monkeypatch.setenv("VERIDICT_JURY_MODEL", "model-alpha")
+    monkeypatch.setenv("VERIDICT_JURY_URL2", "https://p2.invalid/v1")
+    monkeypatch.setenv("VERIDICT_JURY_KEY2", "k2")
+    monkeypatch.setenv("VERIDICT_JURY_MODEL2", "model-beta")
+    jury, warnings = cli._build_jury()
+    assert warnings == []
+    p1, p2 = jury.providers
+    assert (p1.api_key, p1.model) == ("k1", "model-alpha")
+    assert (p2.api_key, p2.model) == ("k2", "model-beta")
+    assert p1.family != p2.family
+    # absent suffixes fall back to the shared env (no breakage for single
+    # gateway setups that front two endpoints with one credential)
+    monkeypatch.delenv("VERIDICT_JURY_KEY2")
+    monkeypatch.delenv("VERIDICT_JURY_MODEL2")
+    jury2, _ = cli._build_jury()
+    assert (jury2.providers[1].api_key, jury2.providers[1].model) == ("k1", "model-alpha")

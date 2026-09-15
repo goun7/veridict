@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import tempfile
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .keys import KeyStore
@@ -98,7 +97,7 @@ def run_conformance_suite(session: WatcherSession,
         got = seen.get("args")
         if got is None or len(got) != 2:
             raise AssertionError(f"fn received {got!r} — expected exactly 2 args")
-        return f"inputs: (summary, artifact-reference) only"
+        return "inputs: (summary, artifact-reference) only"
 
     def c4() -> str:
         def boom(summary, ref):
@@ -149,7 +148,7 @@ def run_conformance_suite(session: WatcherSession,
         else:
             registry = registry_factory()
         registry.register(manifest)
-        report = ManifestRegistry.verify_manifest(ledger := registry.ledger,
+        report = ManifestRegistry.verify_manifest(registry.ledger,
                                                   manifest.watcher_id)
         if not report["valid"]:
             raise AssertionError(f"registry verification failed: {report['errors']}")

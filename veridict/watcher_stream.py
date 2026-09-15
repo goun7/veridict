@@ -31,9 +31,8 @@ import time
 from dataclasses import dataclass
 
 from .ladder import adjudicate
-from .ledger import Ledger
 from .policy import PolicyDeclaration
-from .schemas import ActorRef, Claim, EvidenceItem
+from .schemas import Claim, EvidenceItem
 
 
 @dataclass(frozen=True)

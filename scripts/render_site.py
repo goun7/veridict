@@ -69,8 +69,8 @@ abstain semantics, deadline, evidence shape) before it can be listed.
 These are the example watchers we ship ({len(rows)} shipped). In the
 dogfood self-audit, one of them (compliance) is deliberately revoked
 mid-run to generate a §6.6 revocation receipt, so the live index shows
-9 active of 10 shipped — by design, not by drift. Real third-party
-watchers join the same way — see
+{len(rows) - 1} active of {len(rows)} shipped — by design, not by drift.
+Real third-party watchers join the same way — see
 [`CONTRIBUTING.md`](https://github.com/goun7/veridict/blob/main/CONTRIBUTING.md).
 
 | Watcher | Doctrine | Tier | Domains | Maintainer | Version |
@@ -129,7 +129,7 @@ def main() -> int:
                                      "2026-09-09-veridict-design.md"),
                         "Design document"),
     }
-    index_md = f"""# Veridict
+    index_md = """# Veridict
 
 *The verdict that survived verification.*
 
@@ -140,7 +140,7 @@ certificates anyone can verify offline — from the standard alone.
 - **[The Standard v1.0.0-draft](standard.html)** — normative, with a public
   errata ledger (§14.2)
 - **[Design document](design.html)** — the founding paper
-- **[The watcher marketplace](marketplace.html)** — ten shipped example
+- **[The watcher marketplace](marketplace.html)** — eleven shipped example
   watchers, all certified by the conformance kit
 - **[Repository](https://github.com/goun7/veridict)** — core, offline
   verifier, conformance test vectors, spec-only verifier, CI receipts

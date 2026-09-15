@@ -139,3 +139,44 @@ def test_cli_export_vsa_end_to_end(issued_pair, tmp_path, capsys):
     doc = json.load(open(tmp_path / "vsa.json"))
     assert doc["predicate"]["verificationResult"] in ("PASSED", "FAILED")
     assert json.loads(capsys.readouterr().out)  # stdout is valid JSON too
+
+
+def test_cli_export_sign_accepts_registry_keyfile(issued_pair, tmp_path, capsys):
+    """The DEBT FIX: `export --sign` must take both a raw PEM and the JSON
+    key file `registry init` leaves on adopters' disks — and when given the
+    JSON, the envelope keyid defaults to THAT key (not the cert issuer's)."""
+    from veridict.cli import main
+    from veridict.keys import KeyStore
+    from veridict.ledger import Ledger
+    entries, cert = issued_pair
+    lp = tmp_path / "led.jsonl"
+    cp = tmp_path / "cert.json"
+    lp.write_text("\n".join(json.dumps(e) for e in entries) + "\n")
+    cp.write_text(json.dumps(cert))
+
+    signer_led = Ledger()
+    ks = KeyStore(signer_led)
+    kid = ks.generate_and_enroll("vsa-signer")
+    key_file = str(tmp_path / "signer.key.json")
+    ks.export_key_file(kid, key_file)
+
+    assert main(["export", "--format", "vsa", "--cert", str(cp),
+                 "--ledger", str(lp), "--sign", key_file,
+                 "--out", str(tmp_path / "vsa.json")]) == 0
+    capsys.readouterr()
+    doc = json.load(open(tmp_path / "vsa.json"))
+    env = doc["envelope"]
+    assert env["signatures"][0]["keyid"] == kid
+    assert env["signatures"][0]["keyid"] != cert["signatures"][0]["key_id"]
+    assert X.dsse_verify(env, ks.public_pem(kid))
+    # and the raw-PEM shape still works (no regression on the old format)
+    import json as _j
+    pem_file = tmp_path / "signer.pem"
+    pem_file.write_text(_j.load(open(key_file))["private_pem"])
+    assert main(["export", "--format", "vsa", "--cert", str(cp),
+                 "--ledger", str(lp), "--sign", str(pem_file),
+                 "--key-id", "raw-pem-key",
+                 "--out", str(tmp_path / "vsa2.json")]) == 0
+    doc2 = json.load(open(tmp_path / "vsa2.json"))
+    assert doc2["envelope"]["signatures"][0]["keyid"] == "raw-pem-key"
+    assert X.dsse_verify(doc2["envelope"], ks.public_pem(kid))

@@ -26,7 +26,7 @@ MANIFEST = WatcherManifest(
 # Conservative, regex-level checks only — this is a doctrine, not axe-core.
 _IMG_NO_ALT = re.compile(r"<img(?![^>]*\balt=)[^>]*>", re.IGNORECASE)
 _ARIA_HIDDEN_FOCUSABLE = re.compile(
-    r"<(?:a|button)\s+(?![^>]*\bhref=\"#\")"   # placeholder; see focusable check
+    r"<(?:a|button)\s+(?![^>]*\bhref=\"#\")"   # focusable element claim; real check follows: hidden from AT
     r"[^>]*aria-hidden=[\"']true[\"'][^>]*>", re.IGNORECASE)
 
 
