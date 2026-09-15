@@ -2,7 +2,10 @@
 
 Companion to design doc §10.5; this note carries the *verdict*, the table
 carries the receipts. Everything below was re-grounded this date; secondary
-surveys failed verification (see "AegisChain").
+surveys failed verification (see "AegisChain"). Evening same date: HANSARD
+(2608.22512) and one calibration-cluster paper (2609.12002) re-fetched
+directly from arXiv — abstracts, dates and the "record produced by the
+suspects" framing match this note's characterizations verbatim.
 
 ## What is true as of today
 
@@ -46,7 +49,13 @@ surveys failed verification (see "AegisChain").
 1. **HANSARD authors formalizing tiered evidence** — our tier rules are
    published in the standard + Lean; a concurrent formalization would
    erode "machine-checked protocol" novelty. Counter: ship the ledger/
-   anchor proofs (issue #8 remainder) before they do.
+   anchor proofs (issue #8 remainder) before they do. → **Counter
+   executed same day (a859d8b): anchor lane A0–A7 machine-checked
+   (verified vs. HANSARD v1 abstract, fetched directly from arXiv
+   2026-09-15: it is a reference architecture — tiers named, nothing
+   kernel-checked, no executable standard, no conformance kit). The
+   remaining realistic erosion is *scope*, not speed: nobody can
+   un-publish our four CI lanes + 28k-oracle + vectors combo.**
 2. **agent-governance-toolkit adding post-hoc certificates** — they have
    the distribution; we have the protocol. Counter: the side-by-side
    README note invites exactly the integration they'd have to build.
