@@ -46,11 +46,17 @@ def _canonical(obj) -> bytes:
 
 
 def _veridict_version() -> str:
-    try:
-        from importlib.metadata import version
-        return version("veridict")
-    except Exception:
-        return "0.3.3+source"          # running from a checkout
+    """Single honest version probe. The PyPI distribution is
+    `veridict-standard` (bare `veridict` belongs to another project);
+    querying the wrong name silently shipped the fallback forever —
+    caught by the 0.5.0 UX sweep, now probed under both spellings."""
+    from importlib.metadata import PackageNotFoundError, version
+    for dist in ("veridict-standard", "veridict"):
+        try:
+            return version(dist)
+        except PackageNotFoundError:
+            continue
+    return "0.5.0+source"               # running from an uninstalled checkout
 
 
 def to_vsa(cert: dict, ledger_entries: list[dict], *,

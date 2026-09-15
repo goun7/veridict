@@ -401,6 +401,9 @@ def _cmd_watch(args) -> int:
 
 def main(argv=None) -> int:
     p = _Parser(prog="veridict")
+    from .export import _veridict_version
+    p.add_argument("--version", action="version",
+                   version=f"veridict {_veridict_version()}")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("audit")
     a.add_argument("--task", required=True)

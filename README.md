@@ -38,16 +38,17 @@ pip install veridict-standard
 # DIFFERENT project — not ours). Same package from the repo, if preferred:
 #   pip install -e . && pip install pytest
 
-# audit a task end-to-end (GATE mode) — see examples/ for runnable scenarios
-veridict --help
+# first run: who am I, what can I do
+veridict --version && veridict --help
 
 # the system audits itself: ledger → claims → jury → certificate → offline verify
 python scripts/dogfood.py
 
 # verify a certificate offline (the property third parties care about)
-# (ledger + cert are release assets: gh release download v0.3.2
-#  or https://github.com/goun7/veridict/releases)
+# ledger + cert ship as release assets: gh release download --latest
 veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
+
+# your own repo, three commands: see "Audit your own repo" below
 
 # regenerate the standard's conformance test vectors (deterministic)
 python scripts/build_test_vectors.py
