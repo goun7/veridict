@@ -1,0 +1,38 @@
+name: Action end-to-end
+
+# What Marketplace users actually run, executed against ourselves: `uses: ./`
+# resolves to THIS commit's action.yml — the exact composite surface the
+# listing serves. Catches drift between CLI capabilities and action plumbing
+# (the class of gap where actor-family shipped CLI+composite but skipped the
+# reusable workflow). Runs on release tags (real check per release) and via
+# manual dispatch (check-any-time). CERTIFICATE mode + run-tests=false keeps
+# the auditee fast: this workflow proves the ACTION, not the audit depth —
+# CI's own dogfood job covers W1a machine evidence already.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      anchor:
+        description: "anchor mode for this probe run"
+        type: choice
+        options: ['none', 'rekor']
+        default: 'rekor'
+
+permissions:
+  contents: read
+
+jobs:
+  audit-via-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit this repo through the public action surface
+        uses: ./
+        with:
+          intent: 'DOCTRINE: the composite action inputs (mode, actor-family, anchor) wire through to the veridict CLI correctly'
+          mode: CERTIFICATE
+          run-tests: 'false'
+          anchor: ${{ github.event.inputs.anchor || 'none' }}
+      - name: Show what the action produced
+        run: ls -la artifacts/ && python3 -m json.tool artifacts/veridict-cert.json | head -20
