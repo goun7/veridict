@@ -52,3 +52,35 @@ Escalations to a human (`R3`) MUST be resolved by a human. No automated
 system — including CI, agents, or the project's own dogfood — may write an
 `escalation.resolved` entry on another party's behalf. Simulated decisions
 in demos MUST be labelled as simulated in the entry's `risk_note`.
+
+## IP and prior-art watch
+
+The project takes intellectual-property risk seriously and holds **no
+patents** — by doctrine, not oversight: Veridict is a protocol, and its
+defense is publication, not litigation. Two watches, reviewed at each
+MAJOR bump:
+
+1. **Third-party filings.** US patent application 19/561,229 (Adaptive
+   Query LLC, "methods for adaptive query processing in AI systems", filed
+   2025) claims an integrity-chained log recording AI-generated
+   interactions for governance/audit purposes — surface-level overlap with
+   the ledger primitive. Veridict's published record predates its filing:
+   the design doc and public repository date to September 2026 in the
+   PRIORITY_NOTES lineage below, the ledger concept itself to RFC 6962
+   (Ylonen, 2013 — Merkle-tree transparency logs, the field's common
+   prior art), and AuditWeave (arXiv:2607.09682, 14 June 2026) provides
+   independent intervening publication of hash-chained AI-evidence
+   ledgers. The claim structures also diverge materially: 19/561,229
+   centers on ordering/consensus validation inside a federation, while
+   Veridict's chains deliberately carry **no inclusion or ordering
+   proofs** (a documented design choice — external anchoring to Rekor
+   supplies existence-at-time instead). This paragraph is a maintenance
+   note, not legal advice; any applicant reaching for the ledger
+   primitive collides with public RFC 6962 art regardless.
+2. **Defensive publication.** Every protocol-relevant capability ships
+   documented and dated (design doc + CHANGELOG + git history + release
+   artifacts), and external anchoring (docs/receipts-anchor-v1-dogfood.json)
+   timestamps our checkpoint lineage in a third-party transparency log —
+   the project generates its own prior-art receipts as a side effect of
+   normal operation. This is the "receipts, not narrative" doctrine
+   applied to IP risk.
