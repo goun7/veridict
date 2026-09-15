@@ -35,6 +35,9 @@ veridict = "veridict.cli:main"
 [tool.setuptools.packages.find]
 include = ["veridict*"]
 
+[tool.setuptools.package-data]
+veridict = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
