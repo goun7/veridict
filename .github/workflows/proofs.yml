@@ -1,12 +1,15 @@
 name: Formal proofs
 
-# Issue #8 machine-checking lane. Two receipts per run:
+# Issue #8 machine-checking lane. Three receipts per run:
 #   1. Ladder.lean — the general invariant theorems (arbitrary evidence
 #      length), kernel-checked by `lake build`.
 #   2. TruthTable.lean — the Lean model re-checked against ALL 28,080
 #      bounded cases regenerated live from the shipped Python ladder
 #      (digest-tied to docs/receipts-ladder-verification.json), so model/
 #      implementation divergence inside the sampled domain fails the build.
+#   3. ledger/Chain.lean — hash-chaining tamper-evidence theorems for
+#      verify_chain (arbitrary chain length, collision request stated as
+#      hypothesis), plus the measured axiom audit re-disclosed per run.
 
 on:
   push:
@@ -37,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install elan (toolchain pinned by proofs/ladder/lean_toolchain.json)
+      - name: Install elan (toolchain pinned by proofs/*/lean-toolchain)
         run: |
           curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
@@ -49,6 +52,12 @@ jobs:
       - name: Model vs 28,080 live Python cases
         working-directory: proofs/ladder
         run: lake build TruthTable
+      - name: Kernel-check the ledger chaining theorems
+        working-directory: proofs/ledger
+        run: lake build
+      - name: Ledger axiom audit
+        working-directory: proofs/ledger
+        run: lake env lean axiom_audit.lean | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Disclose trust placement
         working-directory: proofs/ladder
         run: |

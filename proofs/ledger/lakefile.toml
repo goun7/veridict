@@ -1,0 +1,7 @@
+name = "veridict-chain"
+version = "0.1.0"
+defaultTargets = ["Chain"]
+
+[[lean_lib]]
+name = "Chain"
+globs = ["Chain"]
