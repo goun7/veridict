@@ -37,9 +37,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: leanprover/elan-action@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install elan (toolchain pinned by proofs/ladder/lean_toolchain.json)
+        run: |
+          curl -sSf https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: Regenerate the oracle from the shipped ladder
         run: python3 scripts/export_lean_truth_table.py
       - name: Kernel-check the general theorems
