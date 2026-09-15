@@ -157,8 +157,8 @@ veridict-cert.json`. See the workflow file for all inputs.
 
 Two ways a Veridict verdict reaches tooling that never heard of us:
 
-- **External anchoring** — `veridict audit … --anchor rekor` (or
-  `veridict anchor publish`) pins the certificate's checkpoint to the Sigstore
+- **External anchoring** — `veridict audit … --anchor rekor` (or in CI, the
+  `anchor: rekor` action input; or `veridict anchor publish`) pins the certificate's checkpoint to the Sigstore
   Rekor public-good transparency log. The anchor proves *existence at time T*;
   authority stays with the certificate's own key. Anyone holding cert + ledger
   + anchor sidecar checks it fully offline:

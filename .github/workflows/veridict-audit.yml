@@ -47,6 +47,21 @@ on:
         required: false
         type: boolean
         default: false
+      actor-family:
+        description: "Model family of the artifact author; same-family jurors are excluded (self-preference guard). Empty: no exclusion"
+        required: false
+        type: string
+        default: ""
+      anchor:
+        description: "Pin the checkpoint to a public transparency log after audit: none or rekor (existence-at-time proof; verify offline with the anchor sidecar)"
+        required: false
+        type: string
+        default: "none"
+      anchor-required:
+        description: "Fail the job if the anchor cannot be published (default: report the failure, keep the certificate)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -79,15 +94,26 @@ jobs:
           EOF
           cat "$GITHUB_WORKSPACE/task.json"
       - name: Run the audit (ledger + certificate)
+        env:
+          VERIDICT_ACTOR_FAMILY: ${{ inputs.actor-family }}
         run: |
+          ARGS=""
+          if [ "${{ inputs.anchor }}" != "none" ]; then
+            ARGS="--anchor ${{ inputs.anchor }}"
+            [ "${{ inputs.anchor-required }}" = "true" ] && ARGS="$ARGS --anchor-required"
+          fi
           veridict audit --task "$GITHUB_WORKSPACE/task.json" \
             --mode ${{ inputs.mode }} \
             --ledger "$GITHUB_WORKSPACE/artifacts/veridict-ledger.jsonl" \
-            --cert-out "$GITHUB_WORKSPACE/artifacts/veridict-cert.json"
+            --cert-out "$GITHUB_WORKSPACE/artifacts/veridict-cert.json" \
+            $ARGS
       - name: Offline verify of the produced certificate
         run: |
+          ANCHOR=""
+          SIDE="$GITHUB_WORKSPACE/artifacts/veridict-cert.json.anchor.json"
+          [ -f "$SIDE" ] && ANCHOR="--anchor $SIDE"
           veridict verify --ledger "$GITHUB_WORKSPACE/artifacts/veridict-ledger.jsonl" \
-            --cert "$GITHUB_WORKSPACE/artifacts/veridict-cert.json"
+            --cert "$GITHUB_WORKSPACE/artifacts/veridict-cert.json" $ANCHOR
       - name: Risk gate (optional, worst-verdict-wins)
         if: ${{ inputs.fail-on-refuted }}
         run: |
