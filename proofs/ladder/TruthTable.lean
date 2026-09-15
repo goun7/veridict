@@ -6,7 +6,7 @@
   (docs/receipts-ladder-verification.json). The digests below tie it to
   the shipped implementation; a rebuild that disagrees fails the build.
 
-  Rows ride as ONE string literal (10 chars each: machine, crit, polCrit,
+  Rows ride as ONE string literal (12 chars each: machine, crit, polCrit,
   budget, frs, value, div, rung, evpack[4]) — cheap to elaborate, trivial
   to decode in the VM-checked proof.
 
