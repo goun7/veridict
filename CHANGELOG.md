@@ -16,6 +16,21 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
   every `proofs.yml` run (now three lanes: ladder, oracle, chain).
   Issue #8 remainder narrowed to anchor verification (ECDSA — computational
   assumption, out of structural model by honest design).
+- **proofs(anchor):** `proofs/anchor/Anchor.lean` — the structural layer of
+  certificate⇄CT-anchor cross-verification (`veridict/anchor.py`),
+  machine-checked: A0 fail-closed parsing, A1 binding-necessary, A2
+  no-silent-skip, A3/A3b honest sidecar accepted (certificate-bound and
+  crypto-only paths), **A4 signatures-cannot-rescue-a-wrong-binding** (the
+  headline: with the binding mismatched, invalid verdict is unconditional
+  regardless of both ECDSA booleans — a compromised log operator signing
+  valid signatures over the wrong anchor still fails `veridict verify`),
+  A5 tree-containment, A6 note/proof root agreement, A7 uuid-embeds-leaf.
+  ECDSA enters as a disclosed opaque boolean — the computational
+  assumption is named, not faked; all nine theorems measure `[propext]`
+  only (no `sorry`, no `native_decide`), audited as the fourth lane of
+  `proofs.yml`. Issue #8 remainder is now only the cryptographic layer
+  itself (ECDSA soundness + SHA-256/JSON instantiation) — out of
+  structural reach by design, honest TCB.
 
 ## 0.5.0 — 2026-09-15 (machine-checked ladder, SPDX interop, Marketplace hardening)
 

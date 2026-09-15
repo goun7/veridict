@@ -1,6 +1,6 @@
 name: Formal proofs
 
-# Issue #8 machine-checking lane. Three receipts per run:
+# Issue #8 machine-checking lane. Four receipts per run:
 #   1. Ladder.lean — the general invariant theorems (arbitrary evidence
 #      length), kernel-checked by `lake build`.
 #   2. TruthTable.lean — the Lean model re-checked against ALL 28,080
@@ -10,6 +10,10 @@ name: Formal proofs
 #   3. ledger/Chain.lean — hash-chaining tamper-evidence theorems for
 #      verify_chain (arbitrary chain length, collision request stated as
 #      hypothesis), plus the measured axiom audit re-disclosed per run.
+#   4. anchor/Anchor.lean — structural theorems for certificate⇄CT-anchor
+#      verification (ECDSA deliberately opaque; the proved headline is
+#      that valid signatures cannot rescue a wrong binding), plus its
+#      measured axiom audit.
 
 on:
   push:
@@ -57,6 +61,12 @@ jobs:
         run: lake build
       - name: Ledger axiom audit
         working-directory: proofs/ledger
+        run: lake env lean axiom_audit.lean | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Kernel-check the anchor theorems
+        working-directory: proofs/anchor
+        run: lake build
+      - name: Anchor axiom audit
+        working-directory: proofs/anchor
         run: lake env lean axiom_audit.lean | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Disclose trust placement
         working-directory: proofs/ladder

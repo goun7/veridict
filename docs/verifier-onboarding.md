@@ -90,6 +90,11 @@ Where prose is ambiguous, the machine-checked statements are not:
   R0 given any refuting evidence; W1a-decisiveness).
 - `proofs/ledger/Chain.lean` — six chaining theorems: what tampering can and
   cannot survive (everything else your verifier must detect).
+- `proofs/anchor/Anchor.lean` — nine anchor theorems over the sidecar
+  cross-check: fail-closed parsing, binding-necessity, no-silent-skip, and
+  the architecture claim (A4) that a mismatched binding invalidates the
+  anchor regardless of both ECDSA verdicts — your verifier must reject
+  there even when the signatures are perfect.
 - `docs/receipts-ladder-verification.json` + `proofs/ladder/TruthTable.lean`
   — the full bounded behavior table; `lake build` in `proofs/ladder` replays
   all 28,080 cases against the Lean model in CI. If your implementation
