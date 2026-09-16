@@ -260,10 +260,3 @@ Honest inventory, in descending order of significance:
 19. **Repository README** — `README.md` (receipts table quoted in §5).
 
 ---
-
-### Maintainer trim-notes (delete before submission)
-
-- Voice check: first-person singular used because sole-authored; flip to editorial "we" if that reads false.
-- All bracketed `[verify/cite]` markers are to-do items where the file-claim or count may have drifted since Sep 13 — fix in-place or delete the sentence (doctrine: no ungrounded numbers).
-- Length: `wc -w` ≈ 6.1k counting Markdown tables/URLs; running prose ≈ 5–5.5k. Right size for a short paper / workshop; for a full venue add related-work expansion + production numbers (if/when §7② fills).
-- TruthTable.lean header said "10 chars each" while the kernel theorem pins 336,960 = 12×28,080 — RESOLVED in-repo 2026-09-15 (comment corrected to 12, field list confirms: 8 one-char codes + evpack[4]; rebuild verified). Paper's "12 chars/row" now matches both the theorem and the comment.
