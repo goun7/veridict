@@ -5,19 +5,21 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+_site/
+.venv*/
+
+# local dogfood artifacts (regenerated per run; receipts live in docs/)
 dogfood_ledger.jsonl
 dogfood_cert.json
 dogfood_index.json
-_site/
-.venv*/
+
+# unrelated tool artifacts
 .freebuff/
-docs/plans/
-docs/notes/launch-*.md
-docs/notes/2026-09-10-agent-coordination-incident.md
-docs/notes/strategy-deep-review.md
-docs/notes/logo-prompt.md
-docs/notes/reddit-modmail-kit.md
-docs/notes/devto-publish-kit.md
-docs/notes/marketplace-publish-guide.md
+
+# local dev hooks
 scripts/git_hooks/
+
+# Lean build cache
 proofs/ladder/.lake
+proofs/ledger/.lake
+proofs/anchor/.lake
