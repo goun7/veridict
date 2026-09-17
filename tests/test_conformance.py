@@ -27,7 +27,7 @@ def test_all_example_watchers_conform():
         report = run_conformance_suite(session)
         assert report["conformant"], report["checks"]
         assert {c["id"] for c in report["checks"]} == {
-            f"C{i}" for i in range(1, 11)}
+            f"C{i}" for i in range(1, 14)}
 
 
 def test_always_failing_session_is_nonconformant():
@@ -66,3 +66,25 @@ def test_c10_deadline_check_exercises_timeout():
     c10 = next(c for c in report["checks"] if c["id"] == "C10")
     assert c10["passed"] is True
     assert elapsed < 10               # deadline check actually bounded
+
+
+def test_c13_rejects_lying_sandbox_budget():
+    # L2-3: an inprocess manifest with a nonzero cost_budget contradicts
+    # itself — an in-process fn cannot spend money. The kit must refuse to
+    # certify such a manifest.
+    lying = _manifest(resource_class={"timeout_seconds": 10, "cost_budget": 5.0,
+                                      "sandbox_level": "inprocess"})
+    report = run_conformance_suite(WatcherSession(
+        lying, lambda s, r: ("SUPPORTS", 0.8, "probe")))
+    c13 = next(c for c in report["checks"] if c["id"] == "C13")
+    assert c13["passed"] is False
+    assert "cost_budget" in c13["detail"]
+
+
+def test_c13_passes_coherent_manifest():
+    coherent = _manifest(resource_class={"timeout_seconds": 10, "cost_budget": 0.0,
+                                         "sandbox_level": "inprocess"})
+    report = run_conformance_suite(WatcherSession(
+        coherent, lambda s, r: ("SUPPORTS", 0.8, "probe")))
+    c13 = next(c for c in report["checks"] if c["id"] == "C13")
+    assert c13["passed"] is True

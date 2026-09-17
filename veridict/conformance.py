@@ -167,6 +167,54 @@ def run_conformance_suite(session: WatcherSession,
             raise AssertionError("deadline ignored — a hung watcher produced evidence")
         return f"deadline honored ({deadline or 'probe'}s contract exercised)"
 
+    def c11() -> str:
+        # L2-3 (2026-09-16): WATCH-transport determinism — the same inputs
+        # must yield byte-identical evidence. A transport that flips verdicts
+        # between runs cannot be certified: it makes the ledger's evidence
+        # non-replayable, which breaks the offline-verifiability promise.
+        results = []
+        for _ in range(3):
+            item = _item_from(lambda s, r: ("REFUTES", 0.7, "deterministic"))
+            if item is None:
+                raise AssertionError("fn abstained on a benign probe")
+            results.append((item.stance, item.confidence, item.tier,
+                            item.evidence_class, item.producer.get("family")))
+        if len(set(results)) != 1:
+            raise AssertionError(f"non-deterministic across runs: {results}")
+        return f"deterministic across 3 runs ({results[0]})"
+
+    def c12() -> str:
+        # L2-3: transport must honour the declared evidence-class ceiling —
+        # an external transport cannot upgrade its own declared classes
+        # (declared STATIC_ANALYSIS must never emit a W1a-flavoured class).
+        declared = set(manifest.capabilities.get("evidence_classes") or ())
+        if not declared:
+            return "no evidence_classes declared — ceiling vacuous"
+        item = _item_from(lambda s, r: ("SUPPORTS", 0.9, "probe"))
+        if item is None:
+            raise AssertionError("fn abstained on a benign probe")
+        if item.evidence_class not in declared:
+            raise AssertionError(
+                f"transport emitted undeclared class {item.evidence_class!r}; "
+                f"declared={sorted(declared)}")
+        return f"class within declared set ({item.evidence_class})"
+
+    def c13() -> str:
+        # L2-3: sandbox contract — the manifest declares its sandbox level;
+        # the kit cannot enforce containment (that is the honest limit), but
+        # it CAN refuse to certify a manifest whose level contradicts the
+        # resource class it actually exercises (e.g. declares 'inprocess'
+        # while requesting a nonzero cost budget that only a networked
+        # transport would spend).
+        rc = manifest.resource_class or {}
+        level = rc.get("sandbox_level", "none")
+        budget = float(rc.get("cost_budget") or 0.0)
+        if level == "inprocess" and budget > 0.0:
+            raise AssertionError(
+                f"inprocess sandbox with nonzero cost_budget={budget} — "
+                f"an in-process fn cannot spend money; the manifest lies")
+        return f"sandbox/budget coherent ({level}, {budget})"
+
     checks.append(_check("C1", "manifest invariants", c1))
     checks.append(_check("C2", "tier ceiling (never W1a)", c2))
     checks.append(_check("C3", "blindness (inputs)", c3))
@@ -177,5 +225,8 @@ def run_conformance_suite(session: WatcherSession,
     checks.append(_check("C8", "evidence shape", c8))
     checks.append(_check("C9", "registry verification", c9))
     checks.append(_check("C10", "resource deadline", c10))
+    checks.append(_check("C11", "transport determinism", c11))
+    checks.append(_check("C12", "evidence-class ceiling", c12))
+    checks.append(_check("C13", "sandbox/budget coherence", c13))
     return {"watcher_id": manifest.watcher_id, "conformant": all(c["passed"] for c in checks),
             "checks": checks}
