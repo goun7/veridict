@@ -258,7 +258,7 @@ not narrative.
 
 Phase 1 (core) and Phase 2 (watcher layer) are implemented with end-to-end
 receipts in the dogfood run. Phase 3 (platform + standard) substrate is in
-place: spec draft, conformance kit (C1–C10), marketplace index, test vectors,
+place: spec draft, conformance kit (C1–C13), marketplace index, test vectors,
 spec-only verifier. The remaining exit criteria are external by nature:
 
 1. an **independent verifier** implemented from the spec by someone else,
