@@ -23,13 +23,19 @@ import sys
 
 # MCP SDK is optional at import time so the rest of the repo stays
 # dependency-light; the server only starts when the SDK is present.
+# The SDK renamed FastMCP → MCPServer in v2 (kept as an alias there, but
+# the import path moved), so both are tried. Either gives the same
+# @server.tool() decorator and the same run() entry point.
 try:
-    from mcp.server.fastmcp import FastMCP  # type: ignore
-except ImportError as exc:  # pragma: no cover
-    sys.stderr.write(
-        "veridict-mcp needs the MCP SDK: pip install mcp\n"
-        f"(import failed: {exc})\n")
-    sys.exit(2)
+    from mcp.server.fastmcp import FastMCP as _Server  # type: ignore  # v1
+except ImportError:
+    try:
+        from mcp.server.mcpserver import MCPServer as _Server  # type: ignore  # v2
+    except ImportError as exc:  # pragma: no cover
+        sys.stderr.write(
+            "veridict-mcp needs the MCP SDK: pip install mcp\n"
+            f"(import failed: {exc})\n")
+        sys.exit(2)
 
 from veridict.audit import AuditOrchestrator, artifact_digest
 from veridict.certificate import CertificateIssuer
@@ -40,7 +46,7 @@ from veridict.ledger import Ledger
 from veridict.policy import PolicyDeclaration, Thresholds
 from veridict.schemas import ActorRef, EvidenceItem
 
-mcp = FastMCP("veridict")
+mcp = _Server("veridict")
 
 
 @mcp.tool()

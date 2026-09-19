@@ -113,13 +113,16 @@ def test_langchain_error_event(tmp_path):
 # The MCP SDK is optional; the two ledger-touching tools are exercised
 # directly (they are plain functions over the veridict runtime core).
 
-def _mcp_module():
+def _mcp_module(monkeypatch):
     """Import the server module's tools without the MCP SDK.
 
     The module top-level imports FastMCP and exits when the SDK is
     absent. The @mcp.tool-decorated functions are plain functions
     underneath, so a minimal FastMCP stub (whose .tool() returns the
-    function unchanged) is enough to load and exercise them."""
+    function unchanged) is enough to load and exercise them.
+
+    Registered under unique sys.modules keys and monkeypatch-scoped, so
+    the fake `mcp` can never shadow the real SDK for the tests below."""
     import importlib.util
     import types
 
@@ -141,20 +144,22 @@ def _mcp_module():
     fastmcp.FastMCP = _FakeMCP
     server_mod.fastmcp = fastmcp
     stub.server = server_mod
-    sys.modules["mcp"] = stub
-    sys.modules["mcp.server"] = server_mod
-    sys.modules["mcp.server.fastmcp"] = fastmcp
+    # Unique keys + monkeypatch: the fake is removed at test teardown and
+    # never collides with the real `mcp` import in _real_mcp().
+    for key, mod in (("mcp", stub), ("mcp.server", server_mod),
+                     ("mcp.server.fastmcp", fastmcp)):
+        monkeypatch.setitem(sys.modules, key, mod)
 
     mcp_path = os.path.join(os.path.dirname(__file__), "..",
                             "adapters", "mcp", "veridict_mcp", "server.py")
-    spec = importlib.util.spec_from_file_location("veridict_mcp_server", mcp_path)
+    spec = importlib.util.spec_from_file_location("_stub_veridict_mcp_server", mcp_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-def test_mcp_record_evidence_and_verify(tmp_path):
-    server = _mcp_module()
+def test_mcp_record_evidence_and_verify(tmp_path, monkeypatch):
+    server = _mcp_module(monkeypatch)
     ledger = str(tmp_path / "mcp.jsonl")
 
     out = json.loads(server.record_evidence(
@@ -167,10 +172,10 @@ def test_mcp_record_evidence_and_verify(tmp_path):
     assert rep["ok"] is True and rep["entries"] == 1
 
 
-def test_mcp_rejects_w1a_from_watcher(tmp_path):
+def test_mcp_rejects_w1a_from_watcher(tmp_path, monkeypatch):
     """The MCP surface mirrors the conformance-kit C2 rule: watchers can
     never emit W1a evidence, even over the protocol boundary."""
-    server = _mcp_module()
+    server = _mcp_module(monkeypatch)
     out = json.loads(server.record_evidence(
         str(tmp_path / "mcp.jsonl"), "mcp-test", "JURY_OPINION", "W1a",
         "SUPPORTS", 0.9))
@@ -178,9 +183,64 @@ def test_mcp_rejects_w1a_from_watcher(tmp_path):
     assert "W1a" in out["error"]
 
 
-def test_mcp_rejects_bad_stance(tmp_path):
-    server = _mcp_module()
+def test_mcp_rejects_bad_stance(tmp_path, monkeypatch):
+    server = _mcp_module(monkeypatch)
     out = json.loads(server.record_evidence(
         str(tmp_path / "mcp.jsonl"), "mcp-test", "JURY_OPINION", "W2",
         "MAYBE", 0.5))
     assert out["ok"] is False and "stance" in out["error"]
+
+
+# ---- MCP against the REAL SDK -----------------------------------------
+# The three tests above run against a stub so CI stays green without the
+# SDK. This one runs only when `mcp` is actually installed and exercises
+# the real protocol surface — tool registration AND tool invocation,
+# which the stub cannot check. This is the test that caught the v1→v2
+# FastMCP→MCPServer rename.
+def _real_mcp():
+    pytest.importorskip("mcp")
+    # The stub tests above inject a fake `veridict_mcp.server` into
+    # sys.modules; drop it so this path resolves the real module.
+    for k in [k for k in sys.modules if k.startswith("veridict_mcp")]:
+        del sys.modules[k]
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..",
+                                    "adapters", "mcp"))
+    import veridict_mcp.server as server
+    return server
+
+
+def test_real_mcp_registers_three_tools():
+    server = _real_mcp()
+    import asyncio
+    tools = asyncio.run(server.mcp.list_tools())
+    names = {t.name for t in tools}
+    assert names == {"record_evidence", "verify_ledger", "audit_artifact"}
+
+
+def test_real_mcp_record_and_verify_roundtrip(tmp_path):
+    server = _real_mcp()
+    import asyncio
+    ledger = str(tmp_path / "real.jsonl")
+
+    def call(name, **kw):
+        return json.loads(asyncio.run(server.mcp.call_tool(name, kw)).content[0].text)
+
+    out = call("record_evidence", ledger_path=ledger, producer_identity="w",
+               evidence_class="TEST_EXECUTION", tier="W1b",
+               stance="SUPPORTS", confidence=0.9)
+    assert out["ok"] is True and out["entries"] == 1
+
+    rep = call("verify_ledger", ledger_path=ledger)
+    assert rep["ok"] is True and rep["entries"] == 1
+
+
+def test_real_mcp_rejects_w1a_over_protocol(tmp_path):
+    """C2 enforced at the real protocol boundary, not just in-process."""
+    server = _real_mcp()
+    import asyncio
+    r = asyncio.run(server.mcp.call_tool("record_evidence", {
+        "ledger_path": str(tmp_path / "real.jsonl"), "producer_identity": "w",
+        "evidence_class": "TEST_EXECUTION", "tier": "W1a",
+        "stance": "SUPPORTS", "confidence": 0.9}))
+    out = json.loads(r.content[0].text)
+    assert out["ok"] is False and "W1a" in out["error"]
