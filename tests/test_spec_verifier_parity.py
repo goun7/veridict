@@ -103,3 +103,22 @@ def test_spec_verifier_reads_no_veridict_source():
     src = open(spec_verifier.__file__).read()
     assert "from veridict" not in src, "spec_verifier imports production code"
     assert "import veridict" not in src, "spec_verifier imports production code"
+
+
+def test_out_of_preimage_change_is_accepted_by_both(tmp_path, ledger_entries,
+                                                    cert_json):
+    """Negative control for the tamper tests above.
+
+    A field outside the entry-hash preimage is not protected evidence, so
+    BOTH verifiers must still accept the ledger. If either flips to False,
+    it started hashing fields the spec does not cover — a silent
+    conformance drift between the two implementations. And if any tamper
+    test above ever passes, the mutation stopped touching the preimage
+    and is proving nothing. Both directions of this boundary are worth
+    pinning; a one-sided tamper suite cannot detect the second.
+    """
+    out = copy.deepcopy(ledger_entries)
+    for x in out:                        # a field no preimage in §2.3 consumes
+        x["harmless_extra_field"] = "not-digested"
+        break
+    assert _run(tmp_path, out, cert_json) == (True, True)

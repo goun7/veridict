@@ -352,8 +352,12 @@ of independence; the diversity statement travels in `jury_composition`.
 heterogeneity is preserved and the composition is disclosed.
 
 13.4 Formal verification of the Core is a Phase 3 stretch goal and is NOT a
-v1.0.0 conformance requirement. Until then, the core's honesty rests on the
-canonical-form discipline and the replay algorithm — a stated residual risk.
+v1.0.0 conformance requirement. Partial progress exists (erratum D11: the
+§7 ladder's five tier rules are machine-checked in Lean 4), but that covers
+the adjudication *logic* only — the hash chain, signature layer, and juror
+honesty remain unproven. Until those are covered too, the core's honesty
+rests on the canonical-form discipline and the replay algorithm — a stated
+residual risk.
 
 ## 14. Registry governance
 
