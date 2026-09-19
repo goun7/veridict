@@ -1,0 +1,71 @@
+=====================================================================
+MAIL 1 — Georgios Th. Papadopoulos (önceki maile CEVAP olarak at)
+=====================================================================
+Subject: Re: [önceki konun] — quick endorsement request
+
+Hi Georgios,
+
+Quick favor. I'm submitting my paper to cs.CR and need one endorsement.
+My work builds directly on HANSARD — your "records produced by suspects
+don't acquit suspects" point is literally the opening of my threat model.
+
+Paper: Veridict — append-only evidence ledger with an offline-verifiable
+certificate, for AI-produced work. Open source, code at goun7/veridict,
+318 tests green.
+
+If you're willing, just click the endorsement link in the forwarded
+arXiv email below. One click, 30 seconds.
+
+Thanks either way.
+
+Göktağ
+
+--- FORWARD the arXiv email (with code M6YH9T) below this line ---
+
+
+=====================================================================
+MAIL 2 — Panagiotis Sarigiannidis (yeni mail)
+=====================================================================
+Subject: Endorsement request — cites your HANSARD work
+
+Hi Panagiotis,
+
+I'm submitting a paper to cs.CR and need one endorsement. I cite the
+HANSARD work you co-authored — its "records produced by suspects don't
+acquit suspects" argument is the opening of my threat model.
+
+Paper: Veridict — append-only evidence ledger with an offline-verifiable
+certificate, for AI-produced work. Open source, code at goun7/veridict.
+
+If you're willing, the endorsement link is in the forwarded arXiv email
+below. One click.
+
+Thanks.
+
+Göktağ
+
+--- FORWARD the arXiv email (with code M6YH9T) below this line ---
+
+
+=====================================================================
+MAIL 3 — Iraklis Varlamis (yeni mail)
+=====================================================================
+Subject: Endorsement request — cites your HANSARD work
+
+Hi Iraklis,
+
+I'm submitting a paper to cs.CR and need one endorsement. I cite the
+HANSARD work you co-authored — its "records produced by suspects don't
+acquit suspects" argument is the opening of my threat model.
+
+Paper: Veridict — append-only evidence ledger with an offline-verifiable
+certificate, for AI-produced work. Open source, code at goun7/veridict.
+
+If you're willing, the endorsement link is in the forwarded arXiv email
+below. One click.
+
+Thanks.
+
+Göktağ
+
+--- FORWARD the arXiv email (with code M6YH9T) below this line ---
