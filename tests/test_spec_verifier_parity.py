@@ -122,3 +122,37 @@ def test_out_of_preimage_change_is_accepted_by_both(tmp_path, ledger_entries,
         x["harmless_extra_field"] = "not-digested"
         break
     assert _run(tmp_path, out, cert_json) == (True, True)
+
+
+def test_unknown_entry_type_is_accepted_by_both(tmp_path, ledger_entries,
+                                                cert_json):
+    """An entry_type outside the core registry must verify GREEN on both.
+
+    This is the mirror of Tamga's ERRATUM E1(a): their spec listed op
+    values as restricted while production accepted an unknown op and
+    verified GREEN — intentional forward-compatibility, but the spec's
+    language did not say so, so an independent verifier could lawfully
+    read the restriction as normative and reject the same chain.
+
+    Ours is now documented (erratum D13): the registry is open by design,
+    extensions must be namespaced 'extension.*'. This test pins the
+    behavior so a later tightening — making the enum closed — shows up
+    as a deliberate break, not a silent conformance drift. Both
+    directions matter: if the spec verifier ever rejects what production
+    accepts, the two have diverged.
+    """
+    out = copy.deepcopy(ledger_entries)
+    out.append({
+        **out[-1],
+        "entry_type": "extension.experimental",
+        "payload": {"note": "forward-compatible extension entry"},
+    })
+    # chain links must be recomputed for the appended entry
+    from veridict.ledger import Ledger
+    from veridict.schemas import ActorRef
+    led = Ledger()
+    for e in out:
+        led.append(e["entry_type"], ActorRef(**e["author"]), e["payload"])
+    s, r = _run(tmp_path, led.entries, cert_json)
+    assert (s, r) == (True, True), \
+        "an extension entry_type must verify GREEN on both verifiers"
