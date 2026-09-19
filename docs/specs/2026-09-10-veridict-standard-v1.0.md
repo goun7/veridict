@@ -404,7 +404,23 @@ audited ledger." Ratification is deferred to v1.1 (§10.3 errata).
 [`2026-09-12-veridict-standard-v1.1-delta.md`](2026-09-12-veridict-standard-v1.1-delta.md)
 (amendment A1 proposes ratifying this exact sentence; the delta stays DRAFT
 until an independent implementation exercises it). Erratum D10 remains OPEN
-until v1.1.0 is ratified.*
+until v1.1.0 is ratified.* Erratum D11 (2026-09-19, issue #8): the §7
+ladder's five tier rules are now machine-checked in Lean 4
+(`proofs/ladder/Ladder.lean`, kernel-checked, no bespoke axioms — the
+`agree` decision function depends only on `propext`, `Classical.choice`,
+and `Quot.sound`). The model is cross-checked against the shipped Python
+ladder over all 28,080 bounded evidence configurations
+(`proofs/ladder/TruthTable.lean`, regenerated from the reference
+implementation per run by `scripts/export_lean_truth_table.py`), so
+model/implementation divergence inside the sampled domain fails the
+proof CI. **Limits, stated plainly:** this is a proof about the ladder's
+*logic*, not about the system. It says the decision function admits no
+silent pass and no silent gap for the configurations sampled; it does
+NOT prove the hash chain, the signature layer, or that a deployed
+juror reported honest evidence — those remain §11.3's verification
+business, not §7's. A reviewer asking "is the ladder sound?" now gets a
+checked artifact; a reviewer asking "was this audit truthful?" still
+gets a certificate to recompute.
 
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are
