@@ -72,7 +72,7 @@ A failing audit turns it amber or red — worst-verdict-wins.
 | Test suite | 313 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
-| Canary protocol | 10 catches / 3 honest misses / 0 false positives across 12 defect classes |
+| Canary protocol | 22 catches / 3 honest misses / 0 false positives across 25 defect classes |
 | Tamper soak | 1500 mutated ledgers, 5 seeds → 100% detected, 0 silent passes |
 | Spec parity | reference verifier ≡ spec-only verifier on 8 failure modes |
 

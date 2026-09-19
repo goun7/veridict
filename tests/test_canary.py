@@ -30,7 +30,15 @@ def _audit_fn():
                  "safe_compare is constant-time (no short-circuit)",
                  "make_token uses a cryptographically secure generator",
                  "get_cached closes the check-then-use race",
-                 "login failure paths return one indistinguishable reason"}
+                 "login failure paths return one indistinguishable reason",
+                 # L2-3 security expansion (2026-09-19): 5 more defect classes.
+                 # Same contract: the intent line is the MACHINE claim the
+                 # audit must refute; the artifact ships the seeded defect.
+                 "fetch_thumbnail only reaches allowlisted hosts",
+                 "render_greeting escapes the name before embedding it",
+                 "login_redirect only allows same-origin targets",
+                 "update never writes privileged fields from caller input",
+                 "authorize checks a key held outside the source tree"}
     # deliberately NOT refutable: hash_password (crypto-misuse honest miss),
     # parse_iso_utc (offset-stomp honest miss), and both clean summaries
     overrides = {
@@ -73,6 +81,12 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert by_id["canary-weak-random"] is True
     assert by_id["canary-toctou"] is True
     assert by_id["canary-error-message-leak"] is True
+    # L2-3 security expansion (2026-09-19) — all 5 new classes are caught
+    assert by_id["canary-ssrf"] is True
+    assert by_id["canary-xss-output"] is True
+    assert by_id["canary-open-redirect"] is True
+    assert by_id["canary-mass-assignment"] is True
+    assert by_id["canary-hardcoded-credentials"] is True
     assert sheet["per_class"]["uncovered-edge"] == {"caught": 1, "total": 2}
     assert sheet["per_class"]["logic-error"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["contract-violation"] == {"caught": 1, "total": 1}
@@ -89,11 +103,16 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert sheet["per_class"]["weak-random"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["toctou"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["error-message-leak"] == {"caught": 1, "total": 1}
-    assert sheet["caught_total"] == 17
+    assert sheet["per_class"]["ssrf"] == {"caught": 1, "total": 1}
+    assert sheet["per_class"]["xss-output"] == {"caught": 1, "total": 1}
+    assert sheet["per_class"]["open-redirect"] == {"caught": 1, "total": 1}
+    assert sheet["per_class"]["mass-assignment"] == {"caught": 1, "total": 1}
+    assert sheet["per_class"]["hardcoded-credentials"] == {"caught": 1, "total": 1}
+    assert sheet["caught_total"] == 22
 
 
 def test_quality_sheet_persists(tmp_path):
     sheet = CanaryRunner(_audit_fn()).run("corpus/corpus.jsonl")
     out = tmp_path / "sheet.json"
     out.write_text(json.dumps(sheet))
-    assert json.loads(out.read_text())["caught_total"] == 17
+    assert json.loads(out.read_text())["caught_total"] == 22

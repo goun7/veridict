@@ -59,14 +59,14 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit --skip-editable --desc off || test $? -eq 1
-      - name: Canary quality sheet (caught 17 / fp 0 expected)
+      - name: Canary quality sheet (caught 22 / fp 0 expected)
         run: |
           python - <<'EOF'
           import sys; sys.path.insert(0, '.')
           from tests.test_canary import _audit_fn
           from veridict.canary import CanaryRunner
           s = CanaryRunner(_audit_fn()).run('corpus/corpus.jsonl')
-          assert s['caught_total'] == 17 and s['false_positives'] == 0, s
+          assert s['caught_total'] == 22 and s['false_positives'] == 0, s
           print('canary caught:', s['caught_total'], '| fp:', s['false_positives'])
           EOF
       - name: GATE latency budget (design §6.5, p95 < 30 min)
