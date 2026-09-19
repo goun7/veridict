@@ -19,7 +19,7 @@
   "properties": {
     "entry_type": {
       "type": "string",
-      "description": "Open registry \u2014 core types include: key.enrolled, task.registered, claim.registered, evidence.recorded, deliberation.rounded, checkpoint.anchored, policy.declared, certificate.issued, watcher.registered, watcher.revoked, dossier.opened, incident.recorded.",
+      "description": "Open registry. Core types, enumerated: key.enrolled, task.started, claim.registered, evidence.recorded, watch.observed, deliberation.rounded, escalation.requested, escalation.resolved, calibration.updated, gate.blocked, checkpoint.anchored, certificate.issued, watcher.registered, watcher.revoked, actor.output, dossier.opened, incident.recorded. The registry is open by design — an unknown type is legal — but extensions MUST be namespaced 'extension.*' so a verifier that does not recognize it can abstain rather than silently misparse the payload. Semantic consumers (totals, netting) MUST understand the core types before interpreting payloads; a charge and its refund are distinguished by entry type, not by payload field.",
       "minLength": 1
     },
     "seq": {

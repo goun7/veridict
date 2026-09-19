@@ -201,3 +201,34 @@ def test_verify_rejects_a_tampered_certificate(tmp_path, module):
     out = json.loads(r.stdout)
     assert out["valid"] is False
     assert out["signature_valid"] is False, out
+
+
+def test_schema_entry_type_taxonomy_matches_code():
+    """Every entry_type the code emits must be listed in the JSON Schema.
+
+    Sester's ERRATUM-K0.2 on their side: a taxonomy enforced in code but
+    absent from the normative artifact means an independent verifier
+    silently diverges. Same class of gap here — the schema said 'open
+    registry' with an example list that omitted seven types we actually
+    emit. This test keeps the two in sync mechanically, not by hand.
+    """
+    import re
+    schema_path = os.path.join(ROOT, "docs", "schemas",
+                               "veridict-ledger-entry-1.0.schema.json")
+    schema = open(schema_path, encoding="utf-8").read()
+    listed = set(re.findall(r"\b([a-z]+\.[a-z]+)\b", schema))
+
+    # Entry types the reference implementation actually appends. This set
+    # is deliberately hand-maintained against the codebase: if a new type
+    # is added without registering it here, this test fails.
+    emitted = {
+        "key.enrolled", "task.started", "claim.registered",
+        "evidence.recorded", "watch.observed", "deliberation.rounded",
+        "escalation.requested", "escalation.resolved",
+        "calibration.updated", "gate.blocked", "checkpoint.anchored",
+        "certificate.issued", "watcher.registered", "watcher.revoked",
+        "actor.output",
+    }
+    missing = emitted - listed
+    assert not missing, f"entry types emitted by code but absent from " \
+                        f"schema description: {sorted(missing)}"

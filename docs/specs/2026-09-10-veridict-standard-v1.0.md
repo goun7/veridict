@@ -447,3 +447,19 @@ DRAFT until an independent implementation exercises it (issue #1's exit
 criterion). Note the limit: these rules constrain *composition*, not
 *honesty* — two families do not prove either juror reported truthfully,
 which remains §11.3's business.
+
+**Erratum D13 (2026-09-19, entry_type taxonomy was implicit):** §2 lists
+`entry_type` as a field but never enumerated its permitted values, and the
+JSON Schema described the registry as "open" with only an example list —
+which omitted `task.started`, `watch.observed`, `escalation.requested`,
+`escalation.resolved`, `calibration.updated`, `gate.blocked`, and
+`actor.output`, all of which the reference implementation emits. An
+implementer reading the text alone could not know these exist. The schema
+now enumerates the core types in full. The registry remains open by
+design, but extensions MUST be namespaced `extension.*`, so a verifier
+facing an unknown type abstains instead of silently misparsing it — the
+same hazard Sester's ERRATUM-K0.2 closed on their side for their event
+taxonomy. Semantic consumers (any code that totals or nets over entries)
+MUST understand the core types first: a charge and its refund are
+distinguished by entry type, not by a payload field, and a consumer that
+ignores the taxonomy silently diverges.
