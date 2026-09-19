@@ -6,11 +6,17 @@ Good-faith promises rot; this test turns the promise into a machine-checked
 contract: if the flags change, this fails before any downstream wrapper
 discovers it at runtime.
 
+The fixtures are GENERATED, not shipped: dogfood_ledger.jsonl / dogfood_cert.json
+are gitignored (regenerated locally per run), so a test depending on them
+would fail in CI. Building a fresh ledger+cert here also proves the surface
+works end-to-end, not just on one frozen artifact.
+
 What is pinned:
   - the subcommand name (`verify`)
   - the required flags (`--ledger`, `--cert`) and their arity
   - the optional `--anchor` flag
-  - exit code 0 + valid:true on the dogfood fixtures
+  - exit code 0 + valid:true on a clean run
+  - exit code != 0 + valid:false on a tampered ledger
 
 What is deliberately NOT pinned: the JSON field set beyond `valid`, human
 prose, and stdout formatting. Those are allowed to evolve; the wrapper is
@@ -26,16 +32,60 @@ import sys
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dogfood_ledger.jsonl")
-# resolve via the installed entrypoint, exactly as an external caller would
-_ARGS_BASE = ["verify", "--ledger", CLI,
-              "--cert", os.path.join(ROOT, "dogfood_cert.json")]
+
+
+def _build_fixture(tmp_path):
+    """A minimal clean ledger + certificate, fresh per test.
+
+    AuditOrchestrator.run returns a wrapper {cert, outcome, report}; the
+    CLI consumes the inner cert. artifact_path must be a DIRECTORY — the
+    pytest verifier chdirs into it (passing a file path raises
+    NotADirectoryError from subprocess, which is easy to misread).
+    """
+    sys.path.insert(0, ROOT)
+    from veridict.audit import AuditOrchestrator
+    from veridict.jury import Jury, Opinion, ScriptedProvider
+    from veridict.keys import KeyStore
+    from veridict.ledger import Ledger
+    from veridict.policy import PolicyDeclaration, Thresholds
+    from veridict.schemas import TaskManifest
+
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    (pkg / "calc.py").write_text("def add(a, b):\n    return a + b\n")
+    (pkg / "test_calc.py").write_text(
+        "def test_add():\n    from calc import add\n    assert add(1, 2) == 3\n")
+
+    led = Ledger()
+    ks = KeyStore(led)
+    kid = ks.generate_and_enroll("cli-surface-test")
+    # Two STUB families — the surface is what is under test here, not the
+    # jury. A real-LLM run belongs to scripts/canary_real_llm.py.
+    jury = Jury([
+        ScriptedProvider(family="stub-a", identity="a-1",
+                         default=Opinion("SUPPORTS", 0.8, "stub")),
+        ScriptedProvider(family="stub-b", identity="b-1",
+                         default=Opinion("SUPPORTS", 0.8, "stub")),
+    ])
+    pol = PolicyDeclaration(policy_id="cli-surface", mode="CERTIFICATE",
+                            criticality=(), thresholds=Thresholds(),
+                            divergence_tolerance=1 / 3)
+    task = TaskManifest(task_id="cli-surface-1", artifact_path=str(pkg),
+                        actor_identity="actor",
+                        intent_lines=["MACHINE: add computes the sum of two numbers"],
+                        criticality=(), has_existing_tests=True, pytest_args=["-q"])
+    result = AuditOrchestrator(led, pol, jury, ks, kid).run(task, "REDACTED")
+    cert = result["cert"] if isinstance(result, dict) and "cert" in result else result
+
+    ledger_path = tmp_path / "ledger.jsonl"
+    cert_path = tmp_path / "cert.json"
+    led.save(str(ledger_path))
+    cert_path.write_text(json.dumps(cert, default=str))
+    return str(ledger_path), str(cert_path)
 
 
 def _run(args):
-    return subprocess.run([sys.executable, "-m", "veridict"] if False else
-                          ["veridict"] + args,
-                          capture_output=True, text=True, cwd=ROOT)
+    return subprocess.run(["veridict"] + args, capture_output=True, text=True)
 
 
 def test_verify_subcommand_flags_are_stable():
@@ -49,14 +99,15 @@ def test_verify_subcommand_flags_are_stable():
     assert "--anchor" in out, "--anchor flag missing"
 
 
-def test_verify_exit_code_and_valid_field():
-    """The dogfood fixtures must verify clean, rc 0, valid:true.
+def test_verify_exit_code_and_valid_field(tmp_path):
+    """A clean fixture must verify with rc 0 and valid:true.
 
     An external wrapper (Tamga sovereign_verify) keys off this exact
-    behavior. If the fixtures stop verifying, or the exit code changes,
-    or `valid` moves, the wrapper breaks — so all three are pinned here.
+    behavior. If the exit code changes or `valid` moves, the wrapper
+    breaks — so both are pinned here.
     """
-    r = _run(_ARGS_BASE)
+    ledger, cert = _build_fixture(tmp_path)
+    r = _run(["verify", "--ledger", ledger, "--cert", cert])
     assert r.returncode == 0, f"expected rc 0, got {r.returncode}: {r.stderr}"
     out = json.loads(r.stdout)
     assert out["valid"] is True, out
@@ -70,14 +121,16 @@ def test_verify_rejects_a_broken_ledger(tmp_path):
     sovereign_verify asserts RED on tamper; if verify ever returned rc 0 on
     a mutated ledger the wrapper's RED path would silently stop firing.
     """
-    ledger = tmp_path / "broken.jsonl"
-    lines = [json.loads(l) for l in open(CLI)]
-    lines[2]["payload"] = {"tampered": True}  # hash no longer re-derives
-    with ledger.open("w") as f:
+    ledger, cert = _build_fixture(tmp_path)
+    lines = [json.loads(l) for l in open(ledger)]
+    for e in lines:                      # corrupt the first evidence entry
+        if e.get("entry_type") == "evidence.recorded":
+            e["payload"]["injected"] = "tamper"
+            break
+    with open(ledger, "w") as f:
         for e in lines:
             f.write(json.dumps(e) + "\n")
-    r = _run(["verify", "--ledger", str(ledger),
-              "--cert", os.path.join(ROOT, "dogfood_cert.json")])
+    r = _run(["verify", "--ledger", ledger, "--cert", cert])
     assert r.returncode != 0, "tampered ledger must NOT exit 0"
     out = json.loads(r.stdout)
     assert out["valid"] is False, out
