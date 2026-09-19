@@ -139,6 +139,12 @@ def test_verify_rejects_a_broken_ledger(tmp_path, module):
 
     sovereign_verify asserts RED on tamper; if verify ever returned rc 0 on
     a mutated ledger the wrapper's RED path would silently stop firing.
+
+    Tamper targets a field that ENTERS the entry-hash preimage (payload),
+    not an arbitrary one. Adding a field outside the preimage leaves the
+    recomputed hash unchanged and legitimately still verifies — a tamper
+    test that mutated such a field would be a false RED: it would pass
+    while proving nothing. The companion test below pins that boundary.
     """
     ledger, cert = _build_fixture(tmp_path)
     lines = [json.loads(l) for l in open(ledger)]
@@ -153,6 +159,30 @@ def test_verify_rejects_a_broken_ledger(tmp_path, module):
     assert r.returncode != 0, "tampered ledger must NOT exit 0"
     out = json.loads(r.stdout)
     assert out["valid"] is False, out
+
+
+@pytest.mark.parametrize("module", [False, True],
+                         ids=["entrypoint", "python-m-veridict-cli"])
+def test_tamper_test_target_is_hash_covered(tmp_path, module):
+    """Negative control for the tamper test above.
+
+    A field OUTSIDE the hash preimage must still verify green: it is not
+    evidence, and the standard does not claim to protect it. If this test
+    ever goes RED, verify started hashing fields the spec does not cover —
+    a silent conformance change in the other direction. If the tamper
+    test above ever goes GREEN, the mutation stopped touching the
+    preimage and is proving nothing. Both directions matter.
+    """
+    ledger, cert = _build_fixture(tmp_path)
+    lines = [json.loads(l) for l in open(ledger)]
+    lines[1]["harmless_extra_field"] = "not-in-preimage"   # not digested
+    with open(ledger, "w") as f:
+        for e in lines:
+            f.write(json.dumps(e) + "\n")
+    r = _run(["verify", "--ledger", ledger, "--cert", cert], module=module)
+    assert r.returncode == 0, "out-of-preimage field must not break verification"
+    out = json.loads(r.stdout)
+    assert out["valid"] is True, out
 
 
 @pytest.mark.parametrize("module", [False, True],

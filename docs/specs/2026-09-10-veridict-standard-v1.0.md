@@ -425,3 +425,21 @@ gets a certificate to recompute.
 14.3 The standard is Apache-2.0 (D8: spec + core + offline verifier are
 open; hosted platform, certification authority, enterprise integrations are
 commercial).
+
+**Erratum D12 (2026-09-19, jury composition is normative after all):** the
+reference implementation requires a jury of **at least two providers drawn
+from at least two distinct `family` values** before it will issue a
+certificate, but §5 never stated that requirement as normative text — §5.2
+defines only tier semantics. An implementer reading this standard alone
+could lawfully build a single-provider jury that self-reviews its own
+output, which is exactly the self-preference the requirement exists to
+forbid. This closes that gap: a conforming implementation MUST NOT issue a
+certificate on a jury of fewer than two providers or fewer than two
+families. The reference implementation additionally excludes any juror
+from the audited author's own model family *before* this count and fails
+closed rather than shrinking to a conflicted panel — implementations MUST
+do both. Amendment A2 proposes ratifying these sentences; the delta stays
+DRAFT until an independent implementation exercises it (issue #1's exit
+criterion). Note the limit: these rules constrain *composition*, not
+*honesty* — two families do not prove either juror reported truthfully,
+which remains §11.3's business.

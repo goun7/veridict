@@ -172,3 +172,43 @@ def test_empty_claim_fails_closed():
     out = verify_settlement_claim({}, CERT)
     assert out["valid"] is False
     assert out["reasons"]
+
+
+def test_digest_coverage_boundary_is_explicit():
+    """Negative control for the forgery tests above.
+
+    A field outside _DIGEST_FIELDS is not part of the claim's evidence, so
+    mutating it legitimately still reconciles. If this ever goes False,
+    the digest started covering non-evidence fields; if the forgery tests
+    above ever go True, a mutation stopped touching the digest and is
+    proving nothing. Both directions of this boundary are worth pinning.
+    """
+    sc = build_settlement_claim(CERT)
+    claim = json.loads(sc.to_json())
+    claim["harmless_extra_field"] = "not-digested"
+    out = verify_settlement_claim(claim, CERT)
+    assert out["valid"] is True, "out-of-digest field must not break reconciliation"
+
+
+def test_every_digest_field_is_tamper_detectable():
+    """Each field the digest claims to cover must actually be covered.
+    Mutating any one of them must break reconciliation — a field listed
+    in _DIGEST_FIELDS but silently excluded would be a coverage lie."""
+    from veridict.settlement import _DIGEST_FIELDS
+    base = build_settlement_claim(CERT)
+
+    def mutate(v):
+        if isinstance(v, bool):
+            return not v
+        if isinstance(v, list):
+            return v + ["!"]
+        if isinstance(v, int):
+            return v + 1
+        return str(v) + "!"
+
+    for field in _DIGEST_FIELDS:
+        claim = json.loads(base.to_json())
+        claim[field] = mutate(claim[field])
+        claim["claim_digest"] = base.claim_digest  # keep the stored digest
+        out = verify_settlement_claim(claim, CERT)
+        assert out["valid"] is False, f"field '{field}' is not actually digest-covered"
