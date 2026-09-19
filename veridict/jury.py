@@ -121,6 +121,16 @@ class OpenAICompatProvider:
         note = f" [sample-calibration: {top_n}/{n} {top_stance}]"
         return Opinion(top_stance, conf, base_rationale + note)
 
+    def _timeout(self) -> float:
+        """Per-call timeout. Configurable because a small local model can
+        legitimately take minutes on the evidence-first prompt, while a
+        hosted endpoint that slow is a broken endpoint — the same default
+        serves the common case and the env knob serves the edge."""
+        try:
+            return max(10.0, float(os.environ.get("VERIDICT_JURY_TIMEOUT", "60")))
+        except ValueError:
+            return 60.0
+
     def _one(self, claim_summary: str, artifact_digest: str,
              temperature: float) -> Opinion:
         prompt = (
@@ -139,7 +149,7 @@ class OpenAICompatProvider:
                 json={"model": self.model,
                       "messages": [{"role": "user", "content": prompt}],
                       "temperature": temperature},
-                timeout=60)
+                timeout=self._timeout())
             resp.raise_for_status()
             content = resp.json()["choices"][0]["message"]["content"]
             data = json.loads(content)
