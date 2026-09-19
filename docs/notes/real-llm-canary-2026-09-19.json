@@ -1,0 +1,119 @@
+{
+  "cases_processed": 28,
+  "cases_total": 28,
+  "caught_total": 23,
+  "defect_total": 25,
+  "false_positives": 3,
+  "per_class": {
+    "sign-error": {
+      "caught": 1,
+      "total": 1
+    },
+    "uncovered-edge": {
+      "caught": 2,
+      "total": 2
+    },
+    "clean": {
+      "caught": 0,
+      "total": 3
+    },
+    "logic-error": {
+      "caught": 1,
+      "total": 1
+    },
+    "contract-violation": {
+      "caught": 0,
+      "total": 1
+    },
+    "missing-validation": {
+      "caught": 1,
+      "total": 1
+    },
+    "parse-date": {
+      "caught": 1,
+      "total": 1
+    },
+    "race-condition": {
+      "caught": 1,
+      "total": 1
+    },
+    "resource-leak": {
+      "caught": 1,
+      "total": 1
+    },
+    "sql-injection": {
+      "caught": 1,
+      "total": 1
+    },
+    "exception-swallowing": {
+      "caught": 1,
+      "total": 1
+    },
+    "crypto-misuse": {
+      "caught": 1,
+      "total": 1
+    },
+    "secrets-leak": {
+      "caught": 1,
+      "total": 1
+    },
+    "integer-overflow": {
+      "caught": 1,
+      "total": 1
+    },
+    "path-traversal": {
+      "caught": 1,
+      "total": 1
+    },
+    "insecure-deserialization": {
+      "caught": 1,
+      "total": 1
+    },
+    "timing-attack": {
+      "caught": 1,
+      "total": 1
+    },
+    "weak-random": {
+      "caught": 1,
+      "total": 1
+    },
+    "toctou": {
+      "caught": 1,
+      "total": 1
+    },
+    "error-message-leak": {
+      "caught": 1,
+      "total": 1
+    },
+    "ssrf": {
+      "caught": 1,
+      "total": 1
+    },
+    "xss-output": {
+      "caught": 1,
+      "total": 1
+    },
+    "open-redirect": {
+      "caught": 1,
+      "total": 1
+    },
+    "mass-assignment": {
+      "caught": 1,
+      "total": 1
+    },
+    "hardcoded-credentials": {
+      "caught": 0,
+      "total": 1
+    }
+  },
+  "batch_retries": 0,
+  "run_metadata": {
+    "date": "2026-09-19",
+    "jurors": [
+      "qwen2.5:3b",
+      "llama3.2:3b"
+    ],
+    "gateway": "local ollama 0.32.5",
+    "note": "First real-LLM canary run on the 25-class corpus. 3B local models, not frontier models — this is a LOWER BOUND, not a capability claim. The 3 false positives are all in the clean class: small models appear biased toward finding something to report. The scripted baseline (22/25, 0 fp) is NOT comparable: it never had the option to be wrong about clean code."
+  }
+}
