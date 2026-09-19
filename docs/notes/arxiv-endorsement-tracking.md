@@ -36,3 +36,27 @@
    seç, maili tetikle
 3. Önceki 3 e-postaya cevap gelmediyse (2 hafta kuralı dolmadıysa)
    bekle; dolduysa yeni adaylara (MedAgentAudit yazarları) e-posta at
+
+## GÜNCELLEME — 2026-09-19
+
+### Endorsement kodu
+**M6YH9T** (vegoko7@gmail.com'a gönderildi)
+
+### Nitelikli endorsers (doğrulandı)
+HANSARD ekibinden 3 isim — hepsinde son 5 yılda 6 cs makalesi
+(arXiv kuralı: onaylı kategorilerden birinde 3 makale):
+
+| İsim | Makaleleri (son 5 yıl) | Durum |
+|------|------------------------|-------|
+| Georgios Th. Papadopoulos | cs.CV, cs.AI, cs.IT (6) | UYGUN |
+| Panagiotis Sarigiannidis | cs.CV, cs.AI, cs.RO (6) | UYGUN |
+| Iraklis Varlamis | cs.CV, cs.AI (6) | UYGUN |
+
+### Reddedilen aday
+- **Vimal Nakrani** (AuditWeave): son 5 yılda sadece 2 cs makalesi
+  (cs.LG, cs.DL) — 3 şartını karşılamıyor. Yedek olarak kalsın.
+
+### HN durumu (ayrı konu)
+Show HN yeni hesaplara GEÇİCİ olarak kısıtlı (genAI uyarısından ayrı).
+Çözüm: birkaç hafta yorum yaparak karma inşa et, sonra dene.
+Postu silip yeniden atma.
