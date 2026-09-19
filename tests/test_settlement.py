@@ -7,6 +7,8 @@ and never a silent pass.
 """
 from __future__ import annotations
 
+import copy
+import json
 import os
 import sys
 
@@ -108,3 +110,65 @@ def test_stricter_policy_can_reject_what_default_accepts():
     c["jury_composition"] = {"families": ["only-one"]}
     sc = build_settlement_claim(c, SettlementPolicy(min_jury_families=2))
     assert sc.valid is False
+
+
+from veridict.settlement import verify_settlement_claim
+
+
+def test_claim_reconciles_against_its_own_certificate():
+    """The honest round trip: build a claim, verify it against the cert."""
+    sc = build_settlement_claim(CERT)
+    out = verify_settlement_claim(json.loads(sc.to_json()), CERT)
+    assert out["valid"] is True
+    assert out["reasons"] == []
+    assert out["expected_cert_id"] == "test-cert-1"
+
+
+def test_forged_valid_flag_is_caught():
+    """A claim edited to say valid:true over a failing cert must not pass.
+
+    This is the attack that matters: the agent fails the work, then
+    rewrites the claim. The digest is bound to the *recomputed* truth, so
+    the edit is detected even before the verdict is checked.
+    """
+    import copy
+    failing = copy.deepcopy(CERT)
+    failing["claims"][0]["verdict_value"] = "REFUTED"
+    sc = build_settlement_claim(failing)          # honestly says invalid
+    forged = json.loads(sc.to_json())
+    forged["valid"] = True                        # the lie
+    out = verify_settlement_claim(forged, failing)
+    assert out["valid"] is False
+    assert any("does not recompute" in r for r in out["reasons"])
+
+
+def test_policy_swap_after_issuance_is_caught():
+    """A claim issued under a strict policy, re-presented under a loose one.
+
+    The caller cannot relax the rules retroactively: the digest binds the
+    policy that actually authorized the claim.
+    """
+    sc = build_settlement_claim(CERT, SettlementPolicy())
+    loose = SettlementPolicy(max_risk="critical", min_jury_families=1,
+                             min_claim_coverage=0.0)
+    out = verify_settlement_claim(json.loads(sc.to_json()), CERT, loose)
+    assert out["valid"] is False
+    assert any("does not follow from" in r for r in out["reasons"])
+
+
+def test_claim_from_wrong_certificate_is_caught():
+    """A valid claim presented against a different cert must fail."""
+    sc = build_settlement_claim(CERT)
+    import copy
+    other = copy.deepcopy(CERT)
+    other["cert_id"] = "a-different-cert"
+    out = verify_settlement_claim(json.loads(sc.to_json()), other)
+    assert out["valid"] is False
+    assert out["expected_cert_id"] != "a-different-cert" or out["reasons"]
+
+
+def test_empty_claim_fails_closed():
+    """No fields at all — a dropped or malformed claim is a refusal."""
+    out = verify_settlement_claim({}, CERT)
+    assert out["valid"] is False
+    assert out["reasons"]

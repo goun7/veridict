@@ -12,7 +12,10 @@ Scope (honest boundary):
     machine-checkable authorization whose validity is recomputable from
     the ledger alone.
   - The policy is explicit and local: which verdict/risk combinations
-    authorize release, and at what amount. Nothing is implicit.
+    authorize release. Nothing is implicit. (Amounts are deliberately NOT
+    here: mapping acceptance to a price is the payment layer's bookkeeping,
+    not this protocol's. This module answers 'was the work provably done',
+    not 'how much does it cost'.)
   - **This module does not verify the certificate.** It evaluates one
     that the caller already verified (`veridict verify`, or the spec
     verifier from the standard alone). Two parties who disagree about
@@ -67,6 +70,21 @@ class SettlementPolicy:
 
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+# The digest covers every field except itself. If claim_digest were part of
+# its own preimage, mutating any other field and recomputing would still
+# match — the binding would be cosmetic. Excluding it makes the digest a
+# real integrity check: change any field, and it no longer recomputes.
+_DIGEST_FIELDS = ("cert_id", "task_id", "artifact_digest", "valid", "reasons",
+                  "accepted_claims", "total_claims", "jury_families",
+                  "risk_level", "policy_digest")
+
+
+def _claim_digest(fields: dict[str, Any]) -> str:
+    body = {k: fields.get(k) for k in _DIGEST_FIELDS}
+    return hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 @dataclass
@@ -137,5 +155,64 @@ def build_settlement_claim(cert: dict[str, Any],
         risk_level=risk,
         policy_digest=p.digest(),
     )
-    sc.claim_digest = hashlib.sha256(sc.to_json().encode()).hexdigest()
+    sc.claim_digest = _claim_digest(sc.__dict__)
     return sc
+
+
+def verify_settlement_claim(claim: dict[str, Any], cert: dict[str, Any],
+                            policy: SettlementPolicy | None = None) -> dict[str, Any]:
+    """Reconcile a presented claim against the certificate it rests on.
+
+    A payment layer cannot trust the claim as a bag of fields — the agent
+    that produced the work has every reason to forge it. This recomputes
+    the claim from the certificate and the policy, and says whether the
+    presented one matches. Nothing about the presented claim is trusted
+    except its identity (which cert it claims to be about).
+
+    The caller MUST have already verified the certificate itself
+    (`veridict verify` or the spec verifier). This function only answers
+    'does this claim follow from that cert under this policy' — a claim
+    reconciling against a *forged* certificate reconciles just fine, and
+    that is by design: verification of the cert is a separate,
+    composable step, and conflating the two is how silent passes happen.
+    """
+    p = policy or SettlementPolicy()
+    expected = build_settlement_claim(cert, p)
+
+    cid = claim.get("claim_digest", "")
+    presented_valid = claim.get("valid")
+
+    # Integrity of the presented artifact, recomputed from ITS OWN fields:
+    # a claim whose stored digest does not match its contents was edited
+    # after issuance (or fabricated). Without this check, an attacker can
+    # flip `valid` and keep the original digest — the digest comparison
+    # below alone would not notice.
+    recomputed = _claim_digest(claim)
+    self_consistent = (recomputed == cid)
+    # Does the presented claim match what this cert+policy actually yields?
+    matches_certificate = (cid == expected.claim_digest)
+
+    valid = (self_consistent and matches_certificate
+             and presented_valid is True and expected.valid is True)
+
+    reasons: list[str] = []
+    if not self_consistent:
+        reasons.append("claim_digest does not recompute from the claim's own"
+                       " fields — the claim was edited after issuance")
+    if not matches_certificate:
+        reasons.append("claim does not follow from this certificate under"
+                       " this policy — the cert, the policy, or the verdicts"
+                       " are not what the claim rests on")
+    if presented_valid is not expected.valid:
+        reasons.append(f"presented valid={presented_valid} but the certificate"
+                       f" yields valid={expected.valid}")
+    if not expected.valid:
+        reasons.extend(expected.reasons)
+
+    return {
+        "valid": valid,
+        "reasons": reasons,
+        "expected_cert_id": expected.cert_id,
+        "presented_cert_id": claim.get("cert_id", ""),
+        "expected_digest": expected.claim_digest,
+    }
