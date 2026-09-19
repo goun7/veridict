@@ -84,13 +84,27 @@ def _build_fixture(tmp_path):
     return str(ledger_path), str(cert_path)
 
 
-def _run(args):
-    return subprocess.run(["veridict"] + args, capture_output=True, text=True)
+def _run(args, module=False):
+    """Invoke the CLI the way an external wrapper does.
+
+    Two invocation styles are both in the wild and both must work:
+    - the `veridict` console entrypoint (Tamga's wrapper)
+    - `python -m veridict.cli` (Sester's wrapper)
+
+    Note on measuring the exit code: NEVER pipe the output (`| tail`),
+    because $? then reports the PIPE's status, not the CLI's — an rc=1
+    rejection reads as rc=0. That trap caused a false GREEN in a
+    downstream wrapper before it was caught. capture_output avoids it.
+    """
+    cmd = ([sys.executable, "-m", "veridict.cli"] if module else ["veridict"]) + args
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def test_verify_subcommand_flags_are_stable():
+@pytest.mark.parametrize("module", [False, True],
+                         ids=["entrypoint", "python-m-veridict-cli"])
+def test_verify_subcommand_flags_are_stable(module):
     """--help must still show the flags an external wrapper depends on."""
-    r = _run(["verify", "--help"])
+    r = _run(["verify", "--help"], module=module)
     assert r.returncode == 0, r.stderr
     out = r.stdout
     assert "--ledger" in out, "--ledger flag missing (external wrappers depend on it)"
@@ -99,15 +113,18 @@ def test_verify_subcommand_flags_are_stable():
     assert "--anchor" in out, "--anchor flag missing"
 
 
-def test_verify_exit_code_and_valid_field(tmp_path):
+@pytest.mark.parametrize("module", [False, True],
+                         ids=["entrypoint", "python-m-veridict-cli"])
+def test_verify_exit_code_and_valid_field(tmp_path, module):
     """A clean fixture must verify with rc 0 and valid:true.
 
-    An external wrapper (Tamga sovereign_verify) keys off this exact
-    behavior. If the exit code changes or `valid` moves, the wrapper
-    breaks — so both are pinned here.
+    An external wrapper (Tamga sovereign_verify, Sester bridges) keys off
+    this exact behavior: rc=0 ⇒ GREEN, rc≠0 ⇒ RED. If the exit code
+    changes or `valid` moves, both wrappers break — so both are pinned
+    here, for BOTH invocation styles they use.
     """
     ledger, cert = _build_fixture(tmp_path)
-    r = _run(["verify", "--ledger", ledger, "--cert", cert])
+    r = _run(["verify", "--ledger", ledger, "--cert", cert], module=module)
     assert r.returncode == 0, f"expected rc 0, got {r.returncode}: {r.stderr}"
     out = json.loads(r.stdout)
     assert out["valid"] is True, out
@@ -115,7 +132,9 @@ def test_verify_exit_code_and_valid_field(tmp_path):
     assert out["signature_valid"] is True
 
 
-def test_verify_rejects_a_broken_ledger(tmp_path):
+@pytest.mark.parametrize("module", [False, True],
+                         ids=["entrypoint", "python-m-veridict-cli"])
+def test_verify_rejects_a_broken_ledger(tmp_path, module):
     """The negative case a wrapper relies on: tampering ⇒ rc != 0 + valid false.
 
     sovereign_verify asserts RED on tamper; if verify ever returned rc 0 on
@@ -130,7 +149,25 @@ def test_verify_rejects_a_broken_ledger(tmp_path):
     with open(ledger, "w") as f:
         for e in lines:
             f.write(json.dumps(e) + "\n")
-    r = _run(["verify", "--ledger", ledger, "--cert", cert])
+    r = _run(["verify", "--ledger", ledger, "--cert", cert], module=module)
     assert r.returncode != 0, "tampered ledger must NOT exit 0"
     out = json.loads(r.stdout)
     assert out["valid"] is False, out
+
+
+@pytest.mark.parametrize("module", [False, True],
+                         ids=["entrypoint", "python-m-veridict-cli"])
+def test_verify_rejects_a_tampered_certificate(tmp_path, module):
+    """The exact RED path Sester observed: 'no enrolled key verifies the
+    certificate body'. A mutated cert must fail with rc != 0."""
+    ledger, cert = _build_fixture(tmp_path)
+    import copy
+    broken = copy.deepcopy(json.load(open(cert)))
+    broken["signature_b64"] = "AAAA"          # signature no longer matches
+    with open(cert, "w") as f:
+        json.dump(broken, f)
+    r = _run(["verify", "--ledger", ledger, "--cert", cert], module=module)
+    assert r.returncode != 0, "tampered cert must NOT exit 0"
+    out = json.loads(r.stdout)
+    assert out["valid"] is False
+    assert out["signature_valid"] is False, out

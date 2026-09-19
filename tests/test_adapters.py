@@ -109,7 +109,87 @@ def test_langchain_error_event(tmp_path):
     assert led.entries[-1]["payload"]["error_type"] == "RuntimeError"
 
 
+# ---- LangChain with REAL SDK objects (not fakes) ---------------------
+# The tests above pass hand-built objects. These exercise the adapter
+# against the actual langchain_core types a real chain emits, which is
+# the only way to catch signature drift in the framework.
+def _lc_real():
+    pytest.importorskip("langchain_core")
+    from langchain_core.outputs import ChatGenerationChunk, GenerationChunk
+    from langchain_core.messages import AIMessageChunk
+    from adapters.langchain.veridict_langchain import VeridictCallback
+    return VeridictCallback, GenerationChunk, ChatGenerationChunk, AIMessageChunk
+
+
+def test_langchain_real_generation_chunk(tmp_path):
+    """A real GenerationChunk (non-chat model path) must be recorded."""
+    cb, GenerationChunk, _, _ = _lc_real()
+    ledger = str(tmp_path / "lc.jsonl")
+    cb = cb(ledger)
+    run = "r-" + str(object.__hash__(ledger))[-6:]
+    cb.on_llm_start({"name": "gpt-oss"}, ["hello"], run_id=run)
+    cb.on_llm_end(
+        type("R", (), {"generations": [[GenerationChunk(text="world")]]})(),
+        run_id=run)
+    cb.flush()
+    led = Ledger.load(ledger)
+    stages = [e["payload"]["stage"] for e in led.entries]
+    assert stages == ["llm.start", "llm.end"]
+
+
+def test_langchain_real_chat_generation_chunk(tmp_path):
+    """Chat models emit ChatGenerationChunk, whose text comes from a
+    message object — not a flat .text attribute."""
+    cb, _, ChatGenerationChunk, AIMessageChunk = _lc_real()
+    ledger = str(tmp_path / "lc.jsonl")
+    cb = cb(ledger)
+    run = "r-" + str(object.__hash__(ledger))[-6:]
+    cb.on_llm_start({"name": "gpt-4o"}, ["hi"], run_id=run)
+    chunk = ChatGenerationChunk(
+        message=AIMessageChunk(content="hello there"),
+        generation_info={"finish_reason": "stop"})
+    cb.on_llm_end(
+        type("R", (), {"generations": [[chunk]]})(), run_id=run)
+    cb.flush()
+    led = Ledger.load(ledger)
+    end = led.entries[-1]["payload"]
+    assert end["stage"] == "llm.end"
+    assert len(end["response_digest"]) == 64
+    assert "hello there" not in open(ledger).read()
+
+
+def test_langchain_subclass_of_base_handler():
+    """The adapter must remain a real BaseCallbackHandler — if it stops
+    being one, LangChain will silently never call any hook."""
+    pytest.importorskip("langchain_core")
+    from langchain_core.callbacks import BaseCallbackHandler
+    from adapters.langchain.veridict_langchain import VeridictCallback
+    assert issubclass(VeridictCallback, BaseCallbackHandler)
+
+
+def test_langchain_every_hook_round_trips(tmp_path):
+    """All implemented hooks must produce a chain-verified ledger."""
+    cb, GenerationChunk, _, _ = _lc_real()
+    ledger = str(tmp_path / "lc.jsonl")
+    cb = cb(ledger)
+    for i, stage in enumerate(["llm", "tool"]):
+        rid = f"run-{i}"
+        cb.on_llm_start({"name": "m"}, ["q"], run_id=rid)
+        cb.on_tool_start({"name": f"tool-{i}"}, "in", run_id=rid)
+        cb.on_tool_end("out", run_id=rid)
+        cb.on_llm_end(
+            type("R", (), {"generations": [[GenerationChunk(text="a")]]})(),
+            run_id=rid)
+    cb.on_chain_error(RuntimeError("boom"), run_id="run-0")
+    cb.flush()
+    led = Ledger.load(ledger)
+    ok, reason = led.verify_chain()
+    assert ok, reason
+    assert len(led.entries) == 9
+
+
 # ---- MCP server -------------------------------------------------------
+
 # The MCP SDK is optional; the two ledger-touching tools are exercised
 # directly (they are plain functions over the veridict runtime core).
 
@@ -244,3 +324,71 @@ def test_real_mcp_rejects_w1a_over_protocol(tmp_path):
         "stance": "SUPPORTS", "confidence": 0.9}))
     out = json.loads(r.content[0].text)
     assert out["ok"] is False and "W1a" in out["error"]
+
+
+# ---- LlamaIndex with REAL SDK objects ---------------------------------
+def _li():
+    pytest.importorskip("llama_index.core")
+    from llama_index.core.callbacks import CBEventType
+    from adapters.llamaindex.veridict_llamaindex import VeridictCallback
+    return VeridictCallback, CBEventType
+
+
+def test_llamaindex_subclasses_real_handler():
+    """If the adapter stops subclassing the framework's handler,
+    LlamaIndex will silently never call any hook."""
+    pytest.importorskip("llama_index.core")
+    from llama_index.core.callbacks import PythonicallyPrintingBaseHandler
+    from adapters.llamaindex.veridict_llamaindex import VeridictCallback
+    assert issubclass(VeridictCallback, PythonicallyPrintingBaseHandler)
+
+
+def test_llamaindex_event_pair(tmp_path):
+    cb, CBEventType = _li()
+    ledger = str(tmp_path / "li.jsonl")
+    cb = cb(ledger)
+    cb.start_trace()
+    eid = cb.on_event_start(CBEventType.LLM, {"key": "value"}, event_id="e1")
+    assert isinstance(eid, str)          # base contract: must return an id
+    cb.on_event_end(CBEventType.LLM, {"key": "value"}, event_id="e1")
+    cb.end_trace()
+    cb.flush()
+    led = Ledger.load(ledger)
+    stages = [e["payload"]["stage"] for e in led.entries]
+    assert stages == ["llm.start", "llm.end"]
+    ok, reason = led.verify_chain()
+    assert ok, reason
+
+
+def test_llamaindex_digests_not_contents(tmp_path):
+    cb, CBEventType = _li()
+    ledger = str(tmp_path / "li.jsonl")
+    cb = cb(ledger)
+    cb.on_event_start(CBEventType.EMBEDDING, {"secret": "prompt"})
+    cb.on_event_end(CBEventType.EMBEDDING, {"secret": "prompt"})
+    cb.flush()
+    assert "secret" not in open(ledger).read()
+
+
+def test_llamaindex_store_contents_opt_in(tmp_path):
+    cb, CBEventType = _li()
+    ledger = str(tmp_path / "li.jsonl")
+    cb = cb(ledger, store_contents=True)
+    cb.on_event_start(CBEventType.QUERY, {"q": "keep-me"})
+    cb.on_event_end(CBEventType.QUERY, {"q": "keep-me"})
+    cb.flush()
+    assert "keep-me" in open(ledger).read()
+
+
+def test_llamaindex_multiple_event_types(tmp_path):
+    cb, CBEventType = _li()
+    ledger = str(tmp_path / "li.jsonl")
+    cb = cb(ledger)
+    for et in (CBEventType.QUERY, CBEventType.RETRIEVE, CBEventType.SYNTHESIZE):
+        cb.on_event_start(et, {"k": "v"}, event_id=f"id-{et.value}")
+        cb.on_event_end(et, {"k": "v"}, event_id=f"id-{et.value}")
+    cb.flush()
+    led = Ledger.load(ledger)
+    ok, reason = led.verify_chain()
+    assert ok, reason
+    assert len(led.entries) == 6

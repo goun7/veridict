@@ -13,7 +13,11 @@ import os
 import time
 from typing import Any, Dict
 
-from llama_index.core.callbacks import CBEventType, BaseCallbackHandler  # type: ignore
+from llama_index.core.callbacks import (  # type: ignore
+    CBEvent,
+    CBEventType,
+    PythonicallyPrintingBaseHandler,
+)
 
 
 def _canonical(payload: Any) -> str:
@@ -21,12 +25,18 @@ def _canonical(payload: Any) -> str:
                       ensure_ascii=False)
 
 
-class VeridictCallback(BaseCallbackHandler):
+class VeridictCallback(PythonicallyPrintingBaseHandler):
     """Records LlamaIndex events into a Veridict evidence ledger.
 
     One ledger entry per event pair (start/end) using the existing
     'evidence.recorded' entry type — no schema change. Payloads bind
     digests by default; pass store_contents=True to keep raw text.
+
+    Note on the base class: llama_index renamed its callback base several
+    times (BaseCallbackHandler → CBHandler → PythonicallyPrintingBaseHandler
+    across releases). The adapter subclasses the name that exists in the
+    installed version; if your version has a different one, the import
+    error names the exact missing symbol.
     """
 
     def __init__(self, ledger_path: str, actor_identity: str = "llamaindex-agent",
@@ -51,17 +61,25 @@ class VeridictCallback(BaseCallbackHandler):
     def _digest(text: str) -> str:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    def on_event_start(self, event_type: CBEventType, payload, **kwargs):
-        self._starts[str(event_type)] = time.time()
+    def on_event_start(self, event_type: CBEventType, payload=None,
+                       event_id: str = "", parent_id: str = "", **kwargs) -> str:
+        """Must return an event id (the base class contract)."""
+        self._starts[event_id or event_type.value] = time.time()
         self._append(f"{event_type.value}.start", {
+            "event_id": event_id,
+            "parent_id": parent_id,
             "event_type": event_type.value,
             "payload_digest": self._digest(_canonical(payload or {})),
             **({"payload": payload} if self.store_contents else {}),
         })
+        return event_id or f"{event_type.value}-{time.time()}"
 
-    def on_event_end(self, event_type: CBEventType, payload, **kwargs):
-        started = self._starts.pop(str(event_type), time.time())
+    def on_event_end(self, event_type: CBEventType, payload=None,
+                     event_id: str = "", **kwargs) -> None:
+        key = event_id or event_type.value
+        started = self._starts.pop(key, time.time())
         self._append(f"{event_type.value}.end", {
+            "event_id": event_id,
             "event_type": event_type.value,
             "duration_s": round(time.time() - started, 3),
             "payload_digest": self._digest(_canonical(payload or {})),
