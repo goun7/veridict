@@ -580,3 +580,29 @@ This is the same hazard as D12 and D15 in kind — two fields that must
 agree, with no rule checking that they do — and was found by the same
 method: an independent verifier (Tamga) attacking the standard rather
 than reading the code.
+
+**Erratum D18 (2026-09-20, `divergence_summary` was the second member of
+D17's class):** sweeping the class D17 names found another member in the
+reference implementation. `divergence_summary` maps each claim to its
+adjudication divergence (UNANIMOUS / SPLIT / ...), and the verifier
+checked the verdict values but not this per-claim summary. Same hazard,
+same fix: it is recomputed from the same replay the verdicts come from.
+
+Why it matters more than a cosmetic mismatch: a SPLIT is the trigger for
+deliberation (§9.1), and an honest recorded disagreement is one of the
+few things a certificate exists to surface. Forging it to UNANIMOUS on a
+certificate the verifier accepts would present a contested finding as
+settled — the framing direction of A2', hiding disagreement rather than
+hiding a bad verdict. It cannot manufacture a REFUTED verdict; the
+verdict check still fires. It can hide the disagreement.
+
+One member of the class is deliberately NOT recomputed: `jury_composition`.
+§9.5 applies to fields whose source IS the replayed evidence. The jury's
+family composition is established at issuance and enforced there (D12:
+`Jury.__init__` refuses a panel of fewer than two families before any
+certificate is issued — measured, not asserted), but the ledger carries
+no record of jury composition independent of the evidence producers, so
+a verifier has nothing to recompute it from. The attack path is closed
+at the source instead. A future version that records jury composition
+into the ledger moves this field under §9.5 with no further erratum,
+because §9.5 is stated for the class.

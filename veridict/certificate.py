@@ -244,5 +244,20 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
                           f"recomputed={recomputed_score} — does not follow "
                           f"from the claim verdicts")
             verdicts_match = False
+        # Same class, second member: `divergence_summary` maps each claim to
+        # its adjudication divergence (UNANIMOUS / SPLIT / ...). It is a
+        # per-claim summary that follows from the same replay, and a verifier
+        # that checks only the verdict value leaves it unconstrained. Forging
+        # it cannot manufacture a REFUTED verdict — the verdict check above
+        # still fires — but it can hide a SPLIT the same way risk_level can
+        # hide a high one, which matters because a SPLIT is the trigger for
+        # deliberation (§9.1) and the honest disagreement the certificate
+        # exists to surface. Forging jury_composition is the third member:
+        # a certificate whose real panel was one family can claim two.
+        recomputed_div = {cid: a.divergence for cid, a in replay.items()}
+        if cert.get("divergence_summary") != recomputed_div:
+            errors.append("divergence_summary mismatch — does not follow from "
+                          "the claim adjudications")
+            verdicts_match = False
     return {"valid": not errors, "chain_valid": chain_ok, "signature_valid": sig_ok,
             "verdicts_match": verdicts_match, "errors": errors}

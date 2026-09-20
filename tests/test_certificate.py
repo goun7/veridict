@@ -192,6 +192,18 @@ def test_forged_risk_level_is_caught(tmp_path):
     assert not r["valid"], "forged score must not verify"
     assert any("score mismatch" in e for e in r["errors"])
 
+    # D18: divergence_summary is the second member of the same class — a
+    # per-claim summary that follows from the same adjudications. Forging it
+    # to UNANIMOUS presents a contested finding as settled, which is the
+    # framing direction of A2-prime. (The honest certificate here is all
+    # UNANIMOUS, so forge in the other direction: claim a SPLIT that did
+    # not happen.)
+    if base.get("divergence_summary"):
+        r = probe(lambda c: c.__setitem__(
+            "divergence_summary",
+            {k: "SPLIT" for k in c["divergence_summary"]}))
+        assert not r["valid"], "forged divergence_summary must not verify"
+
     # restore, then hide a bad result: flip a verdict to REFUTED and keep
     # risk_level 'low'. This is the dangerous direction — the verdict itself
     # is now inconsistent with the ledger, so the verdict check fires; the
