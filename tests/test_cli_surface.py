@@ -232,3 +232,72 @@ def test_schema_entry_type_taxonomy_matches_code():
     missing = emitted - listed
     assert not missing, f"entry types emitted by code but absent from " \
                         f"schema description: {sorted(missing)}"
+
+
+def test_settle_subcommand_builds_and_reconciles(tmp_path):
+    """The settlement bridge: a certificate becomes a payable claim, and a
+    tampered claim is refused. rc 0 = valid, rc 1 = does not follow from the
+    cert. This is the 'payment happened vs provably work done' boundary —
+    the claim is derived from cert fields, never trusted as presented."""
+    import subprocess, sys, json
+    # A green certificate: all machine claims VERIFIED, two jury families.
+    cert = _minimal_green_cert(tmp_path)
+    cert_path = tmp_path / "cert.json"
+    cert_path.write_text(json.dumps(cert))
+    claim_path = tmp_path / "claim.json"
+
+    # 1. build the claim
+    rc = subprocess.run([sys.executable, "-m", "veridict.cli", "settle",
+                         "--cert", str(cert_path), "--out", str(claim_path)],
+                        capture_output=True, text=True).returncode
+    assert rc == 0, "building a claim from a green cert must succeed"
+    claim = json.loads(claim_path.read_text())
+    assert claim["valid"] is True
+    assert claim["jury_families"] == ["stub-a", "stub-b"]
+    assert claim["claim_digest"]
+
+    # 2. reconcile the genuine claim — must be accepted
+    rc = subprocess.run([sys.executable, "-m", "veridict.cli", "settle",
+                         "--cert", str(cert_path),
+                         "--claim", str(claim_path)],
+                        capture_output=True, text=True).returncode
+    assert rc == 0, f"genuine claim refused: rc={rc}"
+
+    # 3. tamper: inflate the accepted count, keep the stale digest
+    claim["accepted_claims"] = 999
+    bad_path = tmp_path / "claim-bad.json"
+    bad_path.write_text(json.dumps(claim))
+    rc = subprocess.run([sys.executable, "-m", "veridict.cli", "settle",
+                         "--cert", str(cert_path),
+                         "--claim", str(bad_path)],
+                        capture_output=True, text=True).returncode
+    assert rc == 1, f"inflated claim accepted: rc={rc}"
+
+    # 4. flip valid on a non-qualifying cert — the claim must not pass
+    red_cert = json.loads(json.dumps(cert))
+    red_cert["risk_level"] = "high"          # above the default 'low' policy
+    red_path = tmp_path / "cert-red.json"
+    red_path.write_text(json.dumps(red_cert))
+    rc = subprocess.run([sys.executable, "-m", "veridict.cli", "settle",
+                         "--cert", str(red_path),
+                         "--claim", str(claim_path)],
+                        capture_output=True, text=True).returncode
+    assert rc == 1, f"claim for a non-qualifying cert accepted: rc={rc}"
+
+
+def _minimal_green_cert(tmp_path):
+    """A certificate that the default settlement policy accepts."""
+    return {
+        "schema_version": "1.0.0", "certificate_id": "c1",
+        "task_id": "t1", "artifact_digest": "d" * 64,
+        "policy": {"policy_id": "p1", "mode": "CERTIFICATE"},
+        "claims": [
+            {"claim_id": "c1a", "predicate": "adds",
+             "verdict_value": "VERIFIED", "divergence": "UNANIMOUS"},
+            {"claim_id": "c1b", "predicate": "subs",
+             "verdict_value": "VERIFIED", "divergence": "UNANIMOUS"},
+        ],
+        "jury_composition": {"families": ["stub-a", "stub-b"]},
+        "risk_level": "low",
+        "score": 1.0,
+    }

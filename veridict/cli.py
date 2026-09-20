@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import sys
@@ -308,6 +309,45 @@ def _cmd_index(args) -> int:
     return 0
 
 
+def _cmd_settle(args) -> int:
+    """Turn a verified certificate into a settlement claim, or reconcile one.
+
+    A payment layer cannot take an agent's word that work was done. This
+    emits a claim derived ONLY from certificate fields, then — when
+    --claim is given — reconciles the presented claim against the
+    certificate from scratch, so a tampered or inflated claim is caught
+    instead of paid. The certificate itself must already be verified;
+    this command never verifies it.
+    """
+    from .settlement import (SettlementPolicy, build_settlement_claim,
+                             verify_settlement_claim)
+    policy = SettlementPolicy(
+        max_risk=args.max_risk,
+        min_jury_families=args.min_jury_families,
+        min_claim_coverage=args.min_coverage,
+    )
+    with open(args.cert, encoding="utf-8") as f:
+        cert = json.load(f)
+    if args.claim:
+        with open(args.claim, encoding="utf-8") as f:
+            presented = json.load(f)
+        report = verify_settlement_claim(presented, cert, policy)
+        print(json.dumps(report, indent=2, sort_keys=True))
+        # rc 1 = the claim does not hold: it is internally inconsistent
+        # (edited after issuance), does not follow from this certificate
+        # under this policy, or the certificate itself does not qualify.
+        # rc 0 only when the claim is valid — meaning the certificate was
+        # verified independently AND satisfies the settlement policy.
+        return 0 if report.get("valid", False) else 1
+    claim = build_settlement_claim(cert, policy)
+    payload = dataclasses.asdict(claim)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, sort_keys=True)
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
 def _cmd_registry(args) -> int:
     from veridict.registry_index import build_index, export_index, validate_index
     from veridict.watchers import ManifestRegistry, WatcherManifest
@@ -494,6 +534,24 @@ def main(argv=None) -> int:
     idx.add_argument("--out")
     idx.add_argument("--validate", action="store_true")
     idx.set_defaults(func=_cmd_index)
+    st = sub.add_parser(
+        "settle",
+        help="derive a settlement claim from a verified certificate, or "
+             "reconcile a presented claim against its certificate")
+    st.add_argument("--cert", required=True,
+                   help="certificate JSON (must already be verified)")
+    st.add_argument("--claim",
+                   help="presented settlement claim JSON to reconcile; "
+                        "omit to build a fresh claim")
+    st.add_argument("--out", help="write the built claim here")
+    st.add_argument("--max-risk", default="low",
+                   help="highest risk level willing to settle "
+                        "(low < medium < high < critical; default low)")
+    st.add_argument("--min-jury-families", type=int, default=2,
+                   help="minimum distinct jury families (§5.2; default 2)")
+    st.add_argument("--min-coverage", type=float, default=1.0,
+                   help="fraction of claims that must be accepted (default 1.0)")
+    st.set_defaults(func=_cmd_settle)
     w = sub.add_parser(
         "watch",
         help="WATCH-mode streaming transport: tail a growing ledger, print "
