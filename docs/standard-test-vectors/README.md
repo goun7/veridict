@@ -19,3 +19,36 @@ An independent implementation of the standard (§11.3) MUST, from
 
 `tests/test_standard_vectors.py` pins these files against the reference
 implementation, including byte-determinism of regeneration.
+
+## Cross-implementation parity — how a third party reports
+
+If you implement this standard independently (issue #1), run your verifier
+against these vectors and report the result in this shape. The shape
+matters more than the verdict: a bare "it works" cannot be checked, a
+filled-in table can.
+
+```
+implementation: <name + language + repo>
+vectors_commit: <the git sha of docs/standard-test-vectors you ran against>
+ledger.jsonl        : chain_valid=<true|false>
+certificate.json    : signature_valid=<true|false>
+                      risk_level_recomputed=<low|medium|high>  (§9.5)
+                      score_recomputed=<number>
+expected_verify.json: verdicts_match=<true|false>
+                      errors=[<list, empty if none>]
+```
+
+Two notes for anyone reporting:
+
+- **Do not fix a divergence silently.** If your verifier reaches a
+  different verdict, that is either a bug in your implementation, a bug in
+  ours, or a place where the standard's text does not determine the
+  answer. All three are useful and all three are what issue #1 is for.
+  Sester's ERRATUM-K0.2 and Tamga's ERRATUM-A2 were both found exactly this
+  way; each closed as an erratum the other party can re-check.
+- **Report the recomputed `risk_level` and `score`** (§9.5, erratum D17).
+  An implementation that validates only the verdicts and trusts the
+  summary fields will pass every vector here while still carrying the A2
+  class — the vectors cannot catch it, because the vectors' summaries are
+  honest. The check has to be in your code, and reporting the recomputed
+  values is how you show it is.
