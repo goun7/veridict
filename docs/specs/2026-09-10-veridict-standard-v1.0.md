@@ -501,3 +501,28 @@ before. This is a *narrower* fail-closed surface, not a weaker one: a
 genuine top-level machine refutation still blocks, and an unconfirmed
 coverage question is visible in the certificate and in the run's flags
 instead of silently deciding it.
+
+**Erratum D16 (2026-09-20, the verified-blind spot is real, and it is
+the honest one):** §5.3 rule 2 says doctrine can never overturn W1a
+machine evidence. That rule is correct and stays. But the real-LLM
+canary made the consequence concrete rather than theoretical: a defect
+whose own tests still passes has W1a SUPPORT, so a juror that correctly
+spots the defect in the code cannot turn the verdict. The 25-class
+corpus is deliberately built that way — a bug that fails its tests is
+already caught by W1a and needs no juror — so of 25 defect classes,
+W1a alone refutes one, and 3B local jurors given the artifact's source
+catch one more. 2/25, 0 false positives. This is not a bug in the
+ladder; it is the design's blind spot, named.
+
+Two consequences, both stated so nobody reads a certificate as more
+than it says. (a) A VERIFIED certificate is evidence that machine
+checks passed and jurors did not dissent on the artifact — it is not a
+proof the artifact is correct, only of what was checked. §13 already
+says this normatively; D16 records the measurement that makes it
+load-bearing. (b) The right response to a juror dissent the machine
+evidence contradicts is not to ignore it and not to let it decide, but
+to escalate the coverage question — which is what R1's meta-claim does,
+and what D15 keeps visible. A consumer who wants the dissent to block
+sets the claim's class critical and gets ESCALATED; a consumer who
+wants machine truth to decide gets VERIFIED with the dissent recorded.
+The choice is policy, and both are conforming.
