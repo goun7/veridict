@@ -72,8 +72,8 @@ A failing audit turns it amber or red — worst-verdict-wins.
 | Test suite | 376 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
-| Canary (scripted jury) | 22 catches / 3 honest misses / 0 false positives across 25 defect classes — measures the harness, not a model |
-| Canary (real LLM, lower bound) | 23/25 classes caught by local qwen2.5:3b + llama3.2:3b, **3 false positives** — the jurors could not see the code and refused the claim instead; root-caused and fixed (errata D14/D15), re-run pending |
+| Canary (scripted jury) | 22 catches / 3 honest misses / 0 false positives across 25 defect classes — measures a hand-authored refutation table, **not model capability**; labeled as such |
+| Canary (real LLM, lower bound) | **2/25** classes caught, **0 false positives**, by local qwen2.5:3b + llama3.2:3b given the artifact's source — 3B local models mostly do not catch these defects; the earlier 23/25 figure was inflated by a metric bug that counted coverage-meta-claim refusals as findings; sheets in `docs/notes/` |
 | Tamper soak | 1500 mutated ledgers, 5 seeds → 100% detected, 0 silent passes |
 | Spec parity | reference verifier ≡ spec-only verifier on 8 failure modes |
 

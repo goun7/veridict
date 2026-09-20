@@ -20,7 +20,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        run: pip install -e . && pip install pytest cryptography pyyaml jsonschema
+        # langchain-core / llama-index-core are the real adapter targets.
+        # Without them the adapter tests skip in CI — and a skipped test
+        # cannot prove an adapter works against the framework it ships for.
+        # They are optional at runtime (import-guarded), required here.
+        run: |
+          pip install -e . && pip install pytest cryptography pyyaml jsonschema \
+            langchain-core llama-index-core
       - name: Full suite (python -m pytest)
         run: python -m pytest -q
       - name: Full suite (pytest entrypoint)

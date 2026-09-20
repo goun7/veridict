@@ -1,0 +1,121 @@
+{
+  "cases_processed": 28,
+  "cases_total": 28,
+  "caught_total": 2,
+  "defect_total": 25,
+  "false_positives": 0,
+  "per_class": {
+    "sign-error": {
+      "caught": 0,
+      "total": 1
+    },
+    "uncovered-edge": {
+      "caught": 0,
+      "total": 2
+    },
+    "clean": {
+      "caught": 0,
+      "total": 3
+    },
+    "logic-error": {
+      "caught": 0,
+      "total": 1
+    },
+    "contract-violation": {
+      "caught": 0,
+      "total": 1
+    },
+    "missing-validation": {
+      "caught": 0,
+      "total": 1
+    },
+    "parse-date": {
+      "caught": 0,
+      "total": 1
+    },
+    "race-condition": {
+      "caught": 1,
+      "total": 1
+    },
+    "resource-leak": {
+      "caught": 0,
+      "total": 1
+    },
+    "sql-injection": {
+      "caught": 0,
+      "total": 1
+    },
+    "exception-swallowing": {
+      "caught": 0,
+      "total": 1
+    },
+    "crypto-misuse": {
+      "caught": 0,
+      "total": 1
+    },
+    "secrets-leak": {
+      "caught": 0,
+      "total": 1
+    },
+    "integer-overflow": {
+      "caught": 0,
+      "total": 1
+    },
+    "path-traversal": {
+      "caught": 0,
+      "total": 1
+    },
+    "insecure-deserialization": {
+      "caught": 0,
+      "total": 1
+    },
+    "timing-attack": {
+      "caught": 0,
+      "total": 1
+    },
+    "weak-random": {
+      "caught": 0,
+      "total": 1
+    },
+    "toctou": {
+      "caught": 0,
+      "total": 1
+    },
+    "error-message-leak": {
+      "caught": 1,
+      "total": 1
+    },
+    "ssrf": {
+      "caught": 0,
+      "total": 1
+    },
+    "xss-output": {
+      "caught": 0,
+      "total": 1
+    },
+    "open-redirect": {
+      "caught": 0,
+      "total": 1
+    },
+    "mass-assignment": {
+      "caught": 0,
+      "total": 1
+    },
+    "hardcoded-credentials": {
+      "caught": 0,
+      "total": 1
+    }
+  },
+  "batch_retries": 0,
+  "run_metadata": {
+    "date": "2026-09-20",
+    "jurors": [
+      "qwen2.5:3b",
+      "llama3.2:3b"
+    ],
+    "gateway": "local ollama 0.32.5",
+    "batch_retries": 0,
+    "corpus_coverage": "28/28 — no batch skipped",
+    "honest_interpretation": "2/25 caught, 0 false positives. The earlier 23/25 figure was inflated by the same metric bug that produced the 3 false positives: the canary counted REFUTED coverage meta-claims, which are a juror declining to answer a question the ladder asked it, not findings about the artifact. With the metric corrected, the true signal is that 3B local models mostly do NOT catch defects in this corpus, and machine evidence (W1a) catches very few of them either — most of these defects pass their own tests by construction. This is a LOWER BOUND on real-LLM capability, not a capability claim: frontier models with the artifact's source should do far better, and the two classes that WERE caught (error-message-leak, race-condition) are the ones a model can see directly in the code. The scripted baseline (22 catches) measures a hand-authored refutation table, not model capability — it is not comparable and is labeled as such."
+  }
+}
