@@ -1,0 +1,16 @@
+{
+  "accepted_claims": 1,
+  "artifact_digest": "vector-digest",
+  "cert_id": "f275ea934c575d9bdfdc1511",
+  "claim_digest": "d8c4a26170aa158c30564ce76f912179be1bd290530cfd16c4958cf38bfb1996",
+  "jury_families": [
+    "model-family-1",
+    "model-family-2"
+  ],
+  "policy_digest": "cd75494f71537707081a04ab2bbc271aef53d01e323da006a5aaac08bdf39a3a",
+  "reasons": [],
+  "risk_level": "low",
+  "task_id": "vector-1",
+  "total_claims": 1,
+  "valid": false
+}

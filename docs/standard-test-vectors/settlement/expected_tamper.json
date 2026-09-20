@@ -1,0 +1,30 @@
+{
+  "coverage_inflated": {
+    "expected_cert_id": "f275ea934c575d9bdfdc1511",
+    "matches_certificate": false,
+    "presented_cert_id": "f275ea934c575d9bdfdc1511",
+    "self_consistent_digest": true,
+    "valid": false
+  },
+  "edited_after_issuance": {
+    "expected_cert_id": "f275ea934c575d9bdfdc1511",
+    "matches_certificate": true,
+    "presented_cert_id": "f275ea934c575d9bdfdc1511",
+    "self_consistent_digest": false,
+    "valid": false
+  },
+  "verdict_flipped": {
+    "expected_cert_id": "f275ea934c575d9bdfdc1511",
+    "matches_certificate": false,
+    "presented_cert_id": "f275ea934c575d9bdfdc1511",
+    "self_consistent_digest": true,
+    "valid": false
+  },
+  "wrong_certificate": {
+    "expected_cert_id": "f275ea934c575d9bdfdc1511",
+    "matches_certificate": false,
+    "presented_cert_id": "000000000000000000000000",
+    "self_consistent_digest": true,
+    "valid": false
+  }
+}

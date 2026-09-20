@@ -19,3 +19,7 @@ An independent implementation of the standard (§11.3) MUST, from
 
 `tests/test_standard_vectors.py` pins these files against the reference
 implementation, including byte-determinism of regeneration.
+
+The next surface outwards — the settlement CLAIM a payment layer consumes —
+is pinned by `scripts/build_settlement_vectors.py` in the `settlement/`
+subdirectory below, from this same certificate.

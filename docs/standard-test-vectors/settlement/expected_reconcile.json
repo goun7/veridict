@@ -1,0 +1,7 @@
+{
+  "expected_cert_id": "f275ea934c575d9bdfdc1511",
+  "expected_digest": "2cce99cb33a4af18ee0b35cec2edbd262e4414e37c4ef1daef88c52aeb1d1ca4",
+  "presented_cert_id": "f275ea934c575d9bdfdc1511",
+  "reasons": [],
+  "valid": true
+}
