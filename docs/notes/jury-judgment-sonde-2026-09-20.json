@@ -1,0 +1,543 @@
+{
+  "instrument": "jury-judgment-sonde",
+  "note": "Measures the jury's own verdict given the artifact source, decoupled from the ladder. This is NOT the product's catch rate: §5.3 rule 2 means a correct juror REFUTE on a test-passing defect still cannot turn the verdict. This number isolates model capability from product policy.",
+  "jurors": [
+    "qwen2.5:3b",
+    "llama3.2:3b"
+  ],
+  "measurements": 52,
+  "defect_measurements": 48,
+  "clean_measurements": 4,
+  "juror_correct_refutations": 42,
+  "juror_false_refutations": 2,
+  "abstentions": 2,
+  "duration_seconds": 495.3,
+  "per_case": [
+    {
+      "case": "canary-sign-error",
+      "class": "sign-error",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "add-computes-the-sum-of-two-numbers",
+      "stance": "REFUTES",
+      "confidence": 0.95,
+      "correct": true
+    },
+    {
+      "case": "canary-sign-error",
+      "class": "sign-error",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "add-computes-the-sum-of-two-numbers",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-uncovered-edge",
+      "class": "uncovered-edge",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "divide-never-crashes-on-zero-denominator",
+      "stance": "REFUTES",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-uncovered-edge",
+      "class": "uncovered-edge",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "divide-never-crashes-on-zero-denominator",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-off-by-one",
+      "class": "logic-error",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "sum-to-sums-1-n-inclusive",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-off-by-one",
+      "class": "logic-error",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "sum-to-sums-1-n-inclusive",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-contract-violation",
+      "class": "contract-violation",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "top-scores-returns-scores-sorted-descending",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-contract-violation",
+      "class": "contract-violation",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "top-scores-returns-scores-sorted-descending",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-missing-validation",
+      "class": "missing-validation",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "set-age-rejects-ages-outside-0-130",
+      "stance": "REFUTES",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-missing-validation",
+      "class": "missing-validation",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "set-age-rejects-ages-outside-0-130",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-clean-normalize",
+      "class": "clean",
+      "ground_truth": "CLEAN",
+      "juror": "juror-1",
+      "claim": "normalize-whitespace-collapses-internal-whitespace-runs",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-clean-normalize",
+      "class": "clean",
+      "ground_truth": "CLEAN",
+      "juror": "juror-2",
+      "claim": "normalize-whitespace-collapses-internal-whitespace-runs",
+      "stance": "ABSTAINED",
+      "confidence": null,
+      "correct": false
+    },
+    {
+      "case": "canary-parse-date-miss",
+      "class": "parse-date",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "parse-iso-utc-parses-iso-8601-utc-timestamps",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-parse-date-miss",
+      "class": "parse-date",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "parse-iso-utc-parses-iso-8601-utc-timestamps",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": false
+    },
+    {
+      "case": "canary-race-condition",
+      "class": "race-condition",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "increment-is-safe-under-concurrent-callers",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-race-condition",
+      "class": "race-condition",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "increment-is-safe-under-concurrent-callers",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-resource-leak",
+      "class": "resource-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "read-config-closes-the-file-handle-it-opens",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-resource-leak",
+      "class": "resource-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "read-config-closes-the-file-handle-it-opens",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-sql-injection",
+      "class": "sql-injection",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "find-user-never-interpolates-raw-input-into-sql",
+      "stance": "ABSTAINED",
+      "confidence": null,
+      "correct": false
+    },
+    {
+      "case": "canary-sql-injection",
+      "class": "sql-injection",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "find-user-never-interpolates-raw-input-into-sql",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-exception-swallowing",
+      "class": "exception-swallowing",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "parse-strict-never-ignores-malformed-input",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-exception-swallowing",
+      "class": "exception-swallowing",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "parse-strict-never-ignores-malformed-input",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": false
+    },
+    {
+      "case": "canary-crypto-misuse",
+      "class": "crypto-misuse",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "hash-password-is-salted-and-computationally-slow",
+      "stance": "REFUTES",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-crypto-misuse",
+      "class": "crypto-misuse",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "hash-password-is-salted-and-computationally-slow",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-clean-uuid",
+      "class": "clean",
+      "ground_truth": "CLEAN",
+      "juror": "juror-1",
+      "claim": "new-request-id-returns-collision-resistant-random-ids",
+      "stance": "REFUTES",
+      "confidence": 0.3,
+      "correct": false
+    },
+    {
+      "case": "canary-clean-uuid",
+      "class": "clean",
+      "ground_truth": "CLEAN",
+      "juror": "juror-2",
+      "claim": "new-request-id-returns-collision-resistant-random-ids",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-secrets-leak",
+      "class": "secrets-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "no-hardcoded-credentials-are-present",
+      "stance": "REFUTES",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-secrets-leak",
+      "class": "secrets-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "no-hardcoded-credentials-are-present",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-integer-overflow",
+      "class": "integer-overflow",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "parse-count-clamps-to-the-documented-1-1000",
+      "stance": "REFUTES",
+      "confidence": 0.9,
+      "correct": true
+    },
+    {
+      "case": "canary-integer-overflow",
+      "class": "integer-overflow",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "parse-count-clamps-to-the-documented-1-1000",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-path-traversal",
+      "class": "path-traversal",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "read-report-rejects-names-that-escape-base-dir",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-path-traversal",
+      "class": "path-traversal",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "read-report-rejects-names-that-escape-base-dir",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": false
+    },
+    {
+      "case": "canary-insecure-deserialization",
+      "class": "insecure-deserialization",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "load-profile-rejects-pickle-on-untrusted-input",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-insecure-deserialization",
+      "class": "insecure-deserialization",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "load-profile-rejects-pickle-on-untrusted-input",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": false
+    },
+    {
+      "case": "canary-timing-attack",
+      "class": "timing-attack",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "safe-compare-is-constant-time-no-short-circuit",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-timing-attack",
+      "class": "timing-attack",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "safe-compare-is-constant-time-no-short-circuit",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-weak-random",
+      "class": "weak-random",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "make-token-uses-a-cryptographically-secure-generator",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-weak-random",
+      "class": "weak-random",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "make-token-uses-a-cryptographically-secure-generator",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-toctou",
+      "class": "toctou",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "get-cached-closes-the-check-then-use-race",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-toctou",
+      "class": "toctou",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "get-cached-closes-the-check-then-use-race",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-error-message-leak",
+      "class": "error-message-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "login-failure-paths-return-one-indistinguishable-reason",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-error-message-leak",
+      "class": "error-message-leak",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "login-failure-paths-return-one-indistinguishable-reason",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-ssrf",
+      "class": "ssrf",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "fetch-thumbnail-only-reaches-allowlisted-hosts",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-ssrf",
+      "class": "ssrf",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "fetch-thumbnail-only-reaches-allowlisted-hosts",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-xss-output",
+      "class": "xss-output",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "render-greeting-escapes-the-name-before-embedding-it",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-xss-output",
+      "class": "xss-output",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "render-greeting-escapes-the-name-before-embedding-it",
+      "stance": "REFUTES",
+      "confidence": 0.8,
+      "correct": true
+    },
+    {
+      "case": "canary-open-redirect",
+      "class": "open-redirect",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "login-redirect-only-allows-same-origin-targets",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-open-redirect",
+      "class": "open-redirect",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "login-redirect-only-allows-same-origin-targets",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-mass-assignment",
+      "class": "mass-assignment",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "update-never-writes-privileged-fields-from-caller-input",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-mass-assignment",
+      "class": "mass-assignment",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "update-never-writes-privileged-fields-from-caller-input",
+      "stance": "REFUTES",
+      "confidence": 0.2,
+      "correct": true
+    },
+    {
+      "case": "canary-hardcoded-credentials",
+      "class": "hardcoded-credentials",
+      "ground_truth": "DEFECT",
+      "juror": "juror-1",
+      "claim": "authorize-checks-a-key-held-outside-the-source",
+      "stance": "REFUTES",
+      "confidence": 0.1,
+      "correct": true
+    },
+    {
+      "case": "canary-hardcoded-credentials",
+      "class": "hardcoded-credentials",
+      "ground_truth": "DEFECT",
+      "juror": "juror-2",
+      "claim": "authorize-checks-a-key-held-outside-the-source",
+      "stance": "SUPPORTS",
+      "confidence": 0.9,
+      "correct": false
+    }
+  ],
+  "interpretation": {
+    "date": "2026-09-20",
+    "what_this_is": "The jury's own verdict on each intent claim, given the artifact's source, deliberately NOT routed through the ladder. Proposed by Sester as the way to narrow the D16 blind spot without re-soliciting the canary.",
+    "the_decomposition": "Product catch rate was 2/25 (end-to-end canary). Juror judgment is 42/48. The gap is NOT the model: it is §5.3 rule 2 — most corpus defects still pass their own tests, so they carry W1a SUPPORT, and doctrine cannot overturn machine evidence. The model sees the defect and the verdict still says VERIFIED. D16 named this the verified-blind spot; this sonde measures its two halves separately.",
+    "honest_limits": "(1) 3B local models remain a lower bound for frontier capability. (2) The corpus is still test-passing defects, so this measures 'catches defects the suite does not encode', not all defect classes. (3) 2 false refutations on 4 clean measurements is a real false positive rate — roughly half — and it is the reason §5.3 rule 2 exists: a model that calls half the clean code it sees defective must not be able to turn a verdict on its own."
+  }
+}

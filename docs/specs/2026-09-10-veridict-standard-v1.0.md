@@ -521,10 +521,21 @@ canary made the consequence concrete rather than theoretical: a defect
 whose own tests still passes has W1a SUPPORT, so a juror that correctly
 spots the defect in the code cannot turn the verdict. The 25-class
 corpus is deliberately built that way — a bug that fails its tests is
-already caught by W1a and needs no juror — so of 25 defect classes,
-W1a alone refutes one, and 3B local jurors given the artifact's source
-catch one more. 2/25, 0 false positives. This is not a bug in the
-ladder; it is the design's blind spot, named.
+already caught by W1a and needs no juror — so of 25 defect classes the
+end-to-end audit catches 2. This is not a bug in the ladder; it is the
+design's blind spot, named.
+
+The blind spot is in the DESIGN, not the model. Measured with a judgment
+sonde (scripts/measure_jury_judgment.py) that asks each juror its verdict
+on the intent claim given the artifact's source, deliberately NOT routed
+through the ladder: 42/48 measurements correctly REFUTE the defective
+artifacts (23/24 for qwen2.5:3b, 19/24 for llama3.2:3b), against 2/4 false
+refutations on clean code. The model sees most of the defects; the
+verdict still says VERIFIED, because W1a SUPPORT is machine truth and a
+3B model that calls half the clean code it sees defective must not be
+able to turn a verdict on its own. The false-refutation rate IS the
+justification for rule 2, measured rather than asserted — and the catch
+rate is the cost of it, measured rather than assumed.
 
 Two consequences, both stated so nobody reads a certificate as more
 than it says. (a) A VERIFIED certificate is evidence that machine
