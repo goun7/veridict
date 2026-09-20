@@ -176,8 +176,21 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
         # trusted. If no recorded policy matches the claimed policy_id, the
         # claim is unfalsifiable and the replay would run under an
         # unattested policy; that must fail closed, not skip the check.
-        recorded = next((e["payload"] for e in led.query("policy.decision")
-                         if e["payload"].get("policy_id") == pol.policy_id), None)
+        # Scope guard (D4, same as deliberation below): only a policy.decision
+        # INSIDE the anchored prefix (seq <= checkpoint) attests the policy
+        # the run used. The cert's signed anchor pins that prefix's
+        # chain_hash; a post-issuance entry is outside it, so an attacker
+        # cannot retroactively attest a policy that was never run — and
+        # equally cannot append a mismatched entry to engineer a spurious
+        # rejection. Taking the LAST in-prefix match keeps the run's own
+        # decision when a policy_id legitimately appears twice (e.g. a
+        # blocked-then-passed retry under the same declaration). When the
+        # anchor itself is bad the anchor check above already rejects, so
+        # this guard only narrows the view of an otherwise-anchored prefix.
+        in_prefix = (lambda e: isinstance(cp_seq, int) and e["seq"] <= cp_seq)
+        recorded = next((e["payload"] for e in reversed(led.query("policy.decision"))
+                         if in_prefix(e)
+                         and e["payload"].get("policy_id") == pol.policy_id), None)
         if recorded is None:
             errors.append("policy: cert policy_ref names a policy_id the "
                           "ledger does not record — replay would adjudicate "

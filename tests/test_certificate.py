@@ -8,7 +8,7 @@ from veridict.schemas import ActorRef, SCHEMA_VERSION
 from veridict.ledger import Ledger
 from veridict.policy import PolicyDeclaration, Thresholds
 from veridict.schemas import TaskManifest
-from veridict.utils import canonical_json
+from veridict.utils import canonical_json, payload_digest
 
 
 def _fixture(tmp_path, code, test):
@@ -269,3 +269,60 @@ def test_policy_provenance_is_reconciled_not_trusted(tmp_path):
                        "criticality": ["existing-test-suite-passes"]}))
     assert not r["valid"]
     assert any("policy mismatch" in e for e in r["errors"])
+
+
+def test_post_issuance_policy_decision_cannot_attest_or_poison(tmp_path):
+    """Scope guard on the D19 reconciliation.
+
+    The reconciliation reads policy.decision entries, but only ones INSIDE
+    the anchored prefix (seq <= checkpoint_seq) may attest the policy a run
+    used. The cert's signed anchor pins the prefix chain_hash, so an entry
+    appended after issuance is outside the pinned prefix. Two exploits the
+    guard closes:
+
+      (a) an attacker appends a policy.decision naming the cert's policy_id
+          to make an unattested cert verify (retroactive attestation);
+      (b) an attacker appends a MISMATCHED policy.decision for the same
+          policy_id to engineer a spurious rejection of a good cert.
+
+    Both must be invisible to the verifier, which sees only the in-prefix
+    state the anchor pins.
+    """
+    cert, ledger_path, cert_path = _run(tmp_path)
+    assert verify_certificate(ledger_path, cert_path)["valid"]
+    cp_seq = cert["ledger_anchor"]["checkpoint_seq"]
+
+    led = Ledger.load(ledger_path)
+    pol = PolicyDeclaration(policy_id="p1", mode="CERTIFICATE",
+                            criticality=(), thresholds=Thresholds(),
+                            divergence_tolerance=1 / 3)
+    # (a) appended AFTER the checkpoint — outside the anchored prefix
+    led.append("policy.decision",
+               ActorRef(kind="system", identity="attacker", version="1"), {
+                   "decision_kind": "policy.passed", "policy_id": "p1",
+                   "policy_digest": payload_digest(pol.to_dict()),
+                   "mode": "CERTIFICATE"})
+    p = str(tmp_path / "poisoned.jsonl")
+    led.save(p)
+
+    r = verify_certificate(p, cert_path)
+    # the appended entry is outside the anchored prefix, so it must not
+    # change the verdict at all — neither rescue nor reject
+    assert r["valid"], "post-issuance attestation must not change a verdict"
+
+    # (b) same trick with a WRONG digest must not manufacture a rejection of
+    # a cert that was honest when issued
+    forged = PolicyDeclaration(policy_id="p1", mode="CERTIFICATE",
+                               criticality=("never-ran-critical",),
+                               thresholds=Thresholds(), divergence_tolerance=1 / 3)
+    led2 = Ledger.load(ledger_path)
+    led2.append("policy.decision",
+                ActorRef(kind="system", identity="attacker", version="1"), {
+                    "decision_kind": "policy.passed", "policy_id": "p1",
+                    "policy_digest": payload_digest(forged.to_dict()),
+                    "mode": "CERTIFICATE"})
+    p2 = str(tmp_path / "poisoned2.jsonl")
+    led2.save(p2)
+    assert cp_seq == cert["ledger_anchor"]["checkpoint_seq"]
+    assert verify_certificate(p2, cert_path)["valid"], \
+        "post-issuance mismatch must not poison an honest cert"
