@@ -94,6 +94,10 @@ def test_random_audits_verify_cross_implementation(tmp_path):
                                 version=item.producer["version"]),
                        item.to_dict())
         adj = adjudicate(claim, items, pol)
+        # D19: verifier reconciles policy_ref against the ledger's recorded policy
+        __import__("veridict.policy", fromlist=["PolicyEngine"]).PolicyEngine(
+            led).apply([claim], {claim.claim_id: items}, pol,
+                       ActorRef(kind="system", identity="fuzz", version="1"))
         cert = __import__("veridict.certificate", fromlist=["CertificateIssuer"]) \
             .CertificateIssuer(led, ks, kid).issue(
                 task=task, artifact_digest=f"art-{i}", policy=pol,

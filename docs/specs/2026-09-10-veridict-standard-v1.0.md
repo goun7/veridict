@@ -263,17 +263,39 @@ post-issuance fake deliberation entry must never be able to erase refuting
 evidence from a replay (v1.0.0 erratum D4: the unbounded form of this rule
 was exploitable and is forbidden).
 
-9.5 **Derived summary fields are recomputed, never trusted (erratum D17).**
-A certificate carries summary fields that FOLLOW from its claim verdicts —
-in v1.0.0, `risk_level` and `score`. A conforming verifier MUST recompute
-every such field from the verdicts it validated in this same pass, and
-MUST reject any divergence. The requirement is stated for the CLASS, not
-the field names: any future field that summarizes verdicts inherits it
-without further errata. Two fields that must agree, with no rule checking
-that they agree, is the same hazard D12 and D15 closed; the exposure is a
-framing attack (good work shown as risky, or a settlement broken by an
-inflated field), not a pass-through, because the verdicts a summary rests
-on are themselves recomputed.
+9.5 **Certificate fields are reconciled, never trusted (errata D17, D18,
+D19).** A certificate carries two KINDS of field that are not independent
+evidence, and a conforming verifier must handle both.
+
+(a) **Derived summaries** — fields that FOLLOW from the claim verdicts:
+`risk_level`, `score`, `divergence_summary` (D17, D18). Recompute every
+one from the verdicts validated in this same pass and reject any
+divergence. The requirement is stated for the CLASS, not the field names:
+any future field that summarizes verdicts inherits it without further
+errata. Two fields that must agree, with no rule checking that they
+agree, is the same hazard D12 and D15 closed; the exposure is a framing
+attack (good work shown as risky, or a disagreement hidden as settled),
+not a pass-through, because the verdicts a summary rests on are
+themselves recomputed.
+
+(b) **Inputs to the verdicts** — fields the replay USES rather than
+derives: `policy_ref` and its duplicate `policy_mode` (D19). These are
+strictly more dangerous than summaries, because forging one changes the
+verdicts rather than only their description. A conforming verifier MUST
+NOT replay under the certificate's own description of the policy: it MUST
+reconcile `policy_ref` against the policy the ledger records the run
+actually used (`policy.decision` carries `policy_digest`), MUST reject a
+digest mismatch, and MUST fail closed when the claimed `policy_id` has no
+recorded entry — an unrecorded policy is unfalsifiable and the first fix
+attempt skipped the check entirely, which is the same class as D17 but
+worse.
+
+Scope note for (b), kept honest: this binds the certificate to the
+ledger's record of the policy, which is tamper-evident but only as
+meaningful as the policy the issuer actually ran. An issuer who runs a
+lenient policy and records it honestly gets a certificate that honestly
+reflects a lenient policy. The rule removes the ability to claim one
+policy and have run another; it does not make the claimed policy strict.
 
 ## 10. Policy engine
 
@@ -614,3 +636,40 @@ a verifier has nothing to recompute it from. The attack path is closed
 at the source instead. A future version that records jury composition
 into the ledger moves this field under §9.5 with no further erratum,
 because §9.5 is stated for the class.
+
+**Erratum D19 (2026-09-20, policy provenance — the hazard D17's sweep
+found, and the one that is an INPUT not a consequence):** sweeping the
+class §9.5 names, three more fields were unconstrained in the reference
+implementation, and one of them is not like the others.
+
+`policy_mode` is the same value stored twice (top level and inside
+`policy_ref`), and the two copies could disagree. Boring duplication —
+recompute one from the other and reject the mismatch.
+
+`policy_ref` is the interesting one. Unlike `risk_level` or
+`divergence_summary`, which FOLLOW from the verdicts, `policy_ref` is used
+to BUILD the replay policy — it is an input to the verdicts, not a
+consequence of them. A verifier that reads the policy from the
+certificate replays under whatever policy the issuer *claims* to have
+used, which means the issuer is trusted for the policy, not just for the
+arithmetic. And the first fix attempt had a fail-open hole exactly here:
+the check looked up a matching `policy.decision` entry in the ledger and
+only compared digests when one existed. A cert claiming a policy_id the
+ledger never recorded therefore SKIPPED the check — unfalsifiable by
+construction. That is the same class as D17 but worse, because a forged
+policy can change verdicts, not just summaries: claim a policy with no
+critical classes and a tolerant divergence threshold over a ledger whose
+real policy was strict, and the replay adjudicates leniently.
+
+§9.5 now requires the check to fail closed when no recorded policy
+matches the claimed policy_id, and to reject a digest mismatch. The
+verifier reconciles the cert's policy against the policy the ledger
+records the run actually used (`policy.decision` carries `policy_digest`),
+rather than trusting the certificate's own description of it.
+
+Scope note, kept honest: this binds the certificate to the ledger's
+record of the policy, which is tamper-evident but is only as meaningful
+as the policy the issuer actually ran. A issuer who runs a lenient policy
+and records it honestly gets a certificate that honestly reflects a
+lenient policy. The fix removes the ability to claim one policy and have
+run another; it does not make the claimed policy strict.

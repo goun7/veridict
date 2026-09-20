@@ -47,6 +47,10 @@ def _audit_one(led, ks, kid, tid):
                item.to_dict())
     pol = _policy()
     adj = adjudicate(claim, [item], pol)
+    # D19: verifier reconciles policy_ref against the ledger's recorded policy
+    from veridict.policy import PolicyEngine
+    PolicyEngine(led).apply([claim], {claim.claim_id: [item]}, pol,
+                           ActorRef(kind="system", identity="federation", version="1"))
     cert = CertificateIssuer(led, ks, kid).issue(
         task=_task(tid), artifact_digest=f"digest-{tid}", policy=pol,
         claims=[claim], adjudications=[adj],

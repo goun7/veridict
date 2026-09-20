@@ -25,8 +25,8 @@
     ]
   },
   "ledger_anchor": {
-    "chain_hash": "e6c585d1ee957fef82377ee9b775f810f61852a3ccf15579ecc23efd3edf31aa",
-    "checkpoint_seq": 5
+    "chain_hash": "00eb55efa3a638892ed66394e853efb0ef80396dbef7cf3456fe11c011c4c2ec",
+    "checkpoint_seq": 6
   },
   "policy_mode": "GATE",
   "policy_ref": {
@@ -51,7 +51,7 @@
     {
       "algorithm": "ed25519",
       "key_id": "56475aa75463474c",
-      "sig_b64": "qpQ+1A/BIUiSAhbuzivvXnYO2wmzyZfYrBFqZQ2MQP24GL/Nq3F0XnzBDiQpRM5IJ66IBAjl3CAB7QvOn2lqCA=="
+      "sig_b64": "YUW/lWFTtmArFM59olZ8Pgjv1Pa9zOwNZSmzItQIad7UoaLOw1m2sdRqsI43Kb+5aL9wdUlX9LorpZMlBorFBw=="
     }
   ],
   "subject": {

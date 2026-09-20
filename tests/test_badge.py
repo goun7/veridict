@@ -57,6 +57,12 @@ def _issue_cert(tmp_path, verdict_item_tier="W1a"):
                item.to_dict())
     adj = adjudicate(claim, [item], pol)   # R0: machine evidence univocal
     assert adj.value == "VERIFIED"
+    # D19: the verifier reconciles the cert's policy against the policy the
+    # ledger records the run used, so the ledger must record one.
+    from veridict.policy import PolicyEngine
+    PolicyEngine(led).apply(
+        [claim], {claim.claim_id: [item]}, pol,
+        ActorRef(kind="system", identity="badge-builder", version="1"))
     cert = CertificateIssuer(led, ks, kid).issue(
         task=task, artifact_digest="digest-badge", policy=pol, claims=[claim],
         adjudications=[adj], evidence_by_claim={claim.claim_id: [item]},

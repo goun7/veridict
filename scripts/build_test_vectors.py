@@ -24,7 +24,8 @@ from veridict.claim_extractor import ClaimExtractor
 from veridict.keys import KeyStore, SYSTEM_AUTHOR
 from veridict.ladder import adjudicate
 from veridict.ledger import Ledger
-from veridict.policy import PolicyDeclaration, Thresholds
+from veridict.policy import PolicyDeclaration, PolicyEngine, Thresholds
+from veridict.schemas import ActorRef, SCHEMA_VERSION
 from veridict.schemas import ActorRef, EvidenceItem, TaskManifest
 from veridict.utils import canonical_json, payload_digest, sha256_hex
 
@@ -143,6 +144,13 @@ def build() -> None:
     pol = PolicyDeclaration(policy_id="vector-policy", mode="GATE",
                             criticality=(), thresholds=Thresholds(),
                             divergence_tolerance=1 / 3)
+    # D19: a verifier reconciles the cert's policy against the policy the
+    # ledger records the run actually used. A vector without this entry
+    # fails closed on an unattested policy, which is correct behaviour but
+    # would make the expected output unachievable.
+    PolicyEngine(led).apply([claim], {claim.claim_id: items}, pol,
+                           ActorRef(kind="system", identity="vector-builder",
+                                    version=SCHEMA_VERSION))
     adj = adjudicate(claim, items, pol)
     assert adj.value == "VERIFIED", adj.value
     cert = CertificateIssuer(led, ks, key_id).issue(

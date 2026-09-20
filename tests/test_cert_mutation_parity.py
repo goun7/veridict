@@ -53,6 +53,11 @@ def _issue_ledger_cert(tmp_path):
     led.append("evidence.recorded",
                ActorRef(kind="jury", identity="j1", version="1"), it.to_dict())
     adj = adjudicate(claim, [it], pol)
+    # D19: verifier reconciles policy_ref against the ledger's recorded
+    # policy — without this entry both verifiers fail on an unattested policy
+    from veridict.policy import PolicyEngine
+    PolicyEngine(led).apply([claim], {claim.claim_id: [it]}, pol,
+                           ActorRef(kind="system", identity="mut-parity", version="1"))
     cert = CertificateIssuer(led, ks, kid).issue(
         task=task, artifact_digest="digest-mut", policy=pol, claims=[claim],
         adjudications=[adj], evidence_by_claim={claim.claim_id: [it]},

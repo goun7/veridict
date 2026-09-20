@@ -4,6 +4,7 @@ from veridict.certificate import CertificateIssuer, verify_certificate
 from veridict.claim_extractor import ClaimExtractor
 from veridict.keys import SYSTEM_AUTHOR, KeyStore
 from veridict.ladder import adjudicate
+from veridict.schemas import ActorRef, SCHEMA_VERSION
 from veridict.ledger import Ledger
 from veridict.policy import PolicyDeclaration, Thresholds
 from veridict.schemas import TaskManifest
@@ -31,6 +32,13 @@ def _run(tmp_path):
         led.append("claim.registered", SYSTEM_AUTHOR, c.to_dict())
     ev = {c.claim_id: [] for c in claims}          # unit fixture: no evidence recorded
     adjs = [adjudicate(c, ev[c.claim_id], pol) for c in claims]
+    # D19: the verifier reconciles the cert's policy against the policy the
+    # ledger records the run used. The helper records one, so verification
+    # exercises the check instead of failing on an unattested policy.
+    from veridict.policy import PolicyEngine
+    PolicyEngine(led).apply(
+        claims, ev, pol, ActorRef(kind="system", identity="veridict-core",
+                                  version=SCHEMA_VERSION))
     cert = CertificateIssuer(led, ks, kid).issue(
         task=task, artifact_digest="digest", policy=pol, claims=claims,
         adjudications=adjs, evidence_by_claim=ev, jury_families=["stub-a", "stub-b"],
@@ -213,3 +221,51 @@ def test_forged_risk_level_is_caught(tmp_path):
         0, {**c["claims"][0], "verdict_value": "REFUTED"}),
         c.__setitem__("risk_level", "low")))
     assert not r["valid"], "a hidden REFUTED verdict must not verify"
+
+
+def test_policy_provenance_is_reconciled_not_trusted(tmp_path):
+    """D19: policy_ref is an INPUT to the verdicts, not a consequence.
+
+    Unlike risk_level (D17) or divergence_summary (D18) which follow from
+    the verdicts, the cert's policy_ref is used to BUILD the replay policy.
+    A verifier reading it from the certificate replays under whatever
+    policy the issuer claims to have used — which is a forgeable claim
+    about a thing that changes verdicts, not just summaries.
+
+    Three scenarios, and the third is the one the first fix attempt got
+    wrong: a policy_id the ledger never records is unfalsifiable, and the
+    original check skipped itself when no match existed — fail-open by
+    construction.
+    """
+    cert, ledger_path, cert_path = _run(tmp_path)
+    assert verify_certificate(ledger_path, cert_path)["valid"]
+
+    def probe(mutate):
+        # each probe mutates its own copy — an earlier probe must not
+        # poison the file the later ones read
+        import copy as _copy
+        c = _copy.deepcopy(cert)
+        mutate(c)
+        with open(cert_path, "w") as f:
+            json.dump(c, f, indent=2, sort_keys=True)
+        return verify_certificate(ledger_path, cert_path)
+
+    # (1) claim a policy the ledger never recorded — must fail closed,
+    # not skip the check
+    r = probe(lambda c: c.__setitem__(
+        "policy_ref", {**c["policy_ref"], "policy_id": "never-ran"}))
+    assert not r["valid"]
+    assert any("unattested policy" in e for e in r["errors"])
+
+    # (2) policy_mode disagrees with policy_ref.mode — duplicated value
+    r = probe(lambda c: c.__setitem__("policy_mode", "GATE"))
+    assert not r["valid"]
+    assert any("policy_mode mismatch" in e for e in r["errors"])
+
+    # (3) a real policy_id with forged contents — the replay policy built
+    # from the cert would differ from the recorded policy_digest
+    r = probe(lambda c: c.__setitem__(
+        "policy_ref", {**c["policy_ref"],
+                       "criticality": ["existing-test-suite-passes"]}))
+    assert not r["valid"]
+    assert any("policy mismatch" in e for e in r["errors"])

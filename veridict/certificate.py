@@ -11,7 +11,7 @@ from .ladder import adjudicate
 from .ledger import ChainError, Ledger
 from .policy import PolicyDeclaration, Thresholds
 from .schemas import ActorRef, Claim, EvidenceItem, SCHEMA_VERSION
-from .utils import canonical_json, sha256_hex
+from .utils import canonical_json, payload_digest, sha256_hex
 
 ADJUDICATOR = ActorRef(kind="adjudicator", identity="veridict-issuer", version="0.1.0")
 
@@ -166,6 +166,34 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
             thresholds=Thresholds(**pr.get("thresholds", {})),
             divergence_tolerance=pr.get("thresholds", {}).get(
                 "divergence_tolerance", 1 / 3))
+        # Policy provenance (D17 class, members four and five). The cert's
+        # `policy_ref` is used to BUILD the replay policy, so unlike a
+        # summary field it is an INPUT to the verdicts, not a consequence of
+        # them: a verifier reading the policy from the certificate replays
+        # under whatever policy the issuer claims to have used. The ledger
+        # records the policy the run actually used — policy.decision carries
+        # policy_digest — so policy_ref is reconciled against it rather than
+        # trusted. If no recorded policy matches the claimed policy_id, the
+        # claim is unfalsifiable and the replay would run under an
+        # unattested policy; that must fail closed, not skip the check.
+        recorded = next((e["payload"] for e in led.query("policy.decision")
+                         if e["payload"].get("policy_id") == pol.policy_id), None)
+        if recorded is None:
+            errors.append("policy: cert policy_ref names a policy_id the "
+                          "ledger does not record — replay would adjudicate "
+                          "under an unattested policy")
+            verdicts_match = False
+        elif recorded.get("policy_digest") != payload_digest(pol.to_dict()):
+            errors.append("policy mismatch: cert policy_ref does not match "
+                          "the policy the ledger records the run used — "
+                          "replay would adjudicate under the issuer's "
+                          "claimed policy, not the real one")
+            verdicts_match = False
+        if cert.get("policy_mode") != pr.get("mode"):
+            errors.append(f"policy_mode mismatch: cert={cert.get('policy_mode')}"
+                          f" policy_ref.mode={pr.get('mode')} — the mode is "
+                          f"stored twice and the two copies disagree")
+            verdicts_match = False
         claims_by_id = {e["payload"]["claim_id"]: Claim.from_dict(e["payload"])
                         for e in led.query("claim.registered")}
         ev_by_claim: dict[str, list[EvidenceItem]] = {}

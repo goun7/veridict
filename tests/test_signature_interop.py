@@ -44,6 +44,10 @@ def _issue(artifact_digest):
                ActorRef(kind="system", identity="c", version="1"),
                claim.to_dict())
     adj = adjudicate(claim, [], pol)   # R4-first: no evidence ⇒ INCONCLUSIVE
+    # D19: verifier reconciles policy_ref against the ledger's recorded policy
+    from veridict.policy import PolicyEngine
+    PolicyEngine(led).apply([claim], {}, pol,
+                           ActorRef(kind="system", identity="interop", version="1"))
     cert = CertificateIssuer(led, ks, kid).issue(
         task=task, artifact_digest=artifact_digest, policy=pol, claims=[claim],
         adjudications=[adj], evidence_by_claim={claim.claim_id: []},
