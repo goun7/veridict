@@ -212,5 +212,37 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
                 errors.append(f"verdict mismatch for {c['claim_id']}: "
                               f"cert={c['verdict_value']} recomputed={recomputed.value}")
                 verdicts_match = False
+        # Derived-field consistency (Tamga ERRATUM-A2 class): a certificate
+        # carries summary fields that FOLLOW from the verdicts — risk_level
+        # and score. The verdicts themselves are recomputed above, so they
+        # cannot be lied about. But a verifier that stops at the verdicts
+        # leaves the summaries unconstrained: an attacker who cannot touch
+        # the verdicts can still rewrite risk_level to 'low' while a claim
+        # verdict says REFUTED, hiding a bad result behind a green summary —
+        # or to 'high' while verdicts say VERIFIED, inflating it. A consumer
+        # that reads risk_level to decide (the settlement policy does exactly
+        # this) would then decide on a forged field.
+        #
+        # Scope: only the claims THIS certificate adjudicates. A shared ledger
+        # carries claims from other audits (segments, other tasks); scoring
+        # those would measure the ledger, not the certificate.
+        cert_claims = [claims_by_id[c["claim_id"]] for c in cert["claims"]
+                       if c["claim_id"] in claims_by_id]
+        replay = {c.claim_id: adjudicate(c, ev_by_claim.get(c.claim_id, []), pol)
+                  for c in cert_claims}
+        recomputed_risk = _risk_level_for(cert_claims, replay)
+        if cert.get("risk_level") != recomputed_risk:
+            errors.append(f"risk_level mismatch: cert={cert.get('risk_level')} "
+                          f"recomputed={recomputed_risk} — summary field does "
+                          f"not follow from the claim verdicts")
+            verdicts_match = False
+        n = len(cert_claims)
+        recomputed_score = round(sum(1 for a in replay.values()
+                                     if a.value == "VERIFIED") / n, 3) if n else 0.0
+        if cert.get("score") != recomputed_score:
+            errors.append(f"score mismatch: cert={cert.get('score')} "
+                          f"recomputed={recomputed_score} — does not follow "
+                          f"from the claim verdicts")
+            verdicts_match = False
     return {"valid": not errors, "chain_valid": chain_ok, "signature_valid": sig_ok,
             "verdicts_match": verdicts_match, "errors": errors}

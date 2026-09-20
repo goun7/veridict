@@ -133,3 +133,71 @@ def test_verify_rejects_unknown_evidence_reference(tmp_path):
     assert report["valid"] is False, report
     assert any("unknown evidence" in e for e in report["errors"]), report["errors"]
     assert report["signature_valid"] is True    # isolate: signature fine, reference missing
+
+
+def test_forged_risk_level_is_caught(tmp_path):
+    """Tamga ERRATUM-A2 class: a summary field that follows from the verdicts
+    must not be independently forgeable.
+
+    The verdicts are recomputed, so they cannot be lied about. But a verifier
+    that stops at the verdicts leaves risk_level free — an attacker rewrites
+    it to 'low' while a claim verdict says REFUTED, or to 'high' while they
+    say VERIFIED. A consumer that reads risk_level to decide (the settlement
+    policy gates on exactly this field) would then decide on a forged value.
+    The verifier must recompute it from the same verdicts it just checked.
+    """
+    from veridict.audit import AuditOrchestrator
+    from veridict.jury import Jury, ScriptedProvider, Opinion
+    from veridict.keys import KeyStore
+    from veridict.ledger import Ledger
+    from veridict.policy import PolicyDeclaration, Thresholds
+    from veridict.schemas import TaskManifest
+    import os, json, copy
+    pkg = tmp_path / "pkg"; pkg.mkdir()
+    (pkg / "calc.py").write_text("def add(a, b):\n    return a + b\n")
+    (pkg / "test_calc.py").write_text(
+        "def test_add():\n    from calc import add\n    assert add(1, 2) == 3\n")
+    led = Ledger(); ks = KeyStore(led); kid = ks.generate_and_enroll("t")
+    jury = Jury([ScriptedProvider(family="a", identity="a-1",
+                                  default=Opinion("SUPPORTS", 0.8, "ok")),
+                 ScriptedProvider(family="b", identity="b-1",
+                                  default=Opinion("SUPPORTS", 0.8, "ok"))])
+    pol = PolicyDeclaration(policy_id="t", mode="CERTIFICATE", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1 / 3)
+    task = TaskManifest(task_id="t", artifact_path=str(pkg), actor_identity="a",
+                        intent_lines=("MACHINE: add computes the sum",),
+                        criticality=(), has_existing_tests=True, pytest_args=[])
+    out = AuditOrchestrator(led, pol, jury, ks, kid).run(task, "REDACTED")
+    led.save(str(tmp_path / "ledger.jsonl"))
+    cp = tmp_path / "cert.json"
+    cp.write_text(json.dumps(out["cert"], indent=2, sort_keys=True))
+    base = json.loads(cp.read_text())
+
+    # baseline: the honest certificate verifies
+    assert verify_certificate(str(tmp_path / "ledger.jsonl"), str(cp))["valid"]
+
+    def probe(mutate):
+        c = copy.deepcopy(base)
+        mutate(c)
+        cp.write_text(json.dumps(c, indent=2, sort_keys=True))
+        return verify_certificate(str(tmp_path / "ledger.jsonl"), str(cp))
+
+    # inflated risk: verdicts are all VERIFIED but risk says high
+    r = probe(lambda c: c.__setitem__("risk_level", "high"))
+    assert not r["valid"], "inflated risk_level must not verify"
+    assert any("risk_level mismatch" in e for e in r["errors"])
+
+    # deflated score
+    r = probe(lambda c: c.__setitem__("score", 0.0))
+    assert not r["valid"], "forged score must not verify"
+    assert any("score mismatch" in e for e in r["errors"])
+
+    # restore, then hide a bad result: flip a verdict to REFUTED and keep
+    # risk_level 'low'. This is the dangerous direction — the verdict itself
+    # is now inconsistent with the ledger, so the verdict check fires; the
+    # risk check is defense in depth, not the only guard.
+    cp.write_text(json.dumps(base, indent=2, sort_keys=True))
+    r = probe(lambda c: (c["claims"].__setitem__(
+        0, {**c["claims"][0], "verdict_value": "REFUTED"}),
+        c.__setitem__("risk_level", "low")))
+    assert not r["valid"], "a hidden REFUTED verdict must not verify"

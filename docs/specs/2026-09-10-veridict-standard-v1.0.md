@@ -263,6 +263,18 @@ post-issuance fake deliberation entry must never be able to erase refuting
 evidence from a replay (v1.0.0 erratum D4: the unbounded form of this rule
 was exploitable and is forbidden).
 
+9.5 **Derived summary fields are recomputed, never trusted (erratum D17).**
+A certificate carries summary fields that FOLLOW from its claim verdicts —
+in v1.0.0, `risk_level` and `score`. A conforming verifier MUST recompute
+every such field from the verdicts it validated in this same pass, and
+MUST reject any divergence. The requirement is stated for the CLASS, not
+the field names: any future field that summarizes verdicts inherits it
+without further errata. Two fields that must agree, with no rule checking
+that they agree, is the same hazard D12 and D15 closed; the exposure is a
+framing attack (good work shown as risky, or a settlement broken by an
+inflated field), not a pass-through, because the verdicts a summary rests
+on are themselves recomputed.
+
 ## 10. Policy engine
 
 10.1 Modes: `CERTIFICATE` (record only), `GATE` (fail-closed),
@@ -526,3 +538,34 @@ and what D15 keeps visible. A consumer who wants the dissent to block
 sets the claim's class critical and gets ESCALATED; a consumer who
 wants machine truth to decide gets VERIFIED with the dissent recorded.
 The choice is policy, and both are conforming.
+
+**Erratum D17 (2026-09-20, derived summary fields were unverifiable —
+Tamga ERRATUM-A2 class):** a certificate carries summary fields that
+FOLLOW from the claim verdicts — `risk_level` and `score`. §9 required
+the verifier to recompute the verdicts themselves, and the implementation
+did. But nothing required it to recompute the summaries, and the reference
+implementation did not: it validated each `verdict_value` against the
+ledger and then trusted `risk_level` and `score` as stored. A field that a
+consumer decides on (the settlement policy gates release on `risk_level`)
+was unconstrained by any check.
+
+The consequence is asymmetric, and the asymmetry matters more than the
+bug. An attacker cannot hide a bad result this way: to make the true risk
+`high` a claim verdict must be REFUTED, and verdicts ARE recomputed, so
+the mismatch fires. What an attacker CAN do is the reverse — write
+`risk_level: "high"` over a fully-VERIFIED certificate, or `score: 0.0`
+over a high one. That is a framing attack, not a pass-through: it makes
+good work look bad, or inflates risk to break a settlement that should
+have released. It cannot make bad work pass. The honest statement of the
+exposure is "summary fields could be forged to mislead a consumer", not
+"bad code could be certified".
+
+§9 now requires: a conforming verifier MUST recompute every derived
+summary field from the verdicts it validated, and reject any divergence.
+The reference verifier does. Two fields are derived today; a v1.1 field
+that summarizes verdicts inherits the same rule without further errata,
+because the requirement is stated for the class, not the field names.
+This is the same hazard as D12 and D15 in kind — two fields that must
+agree, with no rule checking that they do — and was found by the same
+method: an independent verifier (Tamga) attacking the standard rather
+than reading the code.
