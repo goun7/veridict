@@ -34,15 +34,27 @@ CORPUS = os.path.join(ROOT, "corpus", "corpus.jsonl")
 def ollama_restart():
     """Kill and restart ollama serve, wait until it answers.
 
-    NOTE: pattern is matched against the full executable path
-    (/usr/local/bin/ollama serve), not a fragment, because a fragment
-    like 'ollama serve' also matches THIS script's own command line and
-    would make the wrapper kill itself.
+    Finds PIDs with pgrep -x ollama and signals them directly. pkill -f
+    with a path fragment was observed to HANG on this host — the call
+    itself blocks, so the retry logic depending on it never ran and
+    wedged batches were skipped instead of recovered (a measurement gap,
+    not a crash). A fragment would also match this script's own command
+    line; the exact-name lookup avoids both hazards.
     """
-    subprocess.run(["pkill", "-f", "/usr/local/bin/ollama serve"],
-                   capture_output=True, timeout=30)
-    time.sleep(4)
-    subprocess.Popen(["/usr/local/bin/ollama", "serve"], stdout=subprocess.DEVNULL,
+    for _ in range(3):
+        out = subprocess.run(["pgrep", "-x", "ollama"], capture_output=True,
+                             text=True, timeout=15).stdout.split()
+        if not out:
+            break
+        for pid in out:
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+            except (OSError, ValueError):
+                pass
+        time.sleep(3)
+    time.sleep(2)
+    subprocess.Popen(["/usr/local/bin/ollama", "serve"],
+                     stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
     for _ in range(60):
         try:
@@ -100,15 +112,17 @@ def main():
             retries += 1
             print(f"  restarting ollama and retrying batch {batch_no}",
                   file=sys.stderr)
-            if not ollama_restart():
-                print("  ollama would not come back; aborting", file=sys.stderr)
-                break
-            sheet = run_batch(batch, batch_no)
+            for attempt in range(3):     # a wedged batch is re-run, not
+                if not ollama_restart(): # skipped: a skipped case is a
+                    continue             # measurement gap that reads as a
+                sheet = run_batch(batch, batch_no) # clean pass downstream
+                if sheet is not None:
+                    break
             if sheet is None:
-                print(f"  batch {batch_no} failed twice; skipping",
+                print(f"  batch {batch_no} failed after restarts; ABORTING "
+                      f"(partial sheet kept) — do not report as complete",
                       file=sys.stderr)
-                i += len(batch)
-                continue
+                break
         for c in sheet["cases"]:
             all_cases.append(c)
             cls = per_class.setdefault(c["defect_class"] if "defect_class" in c

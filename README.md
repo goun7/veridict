@@ -69,11 +69,11 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 370 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 376 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Canary (scripted jury) | 22 catches / 3 honest misses / 0 false positives across 25 defect classes — measures the harness, not a model |
-| Canary (real LLM, lower bound) | 23/25 classes caught by local qwen2.5:3b + llama3.2:3b, **3 false positives** — 3B models are biased toward reporting something on clean code; sheet at `docs/notes/real-llm-canary-2026-09-19.json` |
+| Canary (real LLM, lower bound) | 23/25 classes caught by local qwen2.5:3b + llama3.2:3b, **3 false positives** — the jurors could not see the code and refused the claim instead; root-caused and fixed (errata D14/D15), re-run pending |
 | Tamper soak | 1500 mutated ledgers, 5 seeds → 100% detected, 0 silent passes |
 | Spec parity | reference verifier ≡ spec-only verifier on 8 failure modes |
 
@@ -176,6 +176,34 @@ composite steps:
         with:
           intent: "DOCTRINE: ..."
 ```
+
+## From certificate to settlement
+
+A certificate proves what happened. It does not by itself authorize
+payment — a settlement layer still has to decide whether *this* verified
+work qualifies, and that decision has to fail closed on its own.
+`veridict settle` is that boundary:
+
+```bash
+# certificate already verified offline (veridict verify)
+veridict settle --cert dogfood_cert.json --out claim.json   # derive
+veridict settle --cert dogfood_cert.json --claim claim.json  # reconcile
+```
+
+The claim is derived only from certificate fields — accepted claims, jury
+families, risk level — under a policy that is itself part of the claim's
+digest, so the caller cannot swap in a more permissive policy after
+seeing the verdict. Reconciliation never trusts the presented claim: it
+recomputes it from the certificate, so inflating `accepted_claims` (or
+flipping `valid`, or presenting a claim minted against a different
+certificate) is refused. Exit code 0 means the claim holds; non-zero
+means it does not — a pipeline that ignores the report and pays on any rc
+has a bug, and the tool will not help it.
+
+This is deliberately a **claim generator**, not a payment executor. It
+answers "was provably-done work done", not "should money move". Keeping
+those separate is what stops a dropped or replayed settlement message
+from becoming a silent release.
 
 ## Interoperability
 
