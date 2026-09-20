@@ -71,6 +71,7 @@ class CertificateIssuer:
                                "min_w1_coverage": policy.thresholds.min_w1_coverage,
                                "meta_claim_depth_budget": policy.thresholds.meta_claim_depth_budget}},
             "claims": [{"claim_id": c.claim_id,
+                        "predicate": c.predicate,
                         "verdict_value": adj_by_id[c.claim_id].value,
                         "divergence": adj_by_id[c.claim_id].divergence,
                         "evidence_ids": [e.evidence_id

@@ -9,6 +9,7 @@
         "8dbd904bf6220d609859e41a",
         "656e6aa8d0c4a92e6bfd0c77"
       ],
+      "predicate": "add-computes-the-sum-of-two-numbers",
       "verdict_value": "VERIFIED"
     }
   ],
@@ -50,7 +51,7 @@
     {
       "algorithm": "ed25519",
       "key_id": "56475aa75463474c",
-      "sig_b64": "iSCYlKxmFez/lyOPN7u4xC53x6Xmq9DAF+2R2PFTp3q+4Iy2Y9ZyW6Nhu0YKZXKuabPP2PbLdNNXW7RvS+4oAA=="
+      "sig_b64": "qpQ+1A/BIUiSAhbuzivvXnYO2wmzyZfYrBFqZQ2MQP24GL/Nq3F0XnzBDiQpRM5IJ66IBAjl3CAB7QvOn2lqCA=="
     }
   ],
   "subject": {

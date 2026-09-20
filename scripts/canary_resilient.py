@@ -32,15 +32,28 @@ CORPUS = os.path.join(ROOT, "corpus", "corpus.jsonl")
 
 
 def ollama_restart():
-    """Kill and restart ollama serve, wait until it answers.
+    """Recover a wedged ollama without losing the run.
 
-    Finds PIDs with pgrep -x ollama and signals them directly. pkill -f
-    with a path fragment was observed to HANG on this host — the call
-    itself blocks, so the retry logic depending on it never ran and
-    wedged batches were skipped instead of recovered (a measurement gap,
-    not a crash). A fragment would also match this script's own command
-    line; the exact-name lookup avoids both hazards.
+    The deadlock is in the model layer, not the process: ollama stays
+    alive (api/version answers) while inference hangs forever. So killing
+    the process alone is not enough — systemd respawns it and the wedged
+    model is reloaded from GPU memory, deadlock and all. What works:
+    drop the models from the GPU first (keep_alive 0), then kill the
+    service. Order matters; stopping the service first can leave the
+    model resident.
+
+    pkill -f with a fragment was also observed to HANG on this host and
+    would match this script's own command line; the exact-name lookup
+    avoids both.
     """
+    import httpx
+    for model in ("qwen2.5:3b", "llama3.2:3b"):
+        try:
+            httpx.post("http://127.0.0.1:11434/api/generate",
+                       json={"model": model, "keep_alive": 0}, timeout=20)
+        except Exception:
+            pass
+    time.sleep(3)
     for _ in range(3):
         out = subprocess.run(["pgrep", "-x", "ollama"], capture_output=True,
                              text=True, timeout=15).stdout.split()
@@ -48,7 +61,7 @@ def ollama_restart():
             break
         for pid in out:
             try:
-                os.kill(int(pid), signal.SIGTERM)
+                os.kill(int(pid), signal.SIGKILL)
             except (OSError, ValueError):
                 pass
         time.sleep(3)
@@ -56,9 +69,8 @@ def ollama_restart():
     subprocess.Popen(["/usr/local/bin/ollama", "serve"],
                      stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, start_new_session=True)
-    for _ in range(60):
+    for _ in range(90):
         try:
-            import httpx
             httpx.get("http://127.0.0.1:11434/api/version", timeout=3)
             return True
         except Exception:

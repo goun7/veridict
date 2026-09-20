@@ -57,8 +57,19 @@ class CanaryRunner:
                     criticality=tuple(case.get("criticality", [])),
                     has_existing_tests=True, pytest_args=())
                 result = self.audit_fn(task, "REDACTED")
+                # Top-level refusals only. A REFUTED coverage meta-claim is a
+                # juror declining to answer a question the ladder asked it,
+                # not a finding about the artifact — counting it here would
+                # measure the juror's willingness to answer, not whether the
+                # audit flags the defect. The certificate carries each claim's
+                # predicate; meta-claims are prefixed 'coverage-of-'. This
+                # must match policy.py's blocking rule exactly, or the canary
+                # measures something the product does not do.
+                top = {c["claim_id"] for c in result["cert"].get("claims", [])
+                       if not c.get("predicate", "").startswith("coverage-of-")}
                 refuted = any(per["value"] == "REFUTED"
-                              for per in result["outcome"].per_claim.values())
+                              for cid, per in result["outcome"].per_claim.items()
+                              if cid in top)
                 flagged = refuted or result["outcome"].blocked
                 caught = flagged if case["ground_truth"] == "DEFECT" else False
                 if case["ground_truth"] == "CLEAN" and flagged:
