@@ -71,3 +71,52 @@ def test_inconclusive_machine_claim_flags_gate():
                                   DECL, ActorRef(kind="system", identity="core", version="0"))
     assert out.blocked is True
     assert any(f.startswith("inconclusive-unresolved:") for f in out.flags)
+
+
+def _mc_claim(cid, predicate, ver):
+    """Claim is frozen — build with the right predicate directly."""
+    return Claim(claim_id=cid, task_id="t", subject="intent", predicate=predicate,
+                 scope="module", summary="x", derived_from=None, verifiability=ver,
+                 falsifiable_by=("test_execution",), critical_class=None)
+
+
+def test_meta_coverage_flag_does_not_block_gate(tmp_path):
+    """D15's second half: a meta-coverage flag is advisory, not a verdict.
+
+    The flag exists so a juror's refusal of its own coverage question stays
+    visible. But a flag that blocks IS a verdict — and this one would hand
+    the deciding vote to the dissenter §5.3 rule 2 refuses to honor. D15
+    excluded meta-claims from `any_refuted` but left them in `flags`, and
+    GATE/HYBRID block on any flag, so the exclusion only held in CERTIFICATE
+    mode. Measured before the fix: 3/3 clean cases blocked under HYBRID with
+    a jury that refutes everything.
+    """
+    led = Ledger()
+    engine = PolicyEngine(led)
+    dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1/3)
+    top = _mc_claim("top", "existing-test-suite-passes", "MACHINE_CHECKABLE")
+    meta = _mc_claim("meta", "coverage-of-existing-test-suite-passes", "DOCTRINAL")
+    # top-level SUPPORTS (W1a); the meta-claim gets a W2 REFUTES — a jury
+    # refusing to answer its own coverage question
+    r = engine.apply([top, meta], {"top": [_ev("top", "W1a", "SUPPORTS")],
+                                  "meta": [_ev("meta", "W2", "REFUTES")]},
+                     dec, ActorRef(kind="system", identity="a", version="1"))
+    assert r.per_claim["top"]["value"] == "VERIFIED"
+    assert not r.blocked, "a meta-coverage refusal must not block the gate"
+    assert any(f.startswith("meta-coverage-unconfirmed:") for f in r.flags), \
+        "the refusal must stay visible even though it does not decide"
+
+
+def test_fail_closed_survives_the_d15_second_half(tmp_path):
+    """The fix above must not widen the fail-closed hole: a refuted
+    top-level machine claim still blocks, with no meta-claim involved."""
+    led = Ledger()
+    engine = PolicyEngine(led)
+    dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1/3)
+    top = _mc_claim("top", "existing-test-suite-passes", "MACHINE_CHECKABLE")
+    r = engine.apply([top], {"top": [_ev("top", "W1a", "REFUTES")]},
+                     dec, ActorRef(kind="system", identity="a", version="1"))
+    assert r.per_claim["top"]["value"] == "REFUTED"
+    assert r.blocked, "a refuted top-level claim must still block the gate"

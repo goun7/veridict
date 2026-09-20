@@ -127,9 +127,22 @@ class PolicyEngine:
         # lets a refuted machine claim through is not a gate (§6 fail-closed).
         any_refuted = any(per_claim[c.claim_id]["value"] == "REFUTED"
                           for c in top_level)
+        # A meta-coverage flag is advisory, not a verdict (erratum D15, second
+        # half). It is appended to `flags` above for visibility, but a flag
+        # that blocks IS a verdict — and this one would hand the deciding
+        # vote to the very dissenter §5.3 rule 2 refuses to honor. D15
+        # excluded meta-claims from `any_refuted` yet left them inside
+        # `flags`, and GATE/HYBRID block on any flag at all, so the exclusion
+        # only held in CERTIFICATE mode. Measured: 3/3 clean cases still
+        # blocked under HYBRID with a jury that refutes everything. The
+        # fail-closed surface does not shrink — a refuted TOP-LEVEL claim
+        # still blocks, and critical-class claims still block; only the
+        # juror's refusal to answer its own coverage question stops deciding.
+        blocking_flags = [f for f in flags
+                          if not f.startswith("meta-coverage-unconfirmed:")]
         # decision (§6: separate evidence from decision)
         blocking = (declaration.mode in ("GATE", "HYBRID")
-                    and (critical_bad or any_refuted or flags))
+                    and (critical_bad or any_refuted or blocking_flags))
         blocked = bool(blocking)
         decision_kind = ("gate.blocked" if blocked else
                          "watch.observed" if declaration.mode == "WATCH" else "policy.passed")
