@@ -117,6 +117,19 @@ def adjudicate(claim: Claim, evidence: list[EvidenceItem], policy,
             risk.append("R4: doctrinal split on a non-critical claim — not escalated")
             return Adjudication(claim.claim_id, "INCONCLUSIVE", divergence, Rung.R4,
                                 tuple(risk), tuple(metas))
+        # Tier ordering (§5.3 rule 1): W1b deterministic static truth outranks
+        # W2 doctrine. A W1b SUPPORT cannot be overturned into REFUTED by a
+        # juror's disagreement — the real-LLM canary showed 3B models REFUTE
+        # claims they cannot evidence (rationale: 'the digest provides no
+        # information about the function'), and letting that dissent decide
+        # produced a false positive on clean code. W1b support keeps the
+        # claim VERIFIED; the dissent stays visible in the divergence field
+        # instead of being silently promoted into the verdict.
+        if any(e.tier == "W1b" and e.stance == "SUPPORTS" for e in w1b):
+            risk.append("R4: W1b support outranks doctrinal dissent (§5.3 rule 1)"
+                        " — dissent recorded, verdict stands")
+            return Adjudication(claim.claim_id, "VERIFIED", divergence, Rung.R4,
+                                tuple(risk), tuple(metas))
         value = "VERIFIED" if all(e.stance == "SUPPORTS" for e in w2plus) else "REFUTED"
         risk.append("R4: doctrinal-only verdict; no machine evidence backs this claim")
         return Adjudication(claim.claim_id, value, divergence, Rung.R4,

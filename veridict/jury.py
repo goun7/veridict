@@ -29,6 +29,52 @@ from .utils import sha256_hex
 
 EID_SALT = "veridict-jury-v1"
 
+# Guards on source text passed to jurors: unbounded context would break
+# small local models (and cost on hosted ones), and a juror does not need
+# every file to judge one claim.
+_MAX_SOURCE_BYTES = 6000
+_MAX_SOURCE_FILES = 6
+
+
+def _read_sources(artifact_dir: str | None) -> str | None:
+    """Bounded read of the artifact's own source, for the jury's doctrine.
+
+    A digest alone tells a juror nothing about the code, so a doctrine
+    call without source text asks the model to judge a hash — which the
+    real-LLM canary showed it refuses ('the digest provides no information'),
+    producing refusals that read as refutations. This reads the artifact's
+    own .py files, bounded in both count and bytes, so a juror judging a
+    claim can actually see the thing the claim is about.
+    """
+    if not artifact_dir:
+        return None
+    try:
+        names = sorted(os.listdir(artifact_dir))
+    except OSError:
+        return None
+    chunks: list[str] = []
+    total = 0
+    taken = 0
+    for name in names:
+        if taken >= _MAX_SOURCE_FILES or total >= _MAX_SOURCE_BYTES:
+            break
+        if not name.endswith(".py") or name.startswith("test_"):
+            continue
+        path = os.path.join(artifact_dir, name)
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                text = f.read(_MAX_SOURCE_BYTES - total)
+        except OSError:
+            continue
+        if not text.strip():
+            continue
+        chunks.append(f"--- {name} ---\n{text}")
+        total += len(text)
+        taken += 1
+    if not chunks:
+        return None
+    return "\n\n".join(chunks)
+
 
 @dataclass(frozen=True)
 class Opinion:
@@ -59,7 +105,8 @@ class ScriptedProvider:
         self.fn = fn
         self.revise = revise
 
-    def doctrine(self, claim_summary: str, artifact_digest: str) -> Opinion:
+    def doctrine(self, claim_summary: str, artifact_digest: str,
+                 sources: str | None = None) -> Opinion:
         if self.fn is not None:
             return self.fn(claim_summary)
         return self.responses.get(claim_summary, self.default)
@@ -101,14 +148,16 @@ class OpenAICompatProvider:
         # measure nothing. If samples are requested, actually sample.
         return 0.0 if samples <= 1 else 0.7
 
-    def doctrine(self, claim_summary: str, artifact_digest: str) -> Opinion:
+    def doctrine(self, claim_summary: str, artifact_digest: str,
+                 sources: str | None = None) -> Opinion:
         n = self._samples()
         if n <= 1:
-            return self._one(claim_summary, artifact_digest, self._temperature(n))
+            return self._one(claim_summary, artifact_digest, self._temperature(n),
+                             sources)
         ops: list[Opinion] = []
         temp = self._temperature(n)
         for _ in range(n):
-            ops.append(self._one(claim_summary, artifact_digest, temp))
+            ops.append(self._one(claim_summary, artifact_digest, temp, sources))
         counts = Counter(o.stance for o in ops)
         top_stance, top_n = counts.most_common(1)[0]
         if top_n * 2 <= n:                       # no strict majority
@@ -132,15 +181,29 @@ class OpenAICompatProvider:
             return 60.0
 
     def _one(self, claim_summary: str, artifact_digest: str,
-             temperature: float) -> Opinion:
+             temperature: float, sources: str | None = None) -> Opinion:
+        # The artifact's source is included when available: a juror judging
+        # a claim about code must see the code. Without it the model sees
+        # only a digest, which carries no information about the code, and
+        # the real-LLM canary showed the outcome — refusals dressed as
+        # refutations ('the digest does not provide any information about
+        # the function'). Abstention is the honest answer to a claim you
+        # cannot evidence; this makes the claim evidencable instead.
+        source_block = (f"\n\nArtifact source (authoritative — judge against "
+                        f"this, not against assumptions):\n{sources}"
+                        if sources else "")
         prompt = (
-            "You are an independent audit juror. You see ONE claim and an artifact "
-            "digest. You do NOT see other jurors' opinions. Respond ONLY with JSON: "
+            "You are an independent audit juror. You see ONE claim and the "
+            "artifact it is about. You do NOT see other jurors' opinions. "
+            "Respond ONLY with JSON: "
             '{"evidence": ["<concrete observation>", "..."], '
             '"stance": "SUPPORTS"|"REFUTES", "confidence": 0..1, "rationale": "..."}\n'
             "List at least two concrete observations in `evidence` BEFORE deciding "
-            "— evidence first, verdict second.\n"
-            f"Claim: {claim_summary}\nArtifact digest: {artifact_digest}")
+            "— evidence first, verdict second. Quote what you actually see in "
+            "the source; if the source does not settle the claim, REFUTE with "
+            "low confidence and say so — do not guess.\n"
+            f"Claim: {claim_summary}\nArtifact digest: {artifact_digest}"
+            f"{source_block}")
         try:
             resp = httpx.post(
                 self.base_url.rstrip("/") + "/chat/completions",
@@ -202,14 +265,23 @@ class Jury:
             raise ValueError("jury requires >=2 providers from >=2 distinct families (§5.2)")
         self.providers = providers
 
-    def evaluate(self, claim: Claim, artifact_digest: str) -> tuple[list[EvidenceItem], list[str]]:
+    def evaluate(self, claim: Claim, artifact_digest: str,
+                artifact_dir: str | None = None
+                ) -> tuple[list[EvidenceItem], list[str]]:
         items: list[EvidenceItem] = []
         abstained: list[str] = [f"{p.identity} (self-preference: "
                                 f"author family '{p.family}')"
                                 for p in self.excluded]
+        # The jury's doctrine is only meaningful if a juror can see what it
+        # is judging. Without source text a juror sees a digest — a hash
+        # says nothing about the code — and the real-LLM canary showed the
+        # result: REFUTES with rationale 'the digest does not provide any
+        # information', i.e. a rejection of the question rather than the
+        # code. Passing source text is opt-in (audit sets it) and bounded.
+        sources = _read_sources(artifact_dir) if artifact_dir else None
         for p in self.providers:                     # sequential, isolated: blind by construction
             try:
-                op = p.doctrine(claim.summary, artifact_digest)
+                op = p.doctrine(claim.summary, artifact_digest, sources)
             except ProviderError:
                 abstained.append(p.identity)         # abstain ≠ refute: no evidence item
                 continue

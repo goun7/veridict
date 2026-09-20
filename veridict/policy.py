@@ -105,9 +105,28 @@ class PolicyEngine:
         critical_bad = any(
             per_claim[c.claim_id]["value"] in ("REFUTED", "ESCALATED", "INCONCLUSIVE")
             for c in claims if c.critical_class in declaration.criticality)
-        # GATE/HYBRID block on ANY refuted claim verdict: a gate that lets a
-        # refuted machine claim through is not a gate (§6 fail-closed).
-        any_refuted = any(per_claim[c.claim_id]["value"] == "REFUTED" for c in claims)
+        # Meta-claims are DOCTRINAL coverage questions opened BY the ladder
+        # (R1/R2) exactly when a juror has already dissented. Their evidence
+        # is that same jury round — no W1 truth backs them. Letting a juror's
+        # refusal to answer its own coverage question block the gate would
+        # hand the deciding vote to the dissenter and nullify §5.3 rule 2
+        # (doctrine cannot overturn W1a): the real-LLM canary produced exactly
+        # this — 3B jurors REFUTED every meta-claim with 'the digest provides
+        # no information', and clean code was blocked. They are recorded,
+        # flagged, and shown; they do not block.
+        refuted_meta = [c.claim_id for c in claims
+                        if c.verifiability == "DOCTRINAL"
+                        and c.predicate.startswith("coverage-of-")
+                        and per_claim[c.claim_id]["value"] == "REFUTED"]
+        for cid in refuted_meta:
+            flags.append(f"meta-coverage-unconfirmed:{cid}")
+        top_level = [c for c in claims
+                     if c.verifiability != "DOCTRINAL"
+                     or not c.predicate.startswith("coverage-of-")]
+        # GATE/HYBRID block on ANY refuted TOP-LEVEL claim verdict: a gate that
+        # lets a refuted machine claim through is not a gate (§6 fail-closed).
+        any_refuted = any(per_claim[c.claim_id]["value"] == "REFUTED"
+                          for c in top_level)
         # decision (§6: separate evidence from decision)
         blocking = (declaration.mode in ("GATE", "HYBRID")
                     and (critical_bad or any_refuted or flags))

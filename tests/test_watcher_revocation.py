@@ -71,7 +71,7 @@ class JuryStub:
         self.providers = [ScriptedProvider(family="a", identity="a-1",
                                            default=Opinion("SUPPORTS", 0.8, "ok"))]
 
-    def evaluate(self, claim, digest):
+    def evaluate(self, claim, digest, artifact_dir=None):
         p = self.providers[0]
         it = p._item(claim, digest, p.default) if hasattr(p, "_item") else None
         if it is None:

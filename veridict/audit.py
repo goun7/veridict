@@ -91,7 +91,8 @@ class AuditOrchestrator:
                 if ev is not None:
                     self._record(ev, "verifier")
                     items.append(ev)
-            jury_items, jury_abstained = self.jury.evaluate(c, digest)
+            jury_items, jury_abstained = self.jury.evaluate(
+                c, digest, artifact_dir=task.artifact_path)
             abstentions.extend(jury_abstained)
             for ev in jury_items:
                 self._record(ev, "jury")
@@ -169,7 +170,8 @@ class AuditOrchestrator:
                 meta_claims.append(meta_claim)
                 self.ledger.append("claim.registered", extractor_author,
                                    meta_claim.to_dict())
-                jury_items, abst = self.jury.evaluate(meta_claim, digest)
+                jury_items, abst = self.jury.evaluate(
+                    meta_claim, digest, artifact_dir=task.artifact_path)
                 abstentions.extend(abst)
                 for ev in jury_items:
                     self._record(ev, "jury")

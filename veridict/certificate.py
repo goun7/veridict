@@ -24,6 +24,27 @@ def _risk_level(values: list[str]) -> str:
     return "low"
 
 
+def _risk_level_for(claims: list[Claim], per_claim: dict) -> str:
+    """Risk reflects TOP-LEVEL claim verdicts only.
+
+    A REFUTED coverage meta-claim is a juror declining to answer a question
+    the ladder asked because that juror had already dissented — it carries
+    no independent finding about the artifact. Counting it as high risk
+    would let the same dissent §5.3 rule 2 refuses to honor at the gate come
+    back in through the certificate's risk field. Meta-claim refusals are
+    surfaced as `meta-coverage-unconfirmed` flags in the certificate; risk
+    stays tied to claims about the artifact itself.
+    """
+    top = [c for c in claims
+           if c.verifiability != "DOCTRINAL"
+           or not c.predicate.startswith("coverage-of-")]
+    values = []
+    for c in top:
+        a = per_claim[c.claim_id]
+        values.append(a["value"] if isinstance(a, dict) else a.value)
+    return _risk_level(values)
+
+
 class CertificateIssuer:
     def __init__(self, ledger: Ledger, keystore: KeyStore, key_id: str) -> None:
         self.ledger = ledger
@@ -59,7 +80,7 @@ class CertificateIssuer:
             "disclosure_level": disclosure_level,
             "divergence_summary": {c.claim_id: adj_by_id[c.claim_id].divergence
                                    for c in claims},
-            "risk_level": _risk_level([adj_by_id[c.claim_id].value for c in claims]),
+            "risk_level": _risk_level_for(claims, adj_by_id),
             "score": round(sum(1 for c in claims
                                if adj_by_id[c.claim_id].value == "VERIFIED")
                            / len(claims), 3) if claims else 0.0,

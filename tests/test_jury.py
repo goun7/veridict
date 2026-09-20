@@ -31,7 +31,7 @@ def test_evaluate_produces_blind_w2_evidence():
 
 def test_provider_error_is_recorded_as_abstain_not_evidence():
     class Boom(ScriptedProvider):
-        def doctrine(self, claim_summary, artifact_digest):
+        def doctrine(self, claim_summary, artifact_digest, sources=None):
             raise ProviderError("simulated outage")
     j = Jury([Boom(family="boom", identity="boom-1",
                    default=Opinion("SUPPORTS", 0.5, "")),
@@ -63,9 +63,9 @@ def test_deliberate_without_revise_keeps_first_round_rationale():
 def test_blindness_providers_receive_no_cross_context():
     seen = []
     class Recorder(ScriptedProvider):
-        def doctrine(self, claim_summary, artifact_digest):
+        def doctrine(self, claim_summary, artifact_digest, sources=None):
             seen.append(claim_summary)
-            return super().doctrine(claim_summary, artifact_digest)
+            return super().doctrine(claim_summary, artifact_digest, sources)
     rec = Recorder(family="rec", identity="rec-1", default=Opinion("SUPPORTS", 0.8, ""))
     j = Jury([rec, ScriptedProvider(family="stub-b", identity="stub-b-1",
                                     default=Opinion("SUPPORTS", 0.8, ""))])

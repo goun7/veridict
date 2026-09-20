@@ -207,7 +207,10 @@ evidence sets; "all-SUPPORTS" is over every evidence item on the claim.
   flagged `inconclusive-unresolved:{claim_id}`; all doctrinal stances
   SUPPORTS ⇒ VERIFIED; ANY doctrinal REFUTES — even inside a MAJORITY
   favoring SUPPORTS ⇒ REFUTED (fail-closed: a lone doctrinal dissenter
-  blocks, never passes). W3-only evidence (no W2) ⇒ INCONCLUSIVE (§4.3 rule
+  blocks, never passes). *W1b present but W1a absent* ⇒ W1b SUPPORT outranks
+  doctrine per §5.3 rule 1: verdict VERIFIED, dissent recorded in the
+  divergence field and not promoted into the verdict (Erratum D14).
+  W3-only evidence (no W2) ⇒ INCONCLUSIVE (§4.3 rule
   5). Every remaining case ⇒ INCONCLUSIVE — a conforming implementation has
   NO silent pass. *Errata (§14.2):* the design's R2 makes SPLIT handling
   mode-dependent (CERTIFICATE proceeds with a risk note); v1.0.0 keeps
@@ -463,3 +466,38 @@ taxonomy. Semantic consumers (any code that totals or nets over entries)
 MUST understand the core types first: a charge and its refund are
 distinguished by entry type, not by a payload field, and a consumer that
 ignores the taxonomy silently diverges.
+
+**Erratum D14 (2026-09-20, R4 did not respect W1b outranking doctrine):**
+R4's text reads "with no W1a/W1b on the claim ... ANY doctrinal REFUTES ⇒
+REFUTED". The guard is correctly stated for the no-W1 case, but the
+reference implementation applied the REFUTED branch without re-checking
+for W1b support, so a claim with deterministic static SUPPORT at W1b
+could still be turned REFUTED by a juror's dissent. That contradicts §5.3
+rule 1 (strict ordering W1a > W1b > W2 > W3): W1b is machine truth, and a
+doctrinal opinion cannot outrank it, only fail to corroborate it. The
+implementation now returns VERIFIED when W1b SUPPORTS and only doctrine
+REFUTES, with the dissent recorded in the divergence field rather than
+promoted into the verdict. The old behavior was not a security hole — it
+erred toward blocking, i.e. toward fail-closed — but it converted a
+juror's *uninformed* refusal into a decision. The real-LLM canary
+measured this exactly: 3B jurors REFUTED claims with the rationale "the
+digest provides no information about the function", and every clean case
+in the corpus was blocked. Two changes follow: (a) the R4 branch now
+honors W1b; (b) jurors now receive the artifact's source text, bounded,
+because a juror that cannot see the code it is judging is not auditing.
+
+**Erratum D15 (2026-09-20, coverage meta-claims were decisive at the
+gate):** R1/R2 open a DOCTRINAL meta-claim ("does the W1a evidence
+actually cover this claim?") precisely *because* a juror dissented. That
+meta-claim's only evidence is the same jury round — it carries no W1
+truth of its own. The policy engine's blocking rule scanned all claims
+including meta-claims, so a juror's refusal to answer its own coverage
+question blocked the gate. The dissenter thereby decided the outcome,
+nullifying §5.3 rule 2 (doctrine can never overturn W1a) by indirection.
+Meta-claims are now recorded, adjudicated, and shown in the certificate,
+and a REFUTED meta-claim is surfaced as `meta-coverage-unconfirmed:{id}`
+rather than promoted to a block. Top-level refuted claims still block as
+before. This is a *narrower* fail-closed surface, not a weaker one: a
+genuine top-level machine refutation still blocks, and an unconfirmed
+coverage question is visible in the certificate and in the run's flags
+instead of silently deciding it.

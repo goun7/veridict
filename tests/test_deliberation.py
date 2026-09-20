@@ -203,7 +203,7 @@ def test_split_with_hookless_real_provider_does_not_crash(tmp_path):
         identity = "b-1"
         version = "0.1.0"
 
-        def doctrine(self, claim, digest):
+        def doctrine(self, claim, digest, sources=None):
             return Opinion("REFUTES", 0.9, "doubt")
 
     providers = [ScriptedProvider(family="a", identity="a-1",
