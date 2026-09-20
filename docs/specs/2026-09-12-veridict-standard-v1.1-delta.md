@@ -50,6 +50,41 @@ sentence still cannot be certified by code inspection alone — the
 detection interval is measured against the deployment's own declaration,
 which is why the sentence binds the deployment, not the software.
 
+### A2 — Jury composition is normative (ratifies v1.0 §14.2 erratum D12)
+
+v1.0's §5 defined only tier semantics and never stated jury composition as
+normative text, so an implementer reading v1.0 alone could lawfully build a
+single-provider jury that self-reviews its own output — the self-preference
+the requirement exists to forbid. v1.0 §14.2 (erratum D12) closed that gap
+in-place; v1.1 ratifies it here so the rule reads from §5 rather than from
+an erratum:
+
+1. **Two providers, two families.** A conforming implementation MUST NOT
+   issue a certificate on a jury of fewer than two providers or fewer than
+   two distinct `family` values.
+2. **Self-family exclusion.** A juror drawn from the audited author's own
+   model family MUST be excluded BEFORE the count, not counted as the
+   second family.
+3. **Fail closed, never shrink.** A panel that cannot meet the count after
+   exclusion MUST fail closed rather than issue on a conflicted panel.
+
+**Reference implementation note (non-normative):** the reference
+implementation enforces all three at `Jury.__init__` — before any
+certificate is issued, before the orchestrator is reached — raising rather
+than emitting a certificate with a non-conforming panel. Measured by direct
+probe: a one-family `Jury` cannot be constructed.
+
+**Scope limit, kept honest:** these rules constrain COMPOSITION, not
+HONESTY. Two families do not prove either juror reported truthfully, which
+remains §11.3's business. A conspiracy of two families passes this rule;
+the rule's purpose is to remove the *accidental* case, not the adversarial
+one.
+
+**Ratification status:** DRAFT until an independent implementation
+exercises it (v1.0 issue #1's exit criterion). Until ratified, a verifier
+checking jury composition reads the rule from v1.0 §14.2, where it is
+already normative — this delta moves its LOCATION, not its force.
+
 ### Conformance targets affected
 
 | Target | v1.0 requirement | v1.1 addition |

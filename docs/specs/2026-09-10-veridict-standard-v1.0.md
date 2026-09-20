@@ -465,9 +465,11 @@ which remains §11.3's business. *Status (2026-09-20): the rule is
 normative here in §14.2 (this erratum) and enforced in the reference
 implementation at `Jury.__init__`, which refuses a panel of fewer than
 two providers or two families BEFORE any certificate is issued —
-measured, not asserted. Ratification of the v1.1 delta stays deferred
-until an independent implementation exercises it; until then a verifier
-checking this rule reads it from this erratum, not from a ratified §5.*
+measured, not asserted. The ratification text now exists in
+[`2026-09-12-veridict-standard-v1.1-delta.md`](2026-09-12-veridict-standard-v1.1-delta.md)
+(amendment A2, same shape as A1); it stays DRAFT until an independent
+implementation exercises it. Until then a verifier checking this rule
+reads it from this erratum, not from a ratified §5.*
 
 **Erratum D13 (2026-09-19, entry_type taxonomy was implicit):** §2 lists
 `entry_type` as a field but never enumerated its permitted values, and the
