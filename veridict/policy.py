@@ -106,6 +106,26 @@ class PolicyEngine:
         # already honest, since the ladder saw only bound evidence.
         for cid, eid, _ref in self._mismatched:
             flags.append(f"evidence-artifact-mismatch:{cid}:{eid}")
+        # Audit F8: the §5.2 jury rule (>=2 providers from >=2 families, self
+        # family excluded before the count) is enforced at Jury.__init__, but
+        # nothing at the decision layer inspects the families the *evidence*
+        # was actually produced by. A single-family jury whose W2 SUPPORTS
+        # sustained a claim would then be indistinguishable from a diverse
+        # one in the decision record — the composition requirement would be
+        # an input the verifier cannot check from the artifact.
+        #
+        # The evidence is the ground truth the verifier replays, so count
+        # families there: advisory flag when the W2/W3 producers present are
+        # single-family, so a reader of the decision record cannot mistake a
+        # one-family jury's consensus for the §5.2 requirement. Not blocking
+        # — Jury already raises — but visible, because a cert replayed later
+        # carries evidence, not a Jury object.
+        jury_families = {
+            e.producer.get("family")
+            for ev in evidence_by_claim.values() for e in ev
+            if e.tier in ("W2", "W3") and e.producer.get("family")}
+        if jury_families and len(jury_families) < declaration.thresholds.min_jury_families:
+            flags.append("jury-single-family:" + ",".join(sorted(jury_families)))
         if coverage < declaration.thresholds.min_w1_coverage:
             flags.append("coverage-below-threshold")
         for cid, per in per_claim.items():
