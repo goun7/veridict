@@ -13,27 +13,9 @@ An independent implementation of the standard (§11.3) MUST, from
    `key.enrolled` entry, the anchor, and the `certificate.issued` entry,
 3. recompute the claim verdict from the ledger evidence (R0: W1a SUPPORTS +
    unanimous W2 ⇒ VERIFIED),
-4. reconcile the certificate's `policy_ref` against the ledger's
-   `policy.decision` entry — same `policy_id`, same `policy_digest`, and
-   `policy_mode` agreeing with `policy_ref.mode` (§9.5(b), erratum D19).
-   A `policy_id` the ledger never recorded MUST fail closed, not skip,
-5. scope the replay to the anchored prefix (`seq <= checkpoint_seq`):
-   `claim.registered`, `evidence.recorded`, the `deliberation.rounded`
-   supersession set, and the `policy.decision` record all stop at the
-   checkpoint the signed anchor pins (§9.5(c), erratum D20),
-6. reach exactly the verdict in `expected_verify.json`
+4. reach exactly the verdict in `expected_verify.json`
    (`{valid: true, chain_valid: true, signature_valid: true,
    verdicts_match: true, errors: []}`).
-
-For steps 4–5: this vector's prefix boundary is `checkpoint_seq = 6`.
-The ledger holds one `policy.decision` (seq 5, inside the prefix) and one
-`checkpoint.anchored` (seq 6); the `certificate.issued` entry at seq 7 is
-read by the issuance check directly, not through the replay. A third-party
-verifier that scans the whole ledger instead of stopping at the anchor will
-still reach the right verdict on this vector — the D19/D20 guards bite on
-*appended* entries, and this vector ships none. The conformance requirement
-is the scoping itself, which `tests/test_certificate.py` exercises with
-appended entries.
 
 `tests/test_standard_vectors.py` pins these files against the reference
 implementation, including byte-determinism of regeneration.

@@ -142,17 +142,37 @@ def test_unknown_entry_type_is_accepted_by_both(tmp_path, ledger_entries,
     accepts, the two have diverged.
     """
     out = copy.deepcopy(ledger_entries)
-    out.append({
-        **out[-1],
+    last = out[-1]
+    ext = {
+        **last,
         "entry_type": "extension.experimental",
         "payload": {"note": "forward-compatible extension entry"},
-    })
-    # chain links must be recomputed for the appended entry
-    from veridict.ledger import Ledger
-    from veridict.schemas import ActorRef
+        # the copied entry carries its own seq; the appended entry must claim
+        # its true position, or the seq==position check rejects it. That
+        # rejection would be correct — see test_seq_field_must_equal_position
+        # — but this test is about the entry_type registry being open, not
+        # about seq discipline, so give the extension its own honest seq.
+        "seq": len(out),
+        # and it must chain from the last entry, not from the entry it copied.
+        "prev_hash": last["entry_hash"],
+    }
+    out.append(ext)
+    # chain links must be recomputed for the appended entry. The rebuild must
+    # keep the fixtures' pinned timestamps: the certificate's signature covers
+    # the anchor's chain_hash, which pins the state of the prefix — and that
+    # state is a function of ts. Rebuilding with live time would re-hash every
+    # entry and detach the pin, so the anchor check compares against a prefix
+    # the pinned signature never covered.
+    from veridict.ledger import Ledger, _entry_hash
+    from veridict.utils import payload_digest
     led = Ledger()
     for e in out:
-        led.append(e["entry_type"], ActorRef(**e["author"]), e["payload"])
+        entry = dict(e)
+        entry["payload_hash"] = payload_digest(entry["payload"])
+        entry["entry_hash"] = _entry_hash(
+            entry["prev_hash"], entry["payload"], entry["entry_type"],
+            entry["seq"], entry["author"], entry["ts"], entry["schema_version"])
+        led.entries.append(entry)
     s, r = _run(tmp_path, led.entries, cert_json)
     assert (s, r) == (True, True), \
         "an extension entry_type must verify GREEN on both verifiers"

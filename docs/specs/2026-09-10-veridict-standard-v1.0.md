@@ -727,7 +727,39 @@ ships the cert with the forged verdict gets silent acceptance).
 (`seq <= checkpoint_seq`), the same boundary D4 uses. The verifier sees
 exactly the in-prefix state the signed anchor pins; post-issuance entries
 are invisible to it in either direction — they can neither rescue an
-unattested cert (D19) nor flip a verdict (D20). `key.enrolled` lookup
+unattested cert (D19) nor flip a verdict (D20). The `key.enrolled` lookup
 needs no guard: `next()` takes the first matching entry and the ledger is
 append-only, so the issuer's enrollment always precedes an attacker's
 duplicate.
+
+**Erratum D21 (2026-09-21, the formal core silently described the
+pre-D14 ladder — a fix that shipped without the thing that proves it):**
+e345259 changed ladder behavior (erratum D14: a W1b SUPPORT now survives
+doctrinal dissent in R4) but the truth table that re-checks the Lean model
+against all 28080 recorded cases was not regenerated, so the shipped
+`TruthTable.lean` described the pre-D14 ladder. Two defects compounded:
+
+1. `adjudicateCore` had no `w1bSup` flag, so the model could not express
+   the D14 rule at all — one row of 28080 disagreed.
+2. Five general theorems (I2, I4, I5, I6, I7, I10) called the old arity
+   and would not typecheck; Lean discharged them through `sorryAx`, listed
+   plainly in `#print axioms agree`:
+
+       'agree' depends on axioms: [propext, sorryAx, Classical.choice, ...]
+
+   so the agreement of the formal core with the reference implementation
+   was itself *unproven* while every build reported success. The
+   truth-table `native_decide` still caught it — as "is false", with no
+   location — because it does not route through the sorry.
+
+This is the failure mode the formal layer exists to catch, and it did its
+job; the missing step was wiring the regeneration into the commit that
+changed the ladder. §9.5's receipts now state the requirement operationally:
+any commit that changes `veridict/ladder.py` MUST regenerate both
+`docs/receipts-ladder-verification.json` (`python3 scripts/verify_ladder.py`)
+and `proofs/ladder/TruthTable.lean` (`scripts/export_lean_truth_table.py`),
+and a Lean build that reports success MUST still be inspected for `sorryAx`
+in its axiom list — success is not proof. After the fix: `w1bSup` added,
+all call sites updated, `sorryAx` gone from the axiom list, all 28080 rows
+checked. One row differs from the pre-D14 table, which is exactly the D14
+change and the table's reason for existing.

@@ -24,10 +24,16 @@ from veridict.keys import KeyStore
 from veridict.ladder import adjudicate
 from veridict.ledger import Ledger
 from veridict.policy import PolicyDeclaration, Thresholds
-from veridict.schemas import ActorRef, EVIDENCE_CLASSES, EvidenceItem, TaskManifest
+from veridict.schemas import (ActorRef, EVIDENCE_CLASSES, EvidenceItem,
+                             STANCES, TaskManifest)
 from veridict.utils import sha256_hex
 
-STANCES = ("SUPPORTS", "REFUTES", "ABSTAIN")
+# EvidenceItem now validates stance/tier at the boundary (audit F1/F2/F9: an
+# unregistered tier was invisible to the ladder and flipped verdicts; an
+# unregistered stance was either a silent verify or a phantom dissent). The
+# fuzzer exercises what the schema accepts; the rejection path is covered
+# directly by tests/test_schema_rejects_unknown_tier_and_stance.
+STANCES = STANCES
 TIERS = ("W1b", "W2", "W3")
 KINDS = ("verifier", "jury", "watcher", "adjudicator")
 

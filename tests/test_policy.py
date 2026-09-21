@@ -90,22 +90,65 @@ def test_meta_coverage_flag_does_not_block_gate(tmp_path):
     GATE/HYBRID block on any flag, so the exclusion only held in CERTIFICATE
     mode. Measured before the fix: 3/3 clean cases blocked under HYBRID with
     a jury that refutes everything.
+
+    The ladder opens its own coverage meta-claim (R1/R2) when a juror has
+    already dissented; its subject is "coverage-of:{predicate}" of the claim
+    it covers. Meta-ness is now identified structurally — a claim is meta
+    only when "coverage-of:{its predicate}" is a subject the ladder actually
+    recorded — never by testing the operator claim's own predicate text.
+    See the companion test below for why that distinction matters.
     """
     led = Ledger()
     engine = PolicyEngine(led)
     dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
                             thresholds=Thresholds(), divergence_tolerance=1/3)
-    top = _mc_claim("top", "existing-test-suite-passes", "MACHINE_CHECKABLE")
-    meta = _mc_claim("meta", "coverage-of-existing-test-suite-passes", "DOCTRINAL")
-    # top-level SUPPORTS (W1a); the meta-claim gets a W2 REFUTES — a jury
-    # refusing to answer its own coverage question
-    r = engine.apply([top, meta], {"top": [_ev("top", "W1a", "SUPPORTS")],
-                                  "meta": [_ev("meta", "W2", "REFUTES")]},
+    top = _mc_claim("top", "payments-are-sound", "MIXED")
+    meta = _mc_claim("meta", "payments-are-sound", "DOCTRINAL")
+    # top-level has W1a SUPPORTS but a dissenting W2 juror (that dissent is
+    # what opens the coverage meta-claim in a real run); the meta-claim gets
+    # a W2 REFUTES — a jury refusing to answer its own coverage question.
+    r = engine.apply([top, meta],
+                     {"top": [_ev("top", "W1a", "SUPPORTS"),
+                              _ev("top", "W2", "REFUTES")],
+                      "meta": [_ev("meta", "W2", "REFUTES")]},
                      dec, ActorRef(kind="system", identity="a", version="1"))
-    assert r.per_claim["top"]["value"] == "VERIFIED"
+    assert r.per_claim["top"]["value"] == "VERIFIED", \
+        "W1a support with only doctrinal dissent still verifies (D14)"
+    assert r.per_claim["top"]["meta_claims"], \
+        "the dissent must open the coverage meta-claim for the covered claim"
+    assert r.per_claim["meta"]["value"] == "REFUTED", \
+        "the jury's refusal refutes the meta-claim"
     assert not r.blocked, "a meta-coverage refusal must not block the gate"
     assert any(f.startswith("meta-coverage-unconfirmed:") for f in r.flags), \
         "the refusal must stay visible even though it does not decide"
+
+
+def test_operator_claim_named_like_a_meta_claim_still_blocks():
+    """Audit F3: meta-ness must not be inferred from attacker-influenced text.
+
+    The old rule detected meta-claims by testing whether an OPERATOR claim's
+    own predicate starts with "coverage-of-". Predicates come from
+    ClaimExtractor._slug(intent_line) — the audited AI's own wording — so
+    'DOCTRINE: coverage of payments is sound' produced predicate
+    'coverage-of-payments-is-sound', and a refuted top-level claim then had
+    blocked=False: only the advisory flag, a clean end-to-end false pass.
+    An operator claim is a claim ABOUT the artifact; it is not a meta-claim
+    of anything, and a refuted one must block. Nothing the ladder recorded
+    covers it, so no exclusion and no advisory flag is owed.
+    """
+    led = Ledger()
+    engine = PolicyEngine(led)
+    dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1/3)
+    smuggled = _mc_claim("smug", "coverage-of-payments-is-sound", "DOCTRINAL")
+    r = engine.apply([smuggled],
+                     {"smug": [_ev("smug", "W2", "REFUTES")]},
+                     dec, ActorRef(kind="system", identity="a", version="1"))
+    assert r.per_claim["smug"]["value"] == "REFUTED"
+    assert r.blocked, ("a refuted operator claim whose predicate merely looks "
+                       "like a meta-claim must still block the gate")
+    assert not any(f.startswith("meta-coverage-unconfirmed:") for f in r.flags), \
+        "no ladder meta-claim was opened, so no advisory flag is owed"
 
 
 def test_fail_closed_survives_the_d15_second_half(tmp_path):

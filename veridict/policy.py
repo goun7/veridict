@@ -114,15 +114,40 @@ class PolicyEngine:
         # this — 3B jurors REFUTED every meta-claim with 'the digest provides
         # no information', and clean code was blocked. They are recorded,
         # flagged, and shown; they do not block.
+        # Meta-ness is structural, not textual. The ladder produces its own
+        # coverage meta-claims as Adjudication.meta_claims, whose subject is
+        # "coverage-of:{predicate}" of the claim they cover; audit.py then
+        # materializes each as a real DOCTRINAL claim whose predicate is the
+        # subject with ":" -> "-" (ClaimExtractor slugs it). Detecting
+        # meta-ness by testing whether an OPERATOR claim's own *predicate*
+        # starts with "coverage-of-" instead let the audited AI's own intent
+        # wording decide its own blocking status: the predicate comes from
+        # ClaimExtractor._slug(intent_line), so 'DOCTRINE: coverage of payments
+        # is sound' produced predicate 'coverage-of-payments-is-sound', and a
+        # refuted top-level claim then blocked=False — only the advisory flag.
+        # An operator claim is a claim about the artifact, not a meta-claim of
+        # anything; a refuted one must block.
+        #
+        # So: a claim is meta only when the ladder actually recorded a
+        # coverage subject for it — either directly ("coverage-of:{predicate}")
+        # or in the slug form the materialized meta-claim carries. Both the
+        # exclusion from any_refuted and the advisory flag then attach to the
+        # ladder's own meta-claim, never to an operator claim that merely
+        # named itself similarly.
+        meta_subjects = {m["subject"] for c in claims
+                         for m in per_claim[c.claim_id].get("meta_claims", ())}
+        slug_subjects = {s.replace(":", "-") for s in meta_subjects}
         refuted_meta = [c.claim_id for c in claims
                         if c.verifiability == "DOCTRINAL"
-                        and c.predicate.startswith("coverage-of-")
+                        and (f"coverage-of:{c.predicate}" in meta_subjects
+                             or c.predicate in slug_subjects)
                         and per_claim[c.claim_id]["value"] == "REFUTED"]
         for cid in refuted_meta:
             flags.append(f"meta-coverage-unconfirmed:{cid}")
         top_level = [c for c in claims
                      if c.verifiability != "DOCTRINAL"
-                     or not c.predicate.startswith("coverage-of-")]
+                     or (f"coverage-of:{c.predicate}" not in meta_subjects
+                         and c.predicate not in slug_subjects)]
         # GATE/HYBRID block on ANY refuted TOP-LEVEL claim verdict: a gate that
         # lets a refuted machine claim through is not a gate (§6 fail-closed).
         any_refuted = any(per_claim[c.claim_id]["value"] == "REFUTED"
@@ -165,4 +190,5 @@ class PolicyEngine:
         ev = evidence_by_claim.get(claim.claim_id, [])
         adjudication = adjudicate(claim, ev, declaration)
         return {"value": adjudication.value, "rung": adjudication.rung,
-                "divergence": adjudication.divergence}
+                "divergence": adjudication.divergence,
+                "meta_claims": [dict(m) for m in adjudication.meta_claims]}
