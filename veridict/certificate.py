@@ -189,8 +189,12 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
             mode=pr.get("mode", "CERTIFICATE"),
             criticality=tuple(pr.get("criticality", [])),
             thresholds=Thresholds(**pr.get("thresholds", {})),
-            divergence_tolerance=pr.get("thresholds", {}).get(
-                "divergence_tolerance", 1 / 3))
+            # divergence_tolerance is a PolicyDeclaration field (audit F5):
+            # asdict serializes it at policy_ref top level, so read it there
+            # first and fall back to under-thresholds for pre-F5 certs.
+            divergence_tolerance=pr.get(
+                "divergence_tolerance", pr.get("thresholds", {}).get(
+                    "divergence_tolerance", 1 / 3)))
         # Policy provenance (D17 class, members four and five). The cert's
         # `policy_ref` is used to BUILD the replay policy, so unlike a
         # summary field it is an INPUT to the verdicts, not a consequence of

@@ -13,6 +13,11 @@ from .utils import payload_digest
 @dataclass(frozen=True)
 class Thresholds:
     min_jury_families: int = 2
+    # This is the field ladder.py actually reads, via
+    # policy.divergence_tolerance on PolicyDeclaration — see the mirror note
+    # there (audit F5). Kept because certs in the wild serialize it under
+    # thresholds, and removing it would break their replay; the single source
+    # of truth at replay time is the declaration field.
     divergence_tolerance: float = 1 / 3
     min_w1_coverage: float = 0.8
     meta_claim_depth_budget: int = 2

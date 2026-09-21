@@ -47,7 +47,16 @@ def adjudicate(claim: Claim, evidence: list[EvidenceItem], policy,
     w1a = [e for e in evidence if e.tier == "W1a"]
     w1b = [e for e in evidence if e.tier == "W1b"]
     w2plus = [e for e in evidence if e.tier in ("W2", "W3")]
-    divergence = compute_divergence(evidence, getattr(policy, "divergence_tolerance", 1 / 3))
+    # The declaration's own divergence_tolerance is authoritative (audit F5):
+    # a value set on thresholds.divergence_tolerance was unreachable from
+    # here, so an operator tuning it changed nothing while the declaration's
+    # own field decided. Prefer the declaration field; the thresholds copy
+    # stays readable for certs in the wild that serialize it there.
+    tol = getattr(policy, "divergence_tolerance", None)
+    if tol is None:
+        tol = getattr(getattr(policy, "thresholds", None),
+                      "divergence_tolerance", 1 / 3)
+    divergence = compute_divergence(evidence, tol)
     risk: list[str] = []
     if first_round_split:
         risk.append(SPLIT_RESOLVED_NOTE if divergence != "SPLIT"
