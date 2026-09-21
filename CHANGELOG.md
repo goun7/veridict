@@ -5,6 +5,14 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## Unreleased
 
+- **canary(L2-4):** `command-injection` defect class — `shell=True` over raw
+  input, the classic class generated code introduces. Offline-harness
+  artifact (a `local:` stand-in, no process ever spawned) whose own test
+  passes, so the defect is invisible to W1a and visible only in source —
+  the corpus's design constraint. 23 catches / 3 honest misses / 0 false
+  positives across 26 classes; counts updated in `tests/test_canary.py`,
+  `ci.yml`, and the README table.
+
 - **vectors(settlement):** `docs/standard-test-vectors/settlement/` — the
   conformance vector for the *claims* surface a payment layer consumes,
   built deterministically from the existing certificate vector by

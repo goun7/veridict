@@ -38,7 +38,12 @@ def _audit_fn():
                  "render_greeting escapes the name before embedding it",
                  "login_redirect only allows same-origin targets",
                  "update never writes privileged fields from caller input",
-                 "authorize checks a key held outside the source tree"}
+                 "authorize checks a key held outside the source tree",
+                 # L2-4 security expansion (2026-09-21): command injection —
+                 # the classic LLM-introduced class (shell=True over raw
+                 # input). Same contract: the intent line is the MACHINE
+                 # claim the audit must refute.
+                 "run_report_tool never passes raw input to a shell"}
     # deliberately NOT refutable: hash_password (crypto-misuse honest miss),
     # parse_iso_utc (offset-stomp honest miss), and both clean summaries
     overrides = {
@@ -87,6 +92,8 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert by_id["canary-open-redirect"] is True
     assert by_id["canary-mass-assignment"] is True
     assert by_id["canary-hardcoded-credentials"] is True
+    # L2-4 security expansion (2026-09-21) — the classic LLM-introduced class
+    assert by_id["canary-command-injection"] is True
     assert sheet["per_class"]["uncovered-edge"] == {"caught": 1, "total": 2}
     assert sheet["per_class"]["logic-error"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["contract-violation"] == {"caught": 1, "total": 1}
@@ -108,11 +115,12 @@ def test_quality_sheet_counts_catches_and_false_positives():
     assert sheet["per_class"]["open-redirect"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["mass-assignment"] == {"caught": 1, "total": 1}
     assert sheet["per_class"]["hardcoded-credentials"] == {"caught": 1, "total": 1}
-    assert sheet["caught_total"] == 22
+    assert sheet["per_class"]["command-injection"] == {"caught": 1, "total": 1}
+    assert sheet["caught_total"] == 23
 
 
 def test_quality_sheet_persists(tmp_path):
     sheet = CanaryRunner(_audit_fn()).run("corpus/corpus.jsonl")
     out = tmp_path / "sheet.json"
     out.write_text(json.dumps(sheet))
-    assert json.loads(out.read_text())["caught_total"] == 22
+    assert json.loads(out.read_text())["caught_total"] == 23

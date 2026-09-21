@@ -26,3 +26,4 @@
 {"id": "canary-open-redirect", "path": "corpus/artifacts/case-open-redirect", "defect_class": "open-redirect", "ground_truth": "DEFECT", "intent": ["MACHINE: login_redirect only allows same-origin targets"], "criticality": []}
 {"id": "canary-mass-assignment", "path": "corpus/artifacts/case-mass-assignment", "defect_class": "mass-assignment", "ground_truth": "DEFECT", "intent": ["MACHINE: update never writes privileged fields from caller input"], "criticality": []}
 {"id": "canary-hardcoded-credentials", "path": "corpus/artifacts/case-hardcoded-credentials", "defect_class": "hardcoded-credentials", "ground_truth": "DEFECT", "intent": ["MACHINE: authorize checks a key held outside the source tree"], "criticality": []}
+{"id": "canary-command-injection", "path": "corpus/artifacts/case-command-injection", "defect_class": "command-injection", "ground_truth": "DEFECT", "intent": ["MACHINE: run_report_tool never passes raw input to a shell"], "criticality": []}
