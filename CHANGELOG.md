@@ -5,6 +5,18 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## Unreleased
 
+- **vectors(settlement):** `docs/standard-test-vectors/settlement/` — the
+  conformance vector for the *claims* surface a payment layer consumes,
+  built deterministically from the existing certificate vector by
+  `scripts/build_settlement_vectors.py` (no keys, clock, or network) and
+  pinned by `tests/test_settlement_vectors.py`. Four tamper cases each pin a
+  distinct rejection class (stale digest, reforged verdict, wrong
+  certificate, inflated coverage), and one test recomputes `claim_digest`
+  with stdlib only, so an independent payer can check claim integrity
+  without importing veridict. Cross-repo continuity: a bridge consumer in
+  another repo can pin this directory and detect drift in its own CI
+  instead of depending on the producer's pipeline alone.
+
 - **proofs(ledger):** `proofs/ledger/Chain.lean` — hash-chaining
   tamper-evidence for `verify_chain`, machine-checked over chains of
   *arbitrary* length: C1 empty-verifies (axiom-free), C2 wellformed-accepted

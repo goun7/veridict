@@ -19,6 +19,7 @@ yours before peeking if you can.
 | [`docs/specs/2026-09-10-veridict-standard-v1.0.md`](specs/2026-09-10-veridict-standard-v1.0.md) | the normative text; section refs below point here |
 | [`docs/schemas/`](schemas/) | JSON Schemas for ledger entries, certificates, watcher manifests |
 | [`docs/standard-test-vectors/`](standard-test-vectors/) | conformance corpus: `ledger.jsonl`, `certificate.json`, `expected_verify.json`, `ladder_vectors.json`, `watcher_vectors.json` |
+| [`docs/standard-test-vectors/settlement/`](standard-test-vectors/settlement/) | the claims surface a payment layer consumes: `claim.json`, `expected_reconcile.json`, four tamper cases pinned to distinct rejection classes |
 | [`dogfood_ledger.jsonl`](../dogfood_ledger.jsonl) + [`dogfood_cert.json`](../dogfood_cert.json) + [`docs/receipts-anchor-v050-dogfood.json`](receipts-anchor-v050-dogfood.json) | a real, anchored end-to-end run (Rekor sidecar included) |
 | [`docs/receipts-ladder-verification.json`](receipts-ladder-verification.json) | the 28,080-case ladder receipt (sha256 of the table is inside) |
 
