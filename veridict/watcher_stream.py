@@ -87,17 +87,45 @@ class LedgerStream:
                 self._evidence.setdefault(p["claim_id"], []).append(p)
 
         claims = list(self._claims.values())
+        # Evidence binding and jury-family visibility must mirror
+        # PolicyEngine.apply exactly (F7, F8) — §10.2 parity is the contract
+        # that the stream verdict and the batch verdict are the same verdict,
+        # and a stream that skips either check diverges on the same ledger.
+        def bound_ev(claim: "Claim") -> list:
+            items = self._evidence.get(claim.claim_id, [])
+            if claim.derived_from is None:
+                return items
+            return [p for p in items
+                    if p.get("artifact_ref") == claim.derived_from]
         mc = [c for c in claims if c.verifiability == "MACHINE_CHECKABLE"]
         covered = [c for c in mc
                    if any(e.get("tier") in ("W1a", "W1b")
-                          for e in self._evidence.get(c.claim_id, []))]
+                          for e in bound_ev(c))]
         coverage = (len(covered) / len(mc)) if mc else 1.0
 
         per_claim, flags = {}, []
+        # Flag order must match PolicyEngine.apply exactly: mismatch, family,
+        # coverage, split, inconclusive. §10.2 parity is asserted as an exact
+        # tuple, so a different order would read as a divergence even when
+        # both sides flag the same facts.
+        for c in claims:
+            raw = self._evidence.get(c.claim_id, [])
+            if c.derived_from is not None:
+                for p in raw:
+                    if p.get("artifact_ref") != c.derived_from:
+                        flags.append("evidence-artifact-mismatch:"
+                                     f"{c.claim_id}:{p.get('evidence_id')}")
+        jury_families = {
+            p.get("producer", {}).get("family")
+            for items in self._evidence.values() for p in items
+            if p.get("tier") in ("W2", "W3")
+            and p.get("producer", {}).get("family")}
+        if jury_families and len(jury_families) < self.policy.thresholds.min_jury_families:
+            flags.append("jury-single-family:" + ",".join(sorted(jury_families)))
         if coverage < self.policy.thresholds.min_w1_coverage:
             flags.append("coverage-below-threshold")
         for c in claims:
-            items = self._evidence.get(c.claim_id, [])
+            items = bound_ev(c)
             evs = [EvidenceItem.from_dict(p) for p in items]
             adj = adjudicate(c, evs, self.policy)
             per_claim[c.claim_id] = {"value": adj.value, "rung": adj.rung,
