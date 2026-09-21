@@ -159,8 +159,18 @@ def test_policy_roundtrip_carries_deliberation_rounds():
 def test_verify_ignores_post_checkpoint_deliberation_entries(tmp_path):
     """D4 (audit round 4): replay-exclusion of superseded first-round items must
     be bound to the checkpoint the cert anchors to. A post-issuance fake
-    deliberation.rounded entry that 'supersedes' freshly appended REFUTES
-    evidence must NOT make the tampered ledger verify clean."""
+    deliberation.rounded entry must not erase evidence the replay sees,
+    whatever it claims to supersede.
+
+    D20 (same audit pass, one layer deeper) reshaped this test: the replay's
+    evidence query is itself prefix-scoped now, so the original shape —
+    append a REFUTES item after the checkpoint and supersede it with a
+    post-checkpoint deliberation — touches nothing, because the evidence
+    never reached the replay in the first place. That is the fix working;
+    it is not a weakening of D4. The D4 property is restated against
+    evidence that IS in the anchored prefix: the supersession must not
+    apply to it either.
+    """
     import os
 
     from veridict.certificate import verify_certificate
@@ -170,6 +180,29 @@ def test_verify_ignores_post_checkpoint_deliberation_entries(tmp_path):
     led = Ledger()
     result = _orch(led).run(_task(tmp_path))
     cid = _intent_cid(led)
+    cert = result["cert"]
+    cp_seq = cert["ledger_anchor"]["checkpoint_seq"]
+
+    # Evidence the replay genuinely sees: registered before the checkpoint.
+    in_prefix = [e["payload"] for e in led.query("evidence.recorded")
+                 if e["payload"]["claim_id"] == cid and e["seq"] <= cp_seq]
+    assert in_prefix, "test premise: the claim has in-prefix evidence to erase"
+
+    # An attacker appends a deliberation that claims those items were
+    # first-round dissent, now superseded. D4 must ignore it entirely —
+    # seq > cp_seq — so the evidence survives into the replay and the
+    # verdict is unchanged.
+    led.append("deliberation.rounded",
+               ActorRef(kind="adjudicator", identity="veridict-ladder",
+                        version="0.2.0"),
+               {"claim_id": cid,
+                "first_round": [{"evidence_id": e["evidence_id"],
+                                 "stance": e["stance"]} for e in in_prefix],
+                "revised": [], "consensus": "UNANIMOUS"})
+    assert led.entries[-1]["seq"] > cp_seq
+
+    # A post-checkpoint REFUTES item superseded by a second fake round is
+    # the original D20 shape — it must not reach the replay either.
     fake_ev = {"evidence_id": sha256_hex("atk|fake")[:24], "claim_id": cid,
                "evidence_class": "JURY_OPINION", "tier": "W2",
                "producer": {"kind": "jury", "identity": "evil-1", "version": "0",
@@ -186,13 +219,15 @@ def test_verify_ignores_post_checkpoint_deliberation_entries(tmp_path):
                 "first_round": [{"evidence_id": fake_ev["evidence_id"],
                                  "stance": "REFUTES"}],
                 "revised": [], "consensus": "UNANIMOUS"})
+
     lp, cp = os.path.join(tmp_path, "led.jsonl"), os.path.join(tmp_path, "cert.json")
     led.save(lp)
     with open(cp, "w") as f:
-        json.dump(result["cert"], f)
+        json.dump(cert, f)
     report = verify_certificate(lp, cp)
-    assert report["valid"] is False, report
-    assert report["verdicts_match"] is False
+    # neither tamper reached the replay, so the honest verdict still matches
+    assert report["valid"] is True, report
+    assert report["verdicts_match"] is True
 
 
 def test_split_with_hookless_real_provider_does_not_crash(tmp_path):

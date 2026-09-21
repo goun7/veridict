@@ -38,3 +38,4 @@ id_ed25519
 .pypirc
 .npmrc
 secrets/
+.agent-mailbox/

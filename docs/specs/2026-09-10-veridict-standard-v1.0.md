@@ -264,7 +264,7 @@ evidence from a replay (v1.0.0 erratum D4: the unbounded form of this rule
 was exploitable and is forbidden).
 
 9.5 **Certificate fields are reconciled, never trusted (errata D17, D18,
-D19).** A certificate carries two KINDS of field that are not independent
+D19, D20).** A certificate carries two KINDS of field that are not independent
 evidence, and a conforming verifier must handle both.
 
 (a) **Derived summaries** — fields that FOLLOW from the claim verdicts:
@@ -297,18 +297,47 @@ lenient policy and records it honestly gets a certificate that honestly
 reflects a lenient policy. The rule removes the ability to claim one
 policy and have run another; it does not make the claimed policy strict.
 
+(c) **The replay scope itself (D20).** Reconciliation is only meaningful
+if the replay reads the same ledger the anchor pins. Every entry the
+replay trusts — `claim.registered`, `evidence.recorded`, the
+`deliberation.rounded` supersession set, the `policy.decision` record —
+MUST be restricted to the anchored prefix (`seq <= checkpoint_seq`). The
+certificate's signed anchor pins that prefix's chain_hash, so entries
+inside it are tamper-evident; entries appended after issuance are outside
+the pin and MUST NOT reach the replay. The failure mode is asymmetric in
+both directions: an appended entry can rescue an unattested certificate
+(D19) or flip a verdict to match a forged one (D20 — a W1a SUPPORTS item
+turns an honestly-INCONCLUSIVE claim VERIFIED, because the ladder gives
+W1a priority over W2). `key.enrolled` lookup is exempt: `next()` takes
+the first matching entry and the ledger is append-only, so the issuer's
+enrollment always precedes a later duplicate.
+
 ## 10. Policy engine
 
 10.1 Modes: `CERTIFICATE` (record only), `GATE` (fail-closed),
 `WATCH` (observe-only — never blocks), `HYBRID` (gate semantics + full
 record).
 
-10.2 The decision is blocked iff `critical_bad ∨ any_REFUTED ∨ flags` under
-GATE/HYBRID. Registered v1.0.0 flags: `coverage-below-threshold`,
+10.2 The decision is blocked iff `critical_bad ∨ any_REFUTED ∨ blocking_flags`
+under GATE/HYBRID. Registered v1.0.0 flags: `coverage-below-threshold`,
 `divergence-split:{claim_id}`, `inconclusive-unresolved:{claim_id}`. An
 INCONCLUSIVE machine-checkable claim MUST surface a flag — a gate consumer
 MUST be able to distinguish "passed clean" from "passed with an unresolved
 machine claim".
+
+*Erratum D15, second half (§14.2):* not every flag is a verdict.
+`meta-coverage-unconfirmed:{claim_id}` is advisory — it records that a
+juror declined to answer its own coverage question. A flag that blocks
+IS a verdict, and letting an advisory one block hands the deciding vote
+to the very dissenter §5.3 rule 2 refuses to honor. Measured before the
+fix: 3/3 clean audits blocked under HYBRID with a jury that refutes
+everything, because the jury's refusal to confirm coverage blocked the
+audit it was refusing to cover. The exclusion is from `blocking_flags`
+only — the flag stays visible in the decision, so a consumer that wants
+to treat unconfirmed meta-coverage as a stop signal can, but the gate
+itself does not. The fail-closed surface does not shrink: a refuted
+TOP-LEVEL claim still blocks, critical-class claims still block; only
+the juror's refusal stops deciding.
 
 10.3 WATCH mode records `watch.observed` and never blocks; the flags are
 computed identically. *Errata (§14.2):* v1.0.0 defines WATCH as a policy
@@ -673,3 +702,32 @@ as the policy the issuer actually ran. A issuer who runs a lenient policy
 and records it honestly gets a certificate that honestly reflects a
 lenient policy. The fix removes the ability to claim one policy and have
 run another; it does not make the claimed policy strict.
+
+**Erratum D20 (2026-09-20, the replay itself was unscoped — D19's class,
+found one layer deeper):** D19 reconciled the cert against the ledger, but
+the reconciliation only matters if the *replay* reads the same ledger the
+anchor pins. It did not. Three queries fed the replay — `claim.registered`,
+`evidence.recorded` (twice) — and all three scanned the whole ledger,
+while the analogous D4 guard on `deliberation.rounded` already restricted
+itself to the anchored prefix. Same class as D19, same fix, one layer down.
+
+The shape is worth recording because the first PoC attempt against it
+*failed*, and the reason it failed is the reason the bug is real. The
+ladder gives W1a machine evidence absolute priority over W2 jury
+opinion, so injecting a post-issuance W2 SUPPORTS item cannot move a
+verdict — the ladder is already robust there. What *does* move is a W1a
+item: a claim the honest run adjudicated INCONCLUSIVE (no evidence) can
+be flipped to VERIFIED by appending a `TEST_EXECUTION` SUPPORTS entry
+after the checkpoint. Measured: without the scope guard, replay recomputes
+VERIFIED over a cert that says INCONCLUSIVE, and verification rejects on
+the mismatch (detection, not prevention — and a cooperating issuer who
+ships the cert with the forged verdict gets silent acceptance).
+
+§9.5 now scopes every replay query to the anchored prefix
+(`seq <= checkpoint_seq`), the same boundary D4 uses. The verifier sees
+exactly the in-prefix state the signed anchor pins; post-issuance entries
+are invisible to it in either direction — they can neither rescue an
+unattested cert (D19) nor flip a verdict (D20). `key.enrolled` lookup
+needs no guard: `next()` takes the first matching entry and the ledger is
+append-only, so the issuer's enrollment always precedes an attacker's
+duplicate.

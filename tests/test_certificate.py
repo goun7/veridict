@@ -4,11 +4,11 @@ from veridict.certificate import CertificateIssuer, verify_certificate
 from veridict.claim_extractor import ClaimExtractor
 from veridict.keys import SYSTEM_AUTHOR, KeyStore
 from veridict.ladder import adjudicate
-from veridict.schemas import ActorRef, SCHEMA_VERSION
+from veridict.schemas import ActorRef, EvidenceItem, SCHEMA_VERSION
 from veridict.ledger import Ledger
-from veridict.policy import PolicyDeclaration, Thresholds
+from veridict.policy import PolicyDeclaration, PolicyEngine, Thresholds
 from veridict.schemas import TaskManifest
-from veridict.utils import canonical_json, payload_digest
+from veridict.utils import canonical_json, payload_digest, sha256_hex
 
 
 def _fixture(tmp_path, code, test):
@@ -158,7 +158,7 @@ def test_forged_risk_level_is_caught(tmp_path):
     from veridict.jury import Jury, ScriptedProvider, Opinion
     from veridict.keys import KeyStore
     from veridict.ledger import Ledger
-    from veridict.policy import PolicyDeclaration, Thresholds
+    from veridict.policy import PolicyDeclaration, PolicyEngine, Thresholds
     from veridict.schemas import TaskManifest
     import os, json, copy
     pkg = tmp_path / "pkg"; pkg.mkdir()
@@ -326,3 +326,92 @@ def test_post_issuance_policy_decision_cannot_attest_or_poison(tmp_path):
     assert cp_seq == cert["ledger_anchor"]["checkpoint_seq"]
     assert verify_certificate(p2, cert_path)["valid"], \
         "post-issuance mismatch must not poison an honest cert"
+
+
+def _run_inconclusive(tmp_path):
+    """Helper for D20: a cert whose claim is INCONCLUSIVE (no evidence).
+
+    This is the vulnerable shape — a post-checkpoint W1a SUPPORTS item
+    would flip the replay to VERIFIED without the scope guard.
+    """
+    led = Ledger()
+    ks = KeyStore(led)
+    kid = ks.generate_and_enroll("issuer")
+    task = TaskManifest(task_id="d20", artifact_path="/x", actor_identity="dev",
+                        intent_lines=("MACHINE: add computes the sum of two numbers",),
+                        criticality=(), has_existing_tests=True, pytest_args=())
+    claim = ClaimExtractor().extract(task, "d-d20")[0]
+    led.append("claim.registered", ActorRef(kind="system", identity="c", version="1"),
+               claim.to_dict())
+    pol = PolicyDeclaration(policy_id="d20pol", mode="CERTIFICATE",
+                            criticality=(), thresholds=Thresholds(),
+                            divergence_tolerance=1 / 3)
+    PolicyEngine(led).apply([claim], {}, pol,
+                           ActorRef(kind="system", identity="c", version="1"))
+    adj = adjudicate(claim, [], pol)
+    assert adj.value == "INCONCLUSIVE"
+    cert = CertificateIssuer(led, ks, kid).issue(
+        task=task, artifact_digest="d20", policy=pol, claims=[claim],
+        adjudications=[adj], evidence_by_claim={},
+        jury_families=["f1", "f2"], disclosure_level="REDACTED",
+        scope_limits=["claim coverage is heuristic, not exhaustive"])
+    lp, cp = str(tmp_path / "led.jsonl"), str(tmp_path / "cert.json")
+    led.save(lp)
+    json.dump(cert, open(cp, "w"), indent=2, sort_keys=True)
+    return cert, lp, cp, ks, kid
+
+
+def test_post_issuance_evidence_cannot_flip_a_verdict(tmp_path):
+    """D20: replay scope is the anchored prefix, not the whole ledger.
+
+    The replay reads evidence.recorded and claim.registered. Both were
+    unscoped until D20 — the claim dict comprehension also OVERWRITES an
+    earlier claim when a claim_id repeats. An attacker with ledger write
+    access appends a W1a SUPPORTS item after the checkpoint; the ladder
+    gives W1a absolute priority, so an INCONCLUSIVE claim becomes
+    VERIFIED and the certificate stops matching its own replay
+    (detection) — or, worse, with a cooperating issuer the forged
+    verdict is what the cert claims (silent acceptance). The guard makes
+    the post-issuance entry invisible, so the replay sees exactly the
+    in-prefix state the anchor pins.
+    """
+    cert, ledger_path, cert_path, ks, kid = _run_inconclusive(tmp_path)
+    assert verify_certificate(ledger_path, cert_path)["valid"]
+
+    led = Ledger.load(ledger_path)
+    cp_seq = cert["ledger_anchor"]["checkpoint_seq"]
+    cid = cert["claims"][0]["claim_id"]
+    attack = EvidenceItem(
+        evidence_id="veridict-evidence-v1-" + sha256_hex("d20-atk")[:24],
+        claim_id=cid, evidence_class="TEST_EXECUTION", tier="W1a",
+        producer={"kind": "verifier", "identity": "atk", "version": "1",
+                  "family": "f1"},
+        artifact_ref="d20",
+        reproducibility={"deterministic": True, "rerun_recipe": {"cmd": ["true"]}},
+        stance="SUPPORTS", confidence=1.0, rationale="attacker pass")
+    led.append("evidence.recorded",
+               ActorRef(kind="verifier", identity="atk", version="1"), attack.to_dict())
+    poisoned = str(tmp_path / "poisoned.jsonl")
+    led.save(poisoned)
+    assert led.entries[-1]["seq"] > cp_seq, "test premise: entry is post-checkpoint"
+
+    r = verify_certificate(poisoned, cert_path)
+    assert r["valid"], "guard must keep an honest cert valid under injection"
+    assert r["verdicts_match"], "the injected evidence must not reach the replay"
+
+    # same injection must also not let a FORGED cert through: craft a cert
+    # whose verdict says VERIFIED, matching what the unguarded replay yields,
+    # and re-sign it properly so only the replay scope can catch it
+    forged = json.loads(open(cert_path).read())
+    forged["claims"][0]["verdict_value"] = "VERIFIED"
+    body = dict(forged)
+    body.pop("signatures", [])
+    forged["signatures"] = [{
+        "key_id": kid, "algorithm": "ed25519",
+        "sig_b64": ks.sign(kid, canonical_json(body).encode("utf-8"))}]
+    fp = str(tmp_path / "forged.json")
+    json.dump(forged, open(fp, "w"), indent=2, sort_keys=True)
+    rf = verify_certificate(poisoned, fp)
+    assert not rf["valid"], "forged VERIFIED verdict must not verify"
+    assert any("verdict mismatch" in e for e in rf["errors"]), \
+        "rejection must come from the replay, not a side channel"

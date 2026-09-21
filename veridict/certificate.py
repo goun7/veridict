@@ -207,8 +207,22 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
                           f" policy_ref.mode={pr.get('mode')} — the mode is "
                           f"stored twice and the two copies disagree")
             verdicts_match = False
+        # Replay scope (D20): every entry the replay trusts must come from
+        # INSIDE the anchored prefix (seq <= checkpoint). The cert's signed
+        # anchor pins that prefix's chain_hash, so pre-issuance entries are
+        # tamper-evident; a post-issuance entry is outside the pin and must
+        # not reach the replay. Measured before this fix: an attacker with
+        # ledger write access appends either (a) a claim.registered with a
+        # claim_id the cert already names — the dict comprehension below
+        # OVERWRITES the real claim with the attacker's text while the cert
+        # still verifies valid — or (b) an evidence.recorded SUPPORTS item,
+        # which flips a refuted/inconclusive verdict to VERIFIED. Both are
+        # the same class as the D19 policy.decision gap: an unscoped query.
+        # cp_seq is int-checked by the anchor gate above; when it is not,
+        # the cert is already rejected, so this only narrows a good anchor.
+        in_prefix = (lambda e: isinstance(cp_seq, int) and e["seq"] <= cp_seq)
         claims_by_id = {e["payload"]["claim_id"]: Claim.from_dict(e["payload"])
-                        for e in led.query("claim.registered")}
+                        for e in led.query("claim.registered") if in_prefix(e)}
         ev_by_claim: dict[str, list[EvidenceItem]] = {}
         # Deliberation parity (§4.4.3): when a claim went through a revision
         # round, the deliberation.rounded entry names the SUPERSEDED first-round
@@ -227,12 +241,12 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
                 superseded.update(x["evidence_id"]
                                   for x in e["payload"].get("first_round", []))
         for e in led.query("evidence.recorded"):
-            if e["payload"]["evidence_id"] in superseded:
+            if not in_prefix(e) or e["payload"]["evidence_id"] in superseded:
                 continue
             ev_by_claim.setdefault(e["payload"]["claim_id"], []).append(
                 EvidenceItem.from_dict(e["payload"]))
         known_evidence_ids = {e["payload"]["evidence_id"]
-                              for e in led.query("evidence.recorded")}
+                              for e in led.query("evidence.recorded") if in_prefix(e)}
         for c in cert["claims"]:
             claim = claims_by_id.get(c["claim_id"])
             if claim is None:
