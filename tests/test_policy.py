@@ -163,3 +163,61 @@ def test_fail_closed_survives_the_d15_second_half(tmp_path):
                      dec, ActorRef(kind="system", identity="a", version="1"))
     assert r.per_claim["top"]["value"] == "REFUTED"
     assert r.blocked, "a refuted top-level claim must still block the gate"
+
+
+def test_evidence_from_a_foreign_artifact_cannot_verify_a_claim():
+    """Audit F7: the ladder never inspected artifact_ref, so evidence produced
+    against artifact Y could verify a claim derived from artifact X. Both live
+    in the same evidence pool whenever the pool is assembled from a shared
+    source or a federated ledger — watcher_stream materializes remote evidence
+    with no artifact check — so this is reachable, not hypothetical.
+
+    Verdicts must be computed on bound evidence only. Exclusion is fail-closed:
+    the claim loses the borrowed proof and lands in the R4 fail-safe rather
+    than passing on it, and the exclusion is surfaced as a flag because a
+    silent one would hide a misbound pool behind a verdict computed on less
+    evidence than the caller believes it had.
+    """
+    dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1/3)
+    claim = Claim(claim_id="c1", task_id="t", subject="s", predicate="p",
+                  scope="r", summary="x", derived_from="sha256-of-artifact-X",
+                  verifiability="MIXED", falsifiable_by=("test_execution",),
+                  critical_class="payments")
+    foreign = EvidenceItem(evidence_id="e-foreign", claim_id="c1",
+                           evidence_class="TEST_EXECUTION", tier="W1a",
+                           producer={"kind": "verifier", "identity": "v",
+                                     "version": "0.1.0"},
+                           artifact_ref="sha256-of-artifact-Y",
+                           reproducibility={"deterministic": True,
+                           "rerun_recipe": {"cmd": ["pytest"]}},
+                           stance="SUPPORTS", confidence=1.0)
+    oc = PolicyEngine(Ledger()).apply([claim], {"c1": [foreign]}, dec,
+                   ActorRef(kind="system", identity="a", version="1"))
+    assert oc.per_claim["c1"]["value"] == "INCONCLUSIVE", \
+        "a claim cannot be VERIFIED on evidence from a different artifact"
+    assert oc.blocked, "an INCONCLUSIVE claim must not silently pass"
+    assert any("evidence-artifact-mismatch" in f for f in oc.flags), \
+        "the excluded evidence must stay visible in the decision record"
+
+
+def test_evidence_from_the_same_artifact_is_unaffected():
+    """F7 negative control: the binding must not reject honest evidence."""
+    dec = PolicyDeclaration(policy_id="p1", mode="HYBRID", criticality=(),
+                            thresholds=Thresholds(), divergence_tolerance=1/3)
+    claim = Claim(claim_id="c1", task_id="t", subject="s", predicate="p",
+                  scope="r", summary="x", derived_from="sha256-of-artifact-X",
+                  verifiability="MIXED", falsifiable_by=("test_execution",),
+                  critical_class="payments")
+    ev = EvidenceItem(evidence_id="e-bound", claim_id="c1",
+                      evidence_class="TEST_EXECUTION", tier="W1a",
+                      producer={"kind": "verifier", "identity": "v",
+                                "version": "0.1.0"},
+                      artifact_ref="sha256-of-artifact-X",
+                      reproducibility={"deterministic": True,
+                      "rerun_recipe": {"cmd": ["pytest"]}},
+                      stance="SUPPORTS", confidence=1.0)
+    oc = PolicyEngine(Ledger()).apply([claim], {"c1": [ev]}, dec,
+                   ActorRef(kind="system", identity="a", version="1"))
+    assert oc.per_claim["c1"]["value"] == "VERIFIED"
+    assert not any("evidence-artifact-mismatch" in f for f in oc.flags)

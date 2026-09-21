@@ -80,9 +80,18 @@ class PolicyEngine:
               declaration: PolicyDeclaration, actor: ActorRef) -> AuditOutcome:
         if declaration.mode not in MODES:
             raise ValueError(f"unknown mode: {declaration.mode}")
+        self._mismatched: list = []
+        # Coverage must count only evidence bound to the artifact the claim is
+        # about (audit F7), or a shared evidence pool inflates coverage from a
+        # repo the claim never touched.
+        def bound_ev(claim: Claim) -> list:
+            ev = evidence_by_claim.get(claim.claim_id, [])
+            if claim.derived_from is None:
+                return ev
+            return [e for e in ev if e.artifact_ref == claim.derived_from]
         mc = [c for c in claims if c.verifiability == "MACHINE_CHECKABLE"]
-        covered = [c for c in mc if any(e.tier in ("W1a", "W1b")
-                                        for e in evidence_by_claim.get(c.claim_id, []))]
+        covered = [c for c in mc
+                   if any(e.tier in ("W1a", "W1b") for e in bound_ev(c))]
         coverage = (len(covered) / len(mc)) if mc else 1.0
         flags: list[str] = []
         # Per-claim verdicts are computed ONCE and reused for the blocking rule;
@@ -90,6 +99,13 @@ class PolicyEngine:
         # full flag set (divergence-split is a first-class flag).
         per_claim = {c.claim_id: self._per_claim(c, evidence_by_claim, declaration)
                      for c in claims}
+        # Evidence that did not belong to the claim's artifact was excluded
+        # before adjudication (F7). Surface it: silent exclusion would hide a
+        # misbound pool behind a verdict computed on less evidence than the
+        # caller believes it had. Advisory everywhere — the verdict itself is
+        # already honest, since the ladder saw only bound evidence.
+        for cid, eid, _ref in self._mismatched:
+            flags.append(f"evidence-artifact-mismatch:{cid}:{eid}")
         if coverage < declaration.thresholds.min_w1_coverage:
             flags.append("coverage-below-threshold")
         for cid, per in per_claim.items():
@@ -186,8 +202,27 @@ class PolicyEngine:
                             policy_id=declaration.policy_id, policy_digest=digest)
 
     def _per_claim(self, claim: Claim, evidence_by_claim: dict, declaration: PolicyDeclaration) -> dict:
-        """Ladder-driven per-claim verdict (adjudicate duck-types the declaration)."""
+        """Ladder-driven per-claim verdict (adjudicate duck-types the declaration).
+
+        Evidence is bound to the artifact it was produced against. The ladder
+        never inspects artifact_ref/derived_from (audit F7), so without this
+        check evidence from repo Y verifies a claim about repo X wherever the
+        evidence pool is assembled from a shared source or a federated ledger
+        — watcher_stream materializes remote evidence with no artifact check.
+        Excluding the mismatched item is fail-closed: the claim then has less
+        evidence, never more, and a claim left with none lands in the R4
+        fail-safe rather than passing on borrowed proof.
+        """
         ev = evidence_by_claim.get(claim.claim_id, [])
+        if claim.derived_from is not None:
+            bound = []
+            for e in ev:
+                if e.artifact_ref == claim.derived_from:
+                    bound.append(e)
+                else:
+                    self._mismatched.append((claim.claim_id, e.evidence_id,
+                                             e.artifact_ref))
+            ev = bound
         adjudication = adjudicate(claim, ev, declaration)
         return {"value": adjudication.value, "rung": adjudication.rung,
                 "divergence": adjudication.divergence,
