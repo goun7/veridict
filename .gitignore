@@ -16,8 +16,10 @@ dogfood_index.json
 # unrelated tool artifacts
 .freebuff/
 
-# local dev hooks
-scripts/git_hooks/
+# local dev hooks — the guard itself ships (it carries the D21 receipt
+# check, erratum D21), only machine-local activation state stays out
+scripts/git_hooks/*.local
+scripts/git_hooks/setup*
 
 # Lean build cache
 proofs/ladder/.lake
