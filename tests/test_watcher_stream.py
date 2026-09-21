@@ -100,7 +100,7 @@ def test_stream_verdicts_and_flags_match_batch(tmp_path):
             artifact_ref="dg-1",
             reproducibility={"deterministic": False, "rerun_recipe": None},
             stance="SUPPORTS", confidence=0.8, rationale="looks fine")
-        led.append("evidence.recordsup", AUTHOR, item.to_dict())  # placeholder
+        led.append("evidence.recorded", AUTHOR, item.to_dict())  # SPLIT SUPPORTS counterpart
 
     lp = str(tmp_path / "led.jsonl")
     led.save(lp)
