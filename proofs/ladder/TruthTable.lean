@@ -13,7 +13,7 @@
   trust placement: the proofs below use `native_decide` (kernel-trusted
   compiled evaluation, as disclosed in Ladder.lean's header); the general
   invariant theorems do not rely on this file.
-  ladder.py sha256 : e2c6f7dc526373111936e299145a2dcef8e200c30b56fef4c168a466083ad472
+  ladder.py sha256 : 510171759e5ca40ab616ab39588dc90e4d29d9b78c3244409828aa6c45c11010
   truth-table sha256: 95866476ba854a28584b3044c869525006cf6b9aceaa8e3a8beb80886dafd6ad
   rows: 28080
 -/

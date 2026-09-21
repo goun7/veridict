@@ -12,7 +12,7 @@
     "I8 determinism": "PASS",
     "I9 domain-closure": "PASS"
   },
-  "ladder_source_sha256": "e2c6f7dc526373111936e299145a2dcef8e200c30b56fef4c168a466083ad472",
+  "ladder_source_sha256": "510171759e5ca40ab616ab39588dc90e4d29d9b78c3244409828aa6c45c11010",
   "method": "bounded-exhaustive enumeration of the full finite adjudication-ladder input space (evidence sequences of length <= 3 over 4 tiers x 2 stances x all claim/policy/deliberation dimensions); no theorem prover claimed \u2014 that would be Lean's job (issue #8 stays open for the unbounded/general proof)",
   "outcome_distribution": {
     "ESCALATED": 384,
@@ -22,8 +22,8 @@
   },
   "receipt": "veridict-ladder-bounded-verification-1",
   "reproduce": "python3 scripts/verify_ladder.py  # deterministic; same table digest",
-  "seconds": 1.389,
+  "seconds": 2.584,
   "total_cases": 28080,
   "truth_table_sha256": "95866476ba854a28584b3044c869525006cf6b9aceaa8e3a8beb80886dafd6ad",
-  "verified_at": "2026-09-20T01:45:37Z"
+  "verified_at": "2026-09-21T08:58:08Z"
 }
