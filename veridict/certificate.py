@@ -121,13 +121,23 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
         errors.append(f"chain: {chain_msg}")
 
     # Signature over the unsigned body, verified against the enrolled key.
+    # The key.enrolled lookup is scoped to the anchored prefix (seq <= cp_seq):
+    # a key enrolled AFTER the checkpoint can re-sign an unchanged body and
+    # would otherwise produce signature_valid=true, and a relying party cannot
+    # tell an issuer-time signature from a later rogue key's. Append-only means
+    # next() still takes the original enrollment for an honest key; the guard
+    # only forbids time travel.
     body = dict(cert)
     sigs = body.pop("signatures", [])
+    anchor = cert.get("ledger_anchor", {})
+    cp_seq_raw = anchor.get("checkpoint_seq")
+    cp_seq = cp_seq_raw if isinstance(cp_seq_raw, int) else None
     sig_ok = False
     for s in sigs:
         pub_pem = next((e["payload"]["public_pem"]
                         for e in led.query("key.enrolled")
-                        if e["payload"]["key_id"] == s["key_id"]), None)
+                        if e["payload"]["key_id"] == s["key_id"]
+                        and (cp_seq is None or e["seq"] <= cp_seq)), None)
         if pub_pem and KeyStore.verify_signature(
                 pub_pem, canonical_json(body).encode("utf-8"), s["sig_b64"]):
             sig_ok = True
@@ -136,11 +146,26 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
         errors.append("signature: no enrolled key verifies the certificate body")
 
     # Anchor check: the checkpoint entry must exist and match the cert anchor.
+    # The pinned chain_hash is compared against the REAL chain, not the
+    # checkpoint entry's self-attested payload. Comparing payload to payload
+    # is a no-op when an attacker with ledger write access rewrites the pinned
+    # prefix and recomputes every hash — the checkpoint's stored chain_hash is
+    # just more attacker-controlled bytes in the same file. The entry at
+    # cp_seq - 1 is the last entry the checkpoint covered, and its recomputed
+    # entry_hash IS the chain_hash a honest issue() pinned (certificate.py:97
+    # sets chain_hash = entries[-1].entry_hash at append time). Binding it here
+    # makes the prefix tamper-evident rather than tamper-visible.
     anchor = cert.get("ledger_anchor", {})
     cp_seq = anchor.get("checkpoint_seq")
-    if not isinstance(cp_seq, int) or cp_seq >= len(led.entries) or \
-            led.entries[cp_seq]["entry_type"] != "checkpoint.anchored" or \
-            led.entries[cp_seq]["payload"]["chain_hash"] != anchor.get("chain_hash"):
+    anchor_ok = False
+    if isinstance(cp_seq, int) and cp_seq >= 1 and cp_seq < len(led.entries):
+        if led.entries[cp_seq]["entry_type"] == "checkpoint.anchored":
+            prev_hash = led.entries[cp_seq - 1]["entry_hash"]
+            anchor_ok = (
+                prev_hash == anchor.get("chain_hash")
+                and led.entries[cp_seq]["payload"].get("chain_hash")
+                == anchor.get("chain_hash"))
+    if not anchor_ok:
         errors.append("anchor: checkpoint does not match ledger")
 
     # Issuance check: the ledger must contain the certificate.issued entry the

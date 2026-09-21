@@ -18,8 +18,17 @@ IGNORED_DIRS = frozenset({".git", "__pycache__", "node_modules",
 
 
 def canonical_json(obj: Any) -> str:
-    """Deterministic JSON: sorted keys, no whitespace, ASCII-escaped."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    """Deterministic JSON: sorted keys, no whitespace, ASCII-escaped.
+
+    allow_nan=False: NaN/Infinity/−Infinity are not RFC 8259 JSON. They used
+    to serialize to the bare literals `NaN`/`Infinity`, so a payload
+    containing them verified fine in Python yet broke every cross-parser
+    consumer of the exported ledger — a data-poisoning and interop break
+    that left the chain internally consistent. Now they are rejected at the
+    producer boundary rather than silently written.
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True, allow_nan=False)
 
 
 def sha256_hex(s: str | bytes) -> str:
