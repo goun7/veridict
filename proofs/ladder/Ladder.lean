@@ -99,7 +99,7 @@ structure Out where
     explicit Bool — the decidable shape the general theorems run on.
     `metaOn` abstracts `1 ≤ budget`. -/
 def adjudicateCore (machine crit polCrit metaOn frs : Bool) (div : Div)
-    (empty anyRef hasW1a w1aSup w1aAll w1aRef w1bRef w2pRef w2pAll hasW2 : Bool) : Out :=
+    (empty anyRef hasW1a w1aSup w1aAll w1aRef w1bRef w1bSup w2pRef w2pAll hasW2 : Bool) : Out :=
   let meta1 : List Nat := if metaOn then [1] else []
   if empty then
     ⟨.inconclusive, div, .r4, frs, []⟩
@@ -115,6 +115,16 @@ def adjudicateCore (machine crit polCrit metaOn frs : Bool) (div : Div)
     ⟨.escalated, div, .r3, frs, []⟩
   else if hasW2 then
     if div == .split then ⟨.inconclusive, div, .r4, frs, []⟩
+    /- Erratum D14 (§5.3 rule 1): W1b deterministic static truth outranks W2
+       doctrine. A W1b SUPPORT cannot be overturned into REFUTED by a juror's
+       disagreement — the real-LLM canary measured 3B models REFUTE claims
+       they cannot evidence, and letting that dissent decide produced false
+       positives on clean code. W1b support keeps the claim VERIFIED; the
+       dissent stays visible in the divergence field rather than promoted
+       into the verdict. Without this clause the model and ladder.py disagree
+       on one of the 28080 recorded cases and the truth-table build fails
+       (D21) — the formal core silently described the pre-D14 ladder. -/
+    else if w1bSup then ⟨.verified, div, .r4, frs, []⟩
     else ⟨if w2pAll then .verified else .refuted, div, .r4, frs, []⟩
   else
     ⟨.inconclusive, div, .r4, frs, []⟩
@@ -127,7 +137,8 @@ def adjudicate (machine crit polCrit : Bool) (budget : Nat) (frs : Bool)
     (e : List Ev) : Out :=
   adjudicateCore machine crit polCrit (decide (1 ≤ budget)) frs (divergence e)
     (emptyB e) (refutesIn e) (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e))
-    (refutesIn (w1a e)) (refutesIn (w1b e)) (refutesIn (w2plus e))
+    (refutesIn (w1a e)) (refutesIn (w1b e)) (supportsIn (w1b e))
+    (refutesIn (w2plus e))
     (allSupport (w2plus e)) (e.any (fun x => x.1 == .w2))
 
 /-! ## Linking lemmas: Bool flags ↔ lists -/
@@ -202,18 +213,19 @@ theorem I2_no_silent_pass (machine crit polCrit : Bool) (budget : Nat) (frs : Bo
     (e : List Ev) (h : (adjudicate machine crit polCrit budget frs e).value = .verified) :
     w1a e ≠ [] ∨ ∃ x ∈ e, x.1 == .w2 := by
   have key : ∀ (m c p mo f : Bool) (d : Div)
-      (emp anyRef hA sup al ref b w2r w2a w2 : Bool),
+      (emp anyRef hA sup al ref b supB w2r w2a w2 : Bool),
       (sup = true → hA = true) →
-      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b w2r w2a w2).value =
+      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2).value =
         .verified →
       hA = true ∨ w2 = true := by
-    intro m c p mo f d emp anyRef hA sup al ref b w2r w2a w2 link hv
+    intro m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2 link hv
     cases d <;>
-      revert m c p mo f emp anyRef hA sup al ref b w2r w2a w2 link hv <;> decide
+      revert m c p mo f emp anyRef hA sup al ref b supB w2r w2a w2 link hv <;> decide
   obtain (hA | hw2) :=
     key machine crit polCrit (decide (1 ≤ budget)) frs (divergence e) (emptyB e)
       (refutesIn e) (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e)) (refutesIn (w1a e))
-      (refutesIn (w1b e)) (refutesIn (w2plus e)) (allSupport (w2plus e))
+      (refutesIn (w1b e)) (supportsIn (w1b e))
+      (refutesIn (w2plus e)) (allSupport (w2plus e))
       (e.any (fun x => x.1 == .w2))
       (fun hs => supportsIn_imp_has hs) h
   · exact Or.inl (nonemptyB_isNe hA)
@@ -224,12 +236,12 @@ theorem I2_no_silent_pass (machine crit polCrit : Bool) (budget : Nat) (frs : Bo
 theorem I4_w1a_decisive (machine crit polCrit : Bool) (budget : Nat) (frs : Bool)
     (e : List Ev) (h : refutesIn (w1a e) = true) :
     (adjudicate machine crit polCrit budget frs e).value = .refuted := by
-  have key : ∀ (m c p mo f : Bool) (d : Div) (hA sup al b w2r w2a w2 : Bool),
+  have key : ∀ (m c p mo f : Bool) (d : Div) (hA sup al b supB w2r w2a w2 : Bool),
       hA = true →
-      (adjudicateCore m c p mo f d false true hA sup al true b w2r w2a w2).value =
+      (adjudicateCore m c p mo f d false true hA sup al true b supB w2r w2a w2).value =
         .refuted := by
-    intro m c p mo f d hA sup al b w2r w2a w2 ha
-    cases d <;> revert m c p mo f hA sup al b w2r w2a w2 ha <;> decide
+    intro m c p mo f d hA sup al b supB w2r w2a w2 ha
+    cases d <;> revert m c p mo f hA sup al b supB w2r w2a w2 ha <;> decide
   have hA : nonemptyB (w1a e) = true := refutesIn_imp_has h
   have hAny : refutesIn e = true :=
     any_filter_imp_any (l := e) (p := fun x => x.1 == .w1a)
@@ -242,7 +254,8 @@ theorem I4_w1a_decisive (machine crit polCrit : Bool) (budget : Nat) (frs : Bool
   rw [hEmpty, hAny, h]
   exact key machine crit polCrit (decide (1 ≤ budget)) frs (divergence e)
       (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e))
-      (refutesIn (w1b e)) (refutesIn (w2plus e)) (allSupport (w2plus e))
+      (refutesIn (w1b e)) (supportsIn (w1b e))
+      (refutesIn (w2plus e)) (allSupport (w2plus e))
       (e.any (fun x => x.1 == .w2)) hA
 
 /-- I5 — doctrine cannot topple W1a: when every machine receipt supports,
@@ -252,14 +265,14 @@ theorem I5_doctrine_cannot_topple (machine crit polCrit : Bool) (budget : Nat) (
     (e : List Ev) (hs : supportsIn (w1a e) = true) (ha : allSupport (w1a e) = true) :
     (adjudicate machine crit polCrit budget frs e).value ≠ .refuted ∧
     (adjudicate machine crit polCrit budget frs e).value ≠ .escalated := by
-  have key : ∀ (m c p mo f : Bool) (d : Div) (anyRef sup b w2r w2a w2 : Bool),
+  have key : ∀ (m c p mo f : Bool) (d : Div) (anyRef sup b supB w2r w2a w2 : Bool),
       sup = true →
-      (adjudicateCore m c p mo f d false anyRef true sup true false b w2r w2a w2).value ≠
+      (adjudicateCore m c p mo f d false anyRef true sup true false b supB w2r w2a w2).value ≠
         .refuted ∧
-      (adjudicateCore m c p mo f d false anyRef true sup true false b w2r w2a w2).value ≠
+      (adjudicateCore m c p mo f d false anyRef true sup true false b supB w2r w2a w2).value ≠
         .escalated := by
-    intro m c p mo f d anyRef sup b w2r w2a w2 hs
-    cases d <;> revert m c p mo f anyRef sup b w2r w2a w2 hs <;> decide
+    intro m c p mo f d anyRef sup b supB w2r w2a w2 hs
+    cases d <;> revert m c p mo f anyRef sup b supB w2r w2a w2 hs <;> decide
   have hA : nonemptyB (w1a e) = true := supportsIn_imp_has hs
   have hEmpty : emptyB e = false := by
     cases e with
@@ -269,7 +282,7 @@ theorem I5_doctrine_cannot_topple (machine crit polCrit : Bool) (budget : Nat) (
   unfold adjudicate
   rw [hEmpty, hA, ha, href]
   exact key machine crit polCrit (decide (1 ≤ budget)) frs (divergence e)
-      (refutesIn e) (supportsIn (w1a e)) (refutesIn (w1b e))
+      (refutesIn e) (supportsIn (w1a e)) (refutesIn (w1b e)) (supportsIn (w1b e))
       (refutesIn (w2plus e)) (allSupport (w2plus e)) (e.any (fun x => x.1 == .w2))
       hs
 
@@ -281,16 +294,17 @@ theorem I6_escalated_conditions (machine crit polCrit : Bool) (budget : Nat) (fr
     divergence e = .split ∧ crit = true ∧ polCrit = true ∧
     w1a e = [] ∧ refutesIn (w1b e) = false := by
   have key : ∀ (m mo f : Bool) (c p : Bool) (d : Div)
-      (emp anyRef hA sup al ref b w2r w2a w2 : Bool),
-      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b w2r w2a w2).value =
+      (emp anyRef hA sup al ref b supB w2r w2a w2 : Bool),
+      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2).value =
         .escalated →
       d = .split ∧ c = true ∧ p = true ∧ hA = false ∧ b = false := by
-    intro m mo f c p d emp anyRef hA sup al ref b w2r w2a w2 he
-    cases d <;> revert m mo f c p emp anyRef hA sup al ref b w2r w2a w2 he <;> decide
+    intro m mo f c p d emp anyRef hA sup al ref b supB w2r w2a w2 he
+    cases d <;> revert m mo f c p emp anyRef hA sup al ref b supB w2r w2a w2 he <;> decide
   obtain ⟨hd, hc, hp, hA, hb⟩ :=
     key machine (decide (1 ≤ budget)) frs crit polCrit (divergence e) (emptyB e)
       (refutesIn e) (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e)) (refutesIn (w1a e))
-      (refutesIn (w1b e)) (refutesIn (w2plus e)) (allSupport (w2plus e))
+      (refutesIn (w1b e)) (supportsIn (w1b e))
+      (refutesIn (w2plus e)) (allSupport (w2plus e))
       (e.any (fun x => x.1 == .w2)) h
   refine ⟨hd, hc, hp, ?_, hb⟩
   have hA' : nonemptyB (w1a e) = false := hA
@@ -304,15 +318,15 @@ theorem I6_escalated_conditions (machine crit polCrit : Bool) (budget : Nat) (fr
 theorem I7_split_stays_visible (machine crit polCrit : Bool) (budget : Nat) (frs : Bool)
     (e : List Ev) : (adjudicate machine crit polCrit budget frs e).splitNoted = frs := by
   have key : ∀ (m c p mo f : Bool) (d : Div)
-      (emp anyRef hA sup al ref b w2r w2a w2 : Bool),
-      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b w2r w2a w2).splitNoted =
+      (emp anyRef hA sup al ref b supB w2r w2a w2 : Bool),
+      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2).splitNoted =
         f := by
-    intro m c p mo f d emp anyRef hA sup al ref b w2r w2a w2
-    cases d <;> revert m c p mo f emp anyRef hA sup al ref b w2r w2a w2 <;> decide
+    intro m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2
+    cases d <;> revert m c p mo f emp anyRef hA sup al ref b supB w2r w2a w2 <;> decide
   unfold adjudicate
   exact key machine crit polCrit (decide (1 ≤ budget)) frs (divergence e)
     (emptyB e) (refutesIn e) (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e))
-    (refutesIn (w1a e)) (refutesIn (w1b e)) (refutesIn (w2plus e))
+    (refutesIn (w1a e)) (refutesIn (w1b e)) (supportsIn (w1b e)) (refutesIn (w2plus e))
     (allSupport (w2plus e)) (e.any (fun x => x.1 == .w2))
 
 /-- I10 — meta-claim budget honored (§6.1): emitted meta-claims are exactly
@@ -322,17 +336,18 @@ theorem I10_meta_budget (machine crit polCrit : Bool) (budget : Nat) (frs : Bool
     (adjudicate machine crit polCrit budget frs e).metaDepths = [] ∨
     ((adjudicate machine crit polCrit budget frs e).metaDepths = [1] ∧ 1 ≤ budget) := by
   have key : ∀ (m c p f : Bool) (d : Div)
-      (mo emp anyRef hA sup al ref b w2r w2a w2 : Bool),
-      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b w2r w2a w2).metaDepths =
+      (mo emp anyRef hA sup al ref b supB w2r w2a w2 : Bool),
+      (adjudicateCore m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2).metaDepths =
         [] ∨
-      ((adjudicateCore m c p mo f d emp anyRef hA sup al ref b w2r w2a w2).metaDepths =
+      ((adjudicateCore m c p mo f d emp anyRef hA sup al ref b supB w2r w2a w2).metaDepths =
          [1] ∧ mo = true) := by
-    intro m c p f d mo emp anyRef hA sup al ref b w2r w2a w2
-    cases d <;> revert m c p f mo emp anyRef hA sup al ref b w2r w2a w2 <;> decide
+    intro m c p f d mo emp anyRef hA sup al ref b supB w2r w2a w2
+    cases d <;> revert m c p f mo emp anyRef hA sup al ref b supB w2r w2a w2 <;> decide
   obtain (h | ⟨h, hmo⟩) :=
     key machine crit polCrit frs (divergence e) (decide (1 ≤ budget)) (emptyB e)
       (refutesIn e) (nonemptyB (w1a e)) (supportsIn (w1a e)) (allSupport (w1a e)) (refutesIn (w1a e))
-      (refutesIn (w1b e)) (refutesIn (w2plus e)) (allSupport (w2plus e))
+      (refutesIn (w1b e)) (supportsIn (w1b e))
+      (refutesIn (w2plus e)) (allSupport (w2plus e))
       (e.any (fun x => x.1 == .w2))
   · exact Or.inl h
   · exact Or.inr ⟨h, by simpa using hmo⟩
