@@ -123,3 +123,57 @@ def test_rejection_reasons_are_reported_not_silent():
     report = verify_settlement_claim(forged, cert, SettlementPolicy())
     assert report["valid"] is False
     assert report["reasons"], "a refusal must carry reasons"
+
+
+# The external-consumer lane: a bridge in another repo runs
+# scripts/verify_settlement_vector.py (pure stdlib) against our pinned vector
+# and gets a loud PASS/RED — bridge continuity does not depend on our
+# pipeline alone. This is the concrete answer to "who pins the claims
+# contract on the consumer side".
+
+SELFTEST = os.path.join(REPO, "scripts", "verify_settlement_vector.py")
+
+
+def test_external_selftest_passes_on_the_pinned_vector():
+    rc = subprocess.run([sys.executable, SELFTEST, VEC],
+                        capture_output=True, text=True, check=False)
+    assert rc.returncode == 0, rc.stdout + rc.stderr
+    assert rc.stdout.strip().startswith("PASS:"), rc.stdout
+
+
+def test_external_selftest_is_independent_of_veridict():
+    """The consumer script imports nothing from our package — it re-derives
+    the claim from the standard. Agreement with the reference implementation
+    is the real cross-implementation parity check (issue #1's spirit)."""
+    with open(SELFTEST, encoding="utf-8") as f:
+        body = f.read()
+    assert "from veridict" not in body and "import veridict" not in body, \
+        "the consumer selftest must be stdlib-only"
+
+
+def test_external_selftest_fails_loud_on_a_corrupted_vector(tmp_path):
+    """One red line must exit 1 — no silent pass, no partial success."""
+    import shutil
+    shutil.copytree(VEC, tmp_path / "settlement")
+    shutil.copy(CERT_VECTOR, tmp_path / "certificate.json")
+    claim_path = tmp_path / "settlement" / "claim.json"
+    with open(claim_path, encoding="utf-8") as f:
+        claim = json.load(f)
+    claim["accepted_claims"] = 99          # inflate the work done
+    with open(claim_path, "w", encoding="utf-8") as f:
+        json.dump(claim, f, sort_keys=True)
+    rc = subprocess.run([sys.executable, SELFTEST, str(tmp_path / "settlement")],
+                        capture_output=True, text=True, check=False)
+    assert rc.returncode == 1, "a corrupted vector must not pass"
+    assert "RED" in rc.stdout, rc.stdout
+
+
+def test_external_selftest_reports_a_missing_certificate(tmp_path):
+    """A consumer who copies only the settlement directory gets a clear
+    instruction, not a traceback."""
+    import shutil
+    shutil.copytree(VEC, tmp_path / "settlement")
+    rc = subprocess.run([sys.executable, SELFTEST, str(tmp_path / "settlement")],
+                        capture_output=True, text=True, check=False)
+    assert rc.returncode == 1
+    assert "certificate not found" in rc.stdout, rc.stdout
