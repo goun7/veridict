@@ -138,9 +138,20 @@ class PolicyEngine:
             if (c.verifiability == "MACHINE_CHECKABLE"
                     and per_claim[c.claim_id]["value"] == "INCONCLUSIVE"):
                 flags.append(f"inconclusive-unresolved:{c.claim_id}")
+        # Criticality match is on NORMALIZED classes (audit F4): the claim's
+        # critical_class and the declaration's criticality come from different
+        # places — the declaration from the operator's policy file, the claim
+        # from ClaimExtractor over the audited AI's intent — so a bare
+        # 'Payments' vs 'payments' vs ' payments ' would silently miss and the
+        # critical claim would be gated by nothing at all. Strip and lower on
+        # both sides; a class that does not match after that is a real
+        # disagreement, not a formatting one, and the operator should see it
+        # in the claim rather than find it absent from the gate.
+        crit = {c.strip().lower() for c in declaration.criticality}
         critical_bad = any(
             per_claim[c.claim_id]["value"] in ("REFUTED", "ESCALATED", "INCONCLUSIVE")
-            for c in claims if c.critical_class in declaration.criticality)
+            for c in claims
+            if (c.critical_class or "").strip().lower() in crit)
         # Meta-claims are DOCTRINAL coverage questions opened BY the ladder
         # (R1/R2) exactly when a juror has already dissented. Their evidence
         # is that same jury round — no W1 truth backs them. Letting a juror's
