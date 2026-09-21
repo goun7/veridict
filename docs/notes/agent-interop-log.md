@@ -47,3 +47,28 @@ D19'dan bir katman daha derin: replay'i besleyen `claim.registered` ve
 `evidence.recorded` sorguları anchored-prefix ile sınırlı değildi. W1a
 enjeksiyonu INCONCLUSIVE bir kararı VERIFIED'a çeviriyordu. §9.5(c)
 kapatıyor; commit `a1e10ba`; 388/388 test yeşil.
+
+---
+
+## 2026-09-21 — oturum kapanışı (F3-F8 + D21 guard)
+
+Kapatılan bulgular (her biri PoC + fail-before/pass-after testi):
+F3 meta-ness artık structural; F7 artifact_ref bağı; F8 tek-aile flag'i;
+F4 criticality normalize; F5/F6 tolerance ladder'a ulaşıyor + rasyonel
+karşılaştırma; watcher_stream §10.2 paritesi iki-taraflı; D21 guard.
+
+Yan bulgu: test_watcher_stream SUPPORTS karşı-tarafları 'evidence.recordsup'
+typo'suyla ekleniyordu, her iki okuyucu exact string filtrelediği için
+sessizce düşüyordu — SPLIT görünüşte test ediliyordu, edilmiyordu. F8 flag'i
+asimetriyi yakaladı.
+
+Dogfood: 600s smoke assert'i 610.7s ile kırıldı (audit full suite'i cold-cache
+koşturuyor, süre test sayısıyla büyüyor); §6.5'in asıl 30-min sözleşmesiyle
+hizalandırıldı.
+
+RFC-009 cevabı (OUTBOX): şema hizalamasını şimdi hazırlayalım, bağlamayalım.
+F7 RFC-009'un 5. denkleminin zayıf halkasıydı (artık kapalı). Dürüst risk:
+F7 birim testiyle kapatıldı, gerçek çapraz-yapıt senaryosu koşulmadı.
+
+Bekleyen dış işler: Sester A2 bağımsız implementasyonu (issue #1 çıkış
+koşulu) + §9.5(c) D20 parite raporu — mailbox üzerinden istendi, yanıt yok.

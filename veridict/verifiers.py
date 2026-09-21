@@ -20,7 +20,18 @@ EID_SALT = "veridict-evidence-v1"
 
 class TestExecutorVerifier:
     def produce(self, claim: Claim, task: TaskManifest,
-                timeout_seconds: int = 600) -> EvidenceItem | None:
+                timeout_seconds: int = 1800) -> EvidenceItem | None:
+        # The budget matches §6.5's GATE p95 target (30 min). 600s was too
+        # tight for a machine-internal audit: the dogfood audit's verifier
+        # runs the full suite as a NESTED pytest under the outer audit, so
+        # its wall time inherits the outer run's import and collection cost
+        # and moves with the number of tests. When it passed 600s the
+        # verifier timed out, returned None, and the claim lost its only W1a
+        # evidence — coverage fell to 0.5 and the audit blocked on an
+        # abstention, which reads as a genuine finding instead of the
+        # resource failure it was. §6.5 keeps "deadline -> abstain": a
+        # genuinely hung suite still abstains instead of hanging the audit;
+        # this only widens the budget that gets enforced.
         if "test_execution" not in claim.falsifiable_by:
             return None
         cmd = [sys.executable, "-m", "pytest", "-q", "--tb=no",
