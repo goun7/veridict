@@ -10,6 +10,22 @@ from .utils import canonical_json, payload_digest, sha256_hex
 
 GENESIS = "0" * 64
 
+# AT-185-BULGU-2: ts-monotonluk-toleransı ( dağıtık-saat-kayması-için-pencere)
+_TS_SKEW_S = 5.0
+
+
+def _ts_to_epoch(ts) -> float | None:
+    """ISO-8601-timestamp'i-epoch'a-çevir; çözülemezse-None ( atla-RED-değil)."""
+    if not isinstance(ts, str):
+        return None
+    try:
+        d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.timestamp()
+    except Exception:
+        return None
+
 
 class ChainError(Exception):
     pass
@@ -175,6 +191,7 @@ class Ledger:
     def verify_chain(self, expected_height: int | None = None,
                      anchor_hash: str | None = None) -> tuple[bool, str]:
         prev = GENESIS
+        last_ts_s: float | None = None  # AT-185: ts-monotonluk-penceresi
         for i, e in enumerate(self.entries):
             # The producer guarantees seq == position; the readers must too, or
             # every seq-keyed scope (the D20 replay window above) is trust in
@@ -196,6 +213,17 @@ class Ledger:
                 return False, f"entry hash mismatch at seq {e['seq']}"
             if e["prev_hash"] != prev:
                 return False, f"prev_hash mismatch at seq {e['seq']}"
+            # AT-185-BULGU-2-düzeltmesi: ts-monotonluk-KONTROLÜ-YOKTU. seq
+            # sıralamayı taşır-AMA-bütünlük-haricinde-geriye-dönük-üretim
+            # gizleniyordu ( ts-yalnızca-hash-girdisi). TSA-anchor-ve-gözden-
+            # geçirme-pencereleri-için-zaman-sırası-gereklidir; ±5s-ağ-
+            # gecikmesi-toleransı ( eş-ts-de-kabul — beraber-üretim).
+            ts_s = _ts_to_epoch(e["ts"])
+            if ts_s is not None:
+                if last_ts_s is not None and ts_s + _TS_SKEW_S < last_ts_s:
+                    return False, (f"ts non-monotonic at seq {e['seq']}: "
+                                   f"{e['ts']} < previous — AT-185")
+                last_ts_s = ts_s
             prev = e["entry_hash"]
         # A truncated or emptied ledger used to verify "ok" on its own; the
         # signed cert catches it one layer up, but the ledger should not
