@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "name": "veridict-receipt",
+  "display_name": "Veridict Receipts — signed proof-of-done for AI agents",
+  "description": "Issue, verify, revoke and list self-contained signed receipts for agent work. Every receipt carries a content hash anyone can recompute, an ed25519 signature verified against the embedded public key, and a signed issuance timestamp. Verification needs nothing but the receipt file — no ledger, no network, no account.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/goun7/veridict",
+  "repository": "https://github.com/goun7/veridict",
+  "categories": ["security", "developer-tools", "verification"],
+  "transport": "stdio",
+  "install": {
+    "command": "python",
+    "args": ["-m", "veridict_receipt_mcp.server"],
+    "env": {
+      "VERIDICT_HOME": {
+        "description": "Workspace directory holding the append-only ledger and the issuer's local signing key. Defaults to ./.veridict in the server's working directory.",
+        "required": false
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "issue",
+      "description": "Issue a signed receipt for one achievement (the falsifiable statement the receipt certifies)."
+    },
+    {
+      "name": "verify",
+      "description": "Verify a receipt independently, from the receipt alone (content hash + signature + timestamp); with a ledger, also chain, issuance and revocation."
+    },
+    {
+      "name": "revoke",
+      "description": "Append a revocation entry to the issuer's append-only ledger; the receipt file is never modified."
+    },
+    {
+      "name": "list",
+      "description": "List issued receipts newest-first, each annotated with its revocation status."
+    }
+  ],
+  "privacy": {
+    "keys": "The workspace holds one LOCAL ed25519 document-signing key at mode 0600. It is not a blockchain key, touches no payment rail, and only its public half ever appears in a receipt or the ledger.",
+    "network": "None. Verification is offline by design; the server connects to nothing."
+  }
+}

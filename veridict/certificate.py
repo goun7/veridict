@@ -5,6 +5,7 @@ verify_certificate imports core modules ONLY — never jury/verifiers/audit.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from .keys import KeyStore
 from .ladder import adjudicate
@@ -14,6 +15,25 @@ from .schemas import ActorRef, Claim, EvidenceItem, SCHEMA_VERSION
 from .utils import canonical_json, payload_digest, sha256_hex
 
 ADJUDICATOR = ActorRef(kind="adjudicator", identity="veridict-issuer", version="0.1.0")
+
+# A standalone verifier (no ledger) rejects a certificate whose clock reads
+# this far ahead of the verifier's own clock. Large on purpose: it is a
+# sanity bound against a grossly forged ts, not a precision claim — the
+# signed timestamp is provenance, and distributed clock skew is normal.
+_STANDALONE_SKEW_S = 60.0 * 60.0 * 24.0   # 24h
+
+
+def _parse_iso8601(ts) -> datetime | None:
+    """Parse an ISO-8601 string as UTC; None when unparseable (skip, not fail)."""
+    if not isinstance(ts, str):
+        return None
+    try:
+        d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    return d
 
 
 def _risk_level(values: list[str]) -> str:
@@ -88,6 +108,17 @@ class CertificateIssuer:
             "ledger_anchor": {},          # filled after checkpoint below
             "signatures": [],
             "verify_instructions": "veridict verify --ledger <ledger.jsonl> --cert <cert.json>",
+            # Self-containment (the property a third party needs): the signing
+            # key's PUBLIC half and a wall-clock issuance time travel INSIDE
+            # the certificate, both covered by the signature above. Without
+            # them, `veridict verify cert.json` alone cannot check the
+            # signature or the issuance order — it would have to trust the
+            # issuer's say-so, which is exactly the claim-versus-proof gap the
+            # certificate exists to close. The PRIVATE key never leaves the
+            # issuer; only its public verifier does.
+            "public_key": {"key_id": self.key_id, "algorithm": "ed25519",
+                           "public_pem": self.keystore.public_pem(self.key_id)},
+            "issued_at": datetime.now(timezone.utc).isoformat(),
             "scope_limits": ["claim coverage is heuristic, not exhaustive",
                              *scope_limits],
             "issued_at_task": task.task_id,
@@ -343,5 +374,148 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
             errors.append("divergence_summary mismatch — does not follow from "
                           "the claim adjudications")
             verdicts_match = False
+    # Revocation (§6.6 class, applied to certificates): an append-only
+    # certificate.revoked entry naming this cert_id makes the certificate
+    # worthless, and a verifier that ignores it keeps honoring a receipt the
+    # issuer already disavowed. Checked on the WHOLE chain, not the anchored
+    # prefix — revocation is by definition a post-issuance event, so scoping
+    # it to the prefix would make revocation impossible. Any matching entry
+    # wins; the revocation entry itself is chain-protected like every other.
+    revoked = _revocation_status(led, cert.get("cert_id"))
+    if revoked:
+        errors.append(f"revoked: {revoked}")
     return {"valid": not errors, "chain_valid": chain_ok, "signature_valid": sig_ok,
-            "verdicts_match": verdicts_match, "errors": errors}
+            "verdicts_match": verdicts_match, "revoked": bool(revoked),
+            "errors": errors}
+
+
+def _revocation_status(ledger: Ledger, cert_id) -> str | None:
+    """Return the revocation reason if the ledger revokes this cert_id."""
+    if not cert_id:
+        return None
+    for e in ledger.query("certificate.revoked"):
+        if e["payload"].get("cert_id") == cert_id:
+            reason = e["payload"].get("reason", "").strip()
+            return reason or "revoked by issuer (no reason recorded)"
+    return None
+
+
+def revoke_certificate(ledger: Ledger, cert_id: str, reason: str) -> dict:
+    """Append a certificate.revoked entry. Returns the ledger entry.
+
+    Revocation is append-only: the certificate is never rewritten, so its
+    signature stays intact and the revocation is independently auditable in
+    the same chain that issued it. Idempotent in status — revoking an
+    already-revoked cert appends a second entry and keeps the first (the
+    ledger is a log, not a table), but the observable status is unchanged.
+
+    The ledger's own hash chain is the integrity mechanism, so revocation
+    needs no separate signing step: like every other entry, it is bound by
+    the entry_hash of every entry that follows it.
+    """
+    payload = {"cert_id": cert_id, "reason": reason,
+               "revoked_at": datetime.now(timezone.utc).isoformat()}
+    author = ActorRef(kind="system", identity="veridict-issuer", version="0.1.0")
+    return ledger.append("certificate.revoked", author, payload)
+
+
+def verify_certificate_standalone(cert_path: str) -> dict:
+    """Verify a certificate from the file ALONE — no ledger, no network.
+
+    This is the property a third party actually has: someone hands them a
+    certificate, and nothing else. It checks exactly what a self-contained
+    certificate can prove on its own:
+
+      1. the content hash (cert_id) recomputes from the certificate's own
+         subject fields — the binding between the certificate and what it
+         certifies is recomputable by anyone;
+      2. the signature verifies against the public key embedded in the
+         certificate, so the issuer cannot deny having signed this exact
+         body;
+      3. the issuance timestamp is well-formed and not in the future.
+
+    What it deliberately CANNOT check, and says so: verdict replay (needs
+    the ledger's evidence) and revocation (needs the issuer's record). Both
+    are reported as ``unknown`` rather than silently assumed good — the
+    alternative is a verifier that advertises more assurance than the file
+    can deliver, which is the failure mode this whole project exists to
+    prevent. Pass a ledger to verify_certificate for the full replay.
+    """
+    errors: list[str] = []
+    with open(cert_path, encoding="utf-8") as f:
+        cert = json.load(f)
+
+    cert_id = cert.get("cert_id")
+    if not isinstance(cert_id, str) or not cert_id:
+        errors.append("cert_id missing — the certificate names nothing")
+    subject = cert.get("subject", {})
+    if not isinstance(subject, dict):
+        errors.append("subject is not an object")
+        subject = {}
+    # 1. Content hash — recomputable by anyone with the file.
+    expected_id = sha256_hex(
+        f"{subject.get('task_id')}|{subject.get('artifact_digest')}")[:24]
+    if cert_id and cert_id != expected_id:
+        errors.append(
+            f"cert_id mismatch: certificate claims {cert_id!r} but its own "
+            f"subject recomputes to {expected_id!r} — the certificate no "
+            f"longer binds to what it certifies")
+
+    # 2. Signature against the embedded public key.
+    body = dict(cert)
+    sigs = body.pop("signatures", [])
+    embedded = cert.get("public_key", {})
+    if not isinstance(embedded, dict) or not embedded.get("public_pem"):
+        errors.append(
+            "signature: no public key embedded in the certificate — this "
+            "certificate predates embedded keys (or was stripped); the "
+            "signature cannot be checked without the issuer's ledger "
+            "(verify_certificate with --ledger)")
+    elif not isinstance(sigs, list) or not sigs:
+        errors.append("signature: certificate carries no signature")
+    else:
+        pem = embedded["public_pem"]
+        sig_ok = False
+        for s in sigs:
+            if not isinstance(s, dict):
+                continue
+            if KeyStore.verify_signature(pem, canonical_json(body).encode("utf-8"),
+                                         s.get("sig_b64", "")):
+                sig_ok = True
+                break
+        if not sig_ok:
+            errors.append("signature: no signature on this body verifies "
+                          "against the certificate's embedded public key")
+
+    # 3. Timestamp — well-formed and not manufactured in the future.
+    issued_at = cert.get("issued_at")
+    ts_ok = False
+    if not isinstance(issued_at, str):
+        errors.append("timestamp: issued_at missing or not a string")
+    else:
+        parsed = _parse_iso8601(issued_at)
+        if parsed is None:
+            errors.append(f"timestamp: issued_at {issued_at!r} is not ISO-8601")
+        else:
+            ts_ok = True
+            skew = parsed.timestamp() - datetime.now(timezone.utc).timestamp()
+            if skew > _STANDALONE_SKEW_S:
+                errors.append(
+                    f"timestamp: issued_at is {skew / 3600:.1f}h ahead of the "
+                    f"verifier's clock — beyond the {_STANDALONE_SKEW_S / 3600:.0f}h "
+                    f"sanity bound")
+
+    return {
+        "valid": not errors,
+        "standalone": True,
+        "cert_id": cert_id,
+        "signature_valid": not any(e.startswith("signature:") for e in errors),
+        "content_hash_valid": not any(e.startswith("cert_id") for e in errors),
+        "timestamp_valid": ts_ok and not any(
+            e.startswith("timestamp:") for e in errors),
+        "issued_at": issued_at if isinstance(issued_at, str) else None,
+        # Explicitly NOT claimed: these need the issuer's ledger.
+        "verdicts_match": None,
+        "revoked": None,
+        "errors": errors,
+    }

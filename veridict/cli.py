@@ -9,7 +9,8 @@ import sys
 
 from . import anchor
 from .audit import AuditOrchestrator
-from .certificate import verify_certificate
+from .certificate import (revoke_certificate, verify_certificate,
+                          verify_certificate_standalone)
 from .dossier import dossier_for, render_markdown, resolve_dossier
 from .jury import Jury, OpenAICompatProvider, Opinion, ScriptedProvider
 from .keys import KeyStore
@@ -163,18 +164,97 @@ def _cmd_audit(args) -> int:
 
 
 def _cmd_verify(args) -> int:
-    report = verify_certificate(args.ledger, args.cert)
+    cert_path = getattr(args, "cert", None) or getattr(args, "cert_pos", None)
+    if not cert_path:
+        print("veridict: error: a certificate is required (positional or --cert)",
+              file=sys.stderr)
+        return 1
+    if getattr(args, "ledger", None):
+        report = verify_certificate(args.ledger, cert_path)
+    else:
+        # Standalone: the certificate file is the ONLY input. This is the
+        # view a third party actually has — someone hands them a receipt —
+        # and it proves what a self-contained certificate can prove on its
+        # own (content hash, signature, timestamp), reporting the rest as
+        # unknown rather than assumed.
+        report = verify_certificate_standalone(cert_path)
     if getattr(args, "anchor", None):
         from . import anchor as anchor_mod
         with open(args.anchor, encoding="utf-8") as f:
             sidecar = json.load(f)
-        with open(args.cert, encoding="utf-8") as f:
+        with open(cert_path, encoding="utf-8") as f:
             cert = json.load(f)
         a_res = anchor_mod.verify(sidecar, cert)
         report["anchor"] = a_res
         report["valid"] = report["valid"] and a_res["valid"]
     print(json.dumps(report, indent=2))
     return 0 if report["valid"] else 1
+
+
+def _cmd_revoke(args) -> int:
+    led = Ledger.load(args.ledger)
+    with open(args.cert, encoding="utf-8") as f:
+        cert = json.load(f)
+    cert_id = cert.get("cert_id")
+    if not cert_id:
+        print("veridict: error: certificate has no cert_id", file=sys.stderr)
+        return 1
+    entry = revoke_certificate(led, cert_id, args.reason)
+    led.save(args.ledger)
+    print(json.dumps({"revoked": True, "cert_id": cert_id,
+                      "seq": entry["seq"], "reason": args.reason}, indent=2))
+    return 0
+
+
+def _cmd_receipt(args) -> int:
+    """Receipt subcommands: signed proof-of-done for agent work.
+
+    Receipts live in a workspace (a directory with an append-only ledger and
+    the issuer's local signing key). --workspace selects it; the default is
+    $VERIDICT_HOME or ./.veridict."""
+    from .receipt import (ReceiptError, ReceiptWorkspace, issue_receipt,
+                          list_receipts, revoke_receipt, verify_receipt)
+    ws = ReceiptWorkspace.resolve(getattr(args, "workspace", None))
+    action = args.action
+    if action == "issue":
+        try:
+            receipt = issue_receipt(
+                ws, args.achievement, args.actor, evidence=args.evidence or [],
+                issuer_identity=args.issuer)
+        except ReceiptError as exc:
+            print(f"veridict: error: {exc}", file=sys.stderr)
+            return 1
+        out = args.out or os.path.join(ws.home, "receipts",
+                                       receipt["cert_id"] + ".json")
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(receipt, f, indent=2, sort_keys=True)
+        print(json.dumps({"issued": True, "cert_id": receipt["cert_id"],
+                          "receipt_path": out,
+                          "verify": f"veridict verify {out}"}, indent=2))
+        return 0
+    if action == "verify":
+        report = verify_receipt(args.cert, getattr(args, "ledger", None))
+        print(json.dumps(report, indent=2))
+        return 0 if report["valid"] else 1
+    if action == "revoke":
+        try:
+            res = revoke_receipt(ws, args.cert_id, args.reason,
+                                 issuer_identity=getattr(args, "issuer",
+                                                         "veridict-receipt"))
+        except ReceiptError as exc:
+            print(f"veridict: error: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps({"revoked": True, **res}, indent=2))
+        return 0
+    if action == "list":
+        rows = list_receipts(ws, include_revoked=not args.active_only,
+                             limit=args.limit)
+        print(json.dumps({"workspace": ws.home, "count": len(rows),
+                          "receipts": rows}, indent=2))
+        return 0
+    print(f"veridict: error: unknown receipt action {action!r}", file=sys.stderr)
+    return 1
 
 
 def _cmd_anchor(args) -> int:
@@ -507,12 +587,61 @@ def main(argv=None) -> int:
     r.add_argument("--key-file", help="register/revoke: private key file from init")
     r.add_argument("--out")
     r.set_defaults(func=_cmd_registry)
-    v = sub.add_parser("verify")
-    v.add_argument("--ledger", required=True)
-    v.add_argument("--cert", required=True)
+    v = sub.add_parser(
+        "verify",
+        help="verify a certificate. Standalone (positional cert, no ledger) "
+             "checks content hash + signature + timestamp from the file "
+             "alone; with --ledger it also replays verdicts and checks "
+             "revocation")
+    v.add_argument("cert_pos", nargs="?", metavar="CERT",
+                   help="certificate JSON — positional form, standalone: "
+                        "`veridict verify cert.json` needs nothing else")
+    v.add_argument("--ledger",
+                   help="issuer's ledger: enables full verdict replay and "
+                        "revocation checking (omitting it gives standalone "
+                        "verification, which reports those as unknown)")
+    v.add_argument("--cert", help="certificate JSON (alternative to the "
+                                  "positional form)")
     v.add_argument("--anchor", help="also verify an external anchor sidecar "
                                     "(transparency-log receipt) against the cert")
     v.set_defaults(func=_cmd_verify)
+    rk = sub.add_parser(
+        "revoke",
+        help="append a certificate.revoked entry to the ledger — the "
+             "certificate file is never modified, so its signature stays "
+             "intact and the revocation is auditable in the same chain")
+    rk.add_argument("--ledger", required=True)
+    rk.add_argument("--cert", required=True, help="certificate JSON to revoke")
+    rk.add_argument("--reason", default="")
+    rk.set_defaults(func=_cmd_revoke)
+    rec = sub.add_parser(
+        "receipt",
+        help="signed proof-of-done for agent work: issue / verify / revoke / "
+             "list. A receipt is a self-contained signed document whose "
+             "content hash and signature anyone can recompute from the file "
+             "alone (veridict verify <receipt.json>)")
+    rec.add_argument("action", choices=("issue", "verify", "revoke", "list"))
+    rec.add_argument("--workspace", help="workspace dir (ledger + issuer key); "
+                                          "default $VERIDICT_HOME or ./.veridict")
+    rec.add_argument("--achievement", help="issue: the falsifiable statement the "
+                                           "receipt certifies")
+    rec.add_argument("--actor", default="", help="issue: identity of the agent "
+                                                  "that did the work")
+    rec.add_argument("--evidence", action="append", default=[],
+                     help="issue: a ground the issuer relied on (repeatable)")
+    rec.add_argument("--issuer", default="veridict-receipt",
+                     help="issue/revoke: issuer identity")
+    rec.add_argument("--cert", help="verify: the receipt JSON")
+    rec.add_argument("--cert-id", help="revoke: the cert_id to revoke")
+    rec.add_argument("--reason", default="", help="revoke: why (recorded in "
+                                                   "the chain, human-readable)")
+    rec.add_argument("--ledger", help="verify: the issuer's ledger, enabling "
+                                      "chain + revocation checks")
+    rec.add_argument("--out", help="issue: where to write the receipt JSON")
+    rec.add_argument("--limit", type=int, default=100, help="list: max rows")
+    rec.add_argument("--active-only", action="store_true",
+                     help="list: omit revoked receipts")
+    rec.set_defaults(func=_cmd_receipt)
     q = sub.add_parser("quality-sheet")
     q.add_argument("--corpus", required=True)
     q.add_argument("--out", required=True)
