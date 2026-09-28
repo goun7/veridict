@@ -20,6 +20,42 @@ role is not *code reviewer* but **risk owner**. Veridict is built around that
 transformation — the machine owns the verdict of intelligence, the human owns
 the verdict of responsibility.
 
+## In 30 seconds
+
+An agent says it did the work — deployed, paid, refactored, passed. "It says
+so" is a **claim**. Veridict turns it into **proof**: a signed certificate
+whose content hash, signature and timestamp **anyone can recompute from the
+file alone** — no ledger, no network, no account, no trust in the auditor.
+
+```bash
+pip install veridict-standard
+
+# an agent issues a signed receipt for completed work
+export VERIDICT_HOME=$PWD/.veridict
+veridict receipt issue --achievement "deployed api v2 to staging" \
+  --actor agent-7 --evidence "gh run 8812 passed"
+
+# the other side verifies it — independently, from the file alone
+veridict verify .veridict/receipts/<cert_id>.json
+# → {"valid": true, "signature_valid": true, "content_hash_valid": true, ...}
+
+# tampering breaks it: one bit in the body breaks the signature,
+# one digit in cert_id breaks the content hash; revocation is an
+# append-only ledger entry, never a rewrite
+```
+
+Two document kinds, one verifier:
+
+- **Receipts** (`veridict receipt`) — signed *proof-of-done* for one
+  achievement: the smallest unit a counterparty actually needs. Exposed to
+  agents over MCP (`mcp/`): `issue` / `verify` / `revoke` / `list`.
+- **Audit certificates** (`veridict audit`) — a full adjudication over a
+  machine-verifiable evidence ladder (tests, static analysis, a blind
+  heterogeneous jury, watchers), replayable offline against the ledger.
+
+Both are append-only, hash-chained, and fail closed: no evidence →
+INCONCLUSIVE, never a clean bill.
+
 ## Why an audit ledger
 
 - **No silent passes.** No evidence → INCONCLUSIVE, flagged — never a clean bill.
@@ -48,6 +84,15 @@ python scripts/dogfood.py
 # ledger + cert ship as release assets: gh release download --latest
 veridict verify --ledger dogfood_ledger.jsonl --cert dogfood_cert.json
 
+# or verify ANY certificate from the file alone — no ledger needed
+# (the cert embeds the signer's public key and a signed timestamp)
+veridict verify dogfood_cert.json
+
+# issue a signed proof-of-done receipt for one achievement, and list them
+export VERIDICT_HOME=$PWD/.veridict
+veridict receipt issue --achievement "cut release v1.1" --actor agent-7
+veridict receipt list
+
 # your own repo, three commands: see "Audit your own repo" below
 
 # regenerate the standard's conformance test vectors (deterministic)
@@ -69,9 +114,10 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 376 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 428 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
+| Standalone verification | receipt/cert verified from the **file alone** — content hash + signature + signed timestamp; 32 tests cover issue/verify/revoke/list, tamper, custody and the MCP protocol surface |
 | Canary (scripted jury) | 23 catches / 3 honest misses / 0 false positives across 26 defect classes — measures a hand-authored refutation table, **not model capability**; labeled as such |
 | Canary (real LLM, lower bound) | **2/25** classes caught, **0 false positives**, by local qwen2.5:3b + llama3.2:3b — the audit's end-to-end catch rate; the earlier 23/25 figure was inflated by a metric bug that counted coverage-meta-claim refusals as findings; sheets in `docs/notes/` |
 | Judgment sonde (model, decoupled from the ladder) | **42/48** correct refutations of defective artifacts by the same 3B jurors (23/24 + 19/24), but **2/4 false refutations on clean code** — the model sees most of the defects; §5.3 rule 2 keeps those refutations from turning a W1a-supported verdict, and the false-refutation rate is the measured justification for that rule |
@@ -178,9 +224,45 @@ composite steps:
           intent: "DOCTRINE: ..."
 ```
 
+## Receipts for agent work (proof-of-done)
+
+An audit certificate is the heavy instrument — evidence ladder, jury,
+watchers. Most of the time a counterparty needs the light one: *did the
+agent do the thing it said it did, and can I check it myself?* That is a
+receipt.
+
+```bash
+export VERIDICT_HOME=$PWD/.veridict     # workspace: ledger + issuer key
+
+# issue: achievement + grounds -> signed, self-contained receipt
+veridict receipt issue --achievement "paid invoice 1042" \
+  --actor agent-pay --evidence "bank confirmation tx 77f3"
+
+# verify standalone (file alone) or fully (with the issuer's ledger)
+veridict verify $PWD/.veridict/receipts/<cert_id>.json
+veridict receipt verify --cert .veridict/receipts/<cert_id>.json \
+  --ledger .veridict/ledger.jsonl
+
+# revoke (append-only: the receipt file is never modified) and list
+veridict receipt revoke --cert-id <cert_id> --reason "chargeback case 91"
+veridict receipt list --active-only
+```
+
+Every receipt carries a `content_digest` recomputable from its own fields,
+an Ed25519 signature over the canonical body verified against the public key
+**embedded in the receipt**, and an `issued_at` inside the signed body. The
+issuer's private key stays local (mode 0600, never emitted); only its public
+half ships. Revocation appends a `receipt.revoked` entry to the same
+hash-chained ledger that issued it — the signature stays intact and the
+disavowal stays auditable. See [`mcp/README.md`](mcp/README.md) for the
+agent-facing surface and [`docs/arastirma/`](docs/arastirma/README.md) for
+the academic map of the proof gap this closes.
+
 ## From certificate to settlement
 
 A certificate proves what happened. It does not by itself authorize
+payment — a settlement layer still has to decide whether *this* verified
+work qualifies, and that decision has to fail closed on its own.
 payment — a settlement layer still has to decide whether *this* verified
 work qualifies, and that decision has to fail closed on its own.
 `veridict settle` is that boundary:
@@ -257,6 +339,9 @@ better one."* — is on [dev.to](https://dev.to/goun7/agents-already-found-their
 - **Design document (founding paper):** [`docs/specs/2026-09-09-veridict-design.md`](docs/specs/2026-09-09-veridict-design.md)
 - **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — module map to standard sections
 - **Commercial model:** [`docs/commercial-model.md`](docs/commercial-model.md) — open-core model, growth levers, anti-corruption guardrails
+- **Landing page prep:** [`docs/landing.md`](docs/landing.md) — 30-second pitch, feature map, tiered pricing ($29–99/mo, the core never paywalled)
+- **Academic research:** [`docs/arastirma/README.md`](docs/arastirma/README.md) — the proof gap mapped to six 2025–2026 papers (real links), W3C VC v2.0 / Data Integrity alignment, and the EAS on-chain model
+- **MCP server (receipts):** [`mcp/README.md`](mcp/README.md) — stdio install for Claude Desktop / Cursor / Cline; tools `issue` / `verify` / `revoke` / `list`; registry definition in `mcp/mcp.json`
 - **Contributing / Governance / Security:** [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`GOVERNANCE.md`](GOVERNANCE.md) · [`SECURITY.md`](SECURITY.md)
 - **Building your own verifier** (independent of this codebase, issue #1): [`docs/verifier-onboarding.md`](docs/verifier-onboarding.md) — closure kit: trusted-artifact table, byte-level traps list, one-command parity harness, proofs-as-behavioral-spec
 

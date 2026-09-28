@@ -5,6 +5,41 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## Unreleased
 
+- **verify(standalone):** certificates now embed the signer's PUBLIC key and
+  a signed `issued_at`, so `veridict verify <cert.json>` works from the file
+  alone — no ledger, no network. The check proves exactly what a
+  self-contained document can (content hash recomputed from the subject,
+  signature against the embedded key, well-formed timestamp) and reports
+  verdict replay and revocation as `unknown` rather than assuming them.
+  `--ledger --cert` is unchanged (external-wrapper contract preserved; both
+  invocation styles still pinned in `tests/test_cli_surface.py`). New
+  `veridict revoke` appends a `certificate.revoked` entry — ledger-checked
+  revocation was previously watcher-only.
+
+- **receipts:** a signed proof-of-done layer (`veridict/receipt.py`). One
+  achievement + grounds → a receipt whose `content_digest`, Ed25519
+  signature and timestamp all recompute from the file. Receipts share the
+  audit certificate's subject schema and `cert_id` derivation, so ONE
+  standalone verifier serves both document kinds. Revocation is append-only
+  on the same hash-chained ledger; the receipt file is never modified. CLI:
+  `veridict receipt issue|verify|revoke|list`. Custody: the workspace holds
+  one LOCAL document-signing key at 0600 — not a blockchain key, no payment
+  rail, only its public half ever emitted.
+
+- **mcp:** a new receipt MCP server under `mcp/` (the audit adapter at
+  `adapters/mcp/` is untouched): tools `issue` / `verify` / `revoke` /
+  `list`, thin transport over the core, `mcp.json` registry definition,
+  stdio install docs for Claude Desktop / Cursor / Cline. Tested against a
+  stub FastMCP and, when installed, the real SDK (v1 FastMCP and v2
+  MCPServer import paths both supported).
+
+- **docs:** `docs/arastirma/` — the proof gap mapped to six verified
+  2025–2026 papers (NostrAgent, terms.txt, LEGIT, Cartograph,
+  Proof-of-Continuity, SS-ZKR), W3C VC v2.0 + Data Integrity 1.0 alignment,
+  and the EAS on-chain model. `docs/landing.md` — landing prep with the
+  $29–99/mo tiers (core verification never paywalled). README gained a
+  30-second section and real receipt commands.
+
 - **canary(L2-4):** `command-injection` defect class — `shell=True` over raw
   input, the classic class generated code introduces. Offline-harness
   artifact (a `local:` stand-in, no process ever spawned) whose own test

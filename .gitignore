@@ -13,6 +13,10 @@ dogfood_ledger.jsonl
 dogfood_cert.json
 dogfood_index.json
 
+# local receipt workspaces created by the README/landing examples
+# (ledger.jsonl + the issuer's signing key + receipts/ — all machine-local)
+.veridict/
+
 # unrelated tool artifacts
 .freebuff/
 

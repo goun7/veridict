@@ -22,6 +22,34 @@ insanın rolü *kod inceleyicisi* değil, **risk sahibi**dir. Veridict bu
 dönüşümün etrafında inşa edilmiştir — zekanın hükmünün sahibi makine,
 sorumluluğun hükmünün sahibi insandır.
 
+## 30 saniyede
+
+Bir ajan işi yaptı diyor: "deploy ettim", "ödedim", "testler geçti". "Öyle
+diyor" bir **iddia**dır. Veridict onu **kanıta** çevirir: içeriği, imzası ve
+zaman damgası **dosyadan tek başına** — defter, ağ veya hesap olmadan —
+yeniden hesaplanabilen imzalı bir sertifika.
+
+```bash
+pip install veridict-standard
+
+# ajan tamamladığı iş için imzalı bir makbuz (receipt) üretir
+export VERIDICT_HOME=$PWD/.veridict
+veridict receipt issue --achievement "deployed api v2 to staging" \
+  --actor agent-7 --evidence "gh run 8812 passed"
+
+# karşı taraf bağımsız doğrular — sadece dosya, başka bir şey değil
+veridict verify .veridict/receipts/<cert_id>.json
+# → {"valid": true, "signature_valid": true, "content_hash_valid": true, ...}
+```
+
+İki belge türü, tek doğrulayıcı: **makbuz** (receipt) tek bir başarı için
+imzalı *proof-of-done* (ajanlara MCP üzerinden: `issue`/`verify`/`revoke`/
+`list`, bkz. [`mcp/README.md`](mcp/README.md)); **denetim sertifikası**
+makine kanıtı + kör heterojen jüri + ladder ile tam bir hüküm. İkisi de
+hash-zincirli, ekleme-silinmez ve kapalı-çöküşlü: kanıt yoksa asla temiz
+rapor yoktur. Kanıt boşluğunun akademik haritası:
+[`docs/arastirma/`](docs/arastirma/README.md).
+
 ## Neden bir denetim defteri
 
 - **Sessiz geçiş yok.** Kanıt yok → INCONCLUSIVE + bayrak — asla temiz
