@@ -9,13 +9,28 @@ ledger. The main audit runs LAST so the certificate anchors the final ledger
 state; verify_certificate recomputes verdicts only for the cert's own claims,
 and segment claims use distinct task ids, so pre-cert segment entries cannot
 disturb the main verdicts.
+
+v0.3 anti-recursion + hard budget: the audit's W1a evidence re-runs the
+repository's own pytest suite, and tests/test_dogfood.py exercises dogfood()
+— so a nested suite that still collected test_dogfood.py would re-enter the
+audit while it is already running, and tests/test_canary.py would replay the
+whole 25-case canary corpus inside it; together they dragged one dogfood()
+past 600 s. dogfood() therefore (a) ignores both files in its nested pytest
+run by default (exclude=…, backward compatible — still callable with no
+arguments), and (b) runs its whole audit in a worker subprocess under a hard
+wall-clock budget (DOGFOOD_TIMEOUT_SECONDS = 300): exceeding it kills the
+worker's process group and fails CLOSED — blocked=True, no certificate
+replaces the previous one on disk — instead of hanging the suite (§6).
 """
 from __future__ import annotations
 
 import json
 import os
+import signal
+import subprocess
 import sys
 import tempfile
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -27,7 +42,7 @@ from veridict.jury import Jury, Opinion, ScriptedProvider       # noqa: E402
 from veridict.keys import KeyStore                              # noqa: E402
 from veridict.ledger import Ledger                              # noqa: E402
 from veridict.policy import (                                   # noqa: E402
-    PolicyDeclaration, Thresholds, load_policy)
+    AuditOutcome, PolicyDeclaration, Thresholds, load_policy)
 from veridict.schemas import TaskManifest                       # noqa: E402
 from veridict.conformance import run_conformance_suite            # noqa: E402
 from veridict.registry_index import build_index, export_index                  # noqa: E402
@@ -44,6 +59,13 @@ from watchers.secret_scan_watcher import SESSION as SECRET_SESSION  # noqa: E402
 from watchers.security_watcher import SESSION as SEC_SESSION    # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# v0.3 — the self-audit must never re-enter itself through the very suite it
+# runs as evidence, nor pay for the canary corpus a second time inside it.
+DEFAULT_EXCLUDE = ("tests/test_dogfood.py", "tests/test_canary.py")
+DOGFOOD_TIMEOUT_SECONDS = 300
+_WORKER_FLAG = "--dogfood-worker"
+_GUARD_ENV = "VERIDICT_DOGFOOD_ACTIVE"
 
 SEGMENT_LICENSE_HEADER = "# SPDX-License-Identifier: Apache-2.0\n"
 SEGMENT_ESCALATED_PREDICATE = "payment-totals-are-computed-with-rounding"
@@ -242,10 +264,175 @@ def _phase2_summary(ledger: Ledger, watcher_ids: list[str],
     }
 
 
-def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> dict:
-    if os.environ.get("VERIDICT_DOGFOOD_ACTIVE"):
-        raise RuntimeError("dogfood() re-entered — refusing recursive self-audit")
-    os.environ["VERIDICT_DOGFOOD_ACTIVE"] = "1"
+def _ignore_args(exclude) -> tuple[str, ...]:
+    """The nested pytest's --ignore flags for the given exclude list."""
+    return tuple(f"--ignore={p}" for p in tuple(exclude))
+
+
+def _main_task(run_root: str, exclude) -> TaskManifest:
+    """The audit's own task: the whole repo as artifact, the existing suite
+    as W1a evidence — minus the files that would re-enter or duplicate the
+    audit (v0.3). TestExecutorVerifier builds the nested command as
+    [python, -m, pytest, -q, --tb=no, *task.pytest_args], so these pytest_args
+    ARE what the nested run collects (or refuses to collect)."""
+    return TaskManifest(
+        task_id="dogfood-v0.1", artifact_path=run_root, actor_identity="veridict-v0.1",
+        intent_lines=("DOCTRINE: core modules are idiomatic python",),
+        criticality=(), has_existing_tests=True,
+        pytest_args=_ignore_args(exclude))
+
+
+def _outcome_to_dict(outcome: AuditOutcome) -> dict:
+    return {"mode": outcome.mode, "blocked": outcome.blocked,
+            "coverage": outcome.coverage, "per_claim": outcome.per_claim,
+            "flags": list(outcome.flags), "policy_id": outcome.policy_id,
+            "policy_digest": outcome.policy_digest}
+
+
+def _outcome_from_dict(data: dict) -> AuditOutcome:
+    return AuditOutcome(
+        mode=data["mode"], blocked=data["blocked"], coverage=data["coverage"],
+        per_claim=data.get("per_claim") or {}, flags=tuple(data.get("flags") or ()),
+        policy_id=data.get("policy_id", ""), policy_digest=data.get("policy_digest", ""))
+
+
+def _unlink(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Kill the worker AND its own nested pytest: start_new_session made the
+    worker a process-group leader, so killpg reaches the whole subtree."""
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def _fail_closed(run_root: str, exclude, timeout_seconds: float,
+                 reason: str, timeout: bool = False) -> dict:
+    """A self-audit that cannot complete within its declared budget must fail
+    CLOSED (§6): blocked=True, no verdicts, no certificate — it never reports
+    a pass it could not earn, and it never overwrites the previous receipts."""
+    flags = ("dogfood-hard-timeout" if timeout else "dogfood-worker-failed",)
+    return {
+        "cert": {},
+        "outcome": AuditOutcome(mode="HYBRID", blocked=True, coverage=0.0,
+                                per_claim={}, flags=flags,
+                                policy_id="dogfood-fail-closed",
+                                policy_digest=""),
+        "report": {"abstentions": [], "duration_seconds": timeout_seconds,
+                   "flags": flags, "task_id": "dogfood-v0.1"},
+        "verification": {"valid": False, "errors": [reason]},
+        "ledger_path": os.path.join(run_root, "dogfood_ledger.jsonl"),
+        "cert_path": os.path.join(run_root, "dogfood_cert.json"),
+        "index_path": os.path.join(run_root, "dogfood_index.json"),
+        "phase2": None,
+        "timeout": bool(timeout),
+        "excluded": tuple(exclude),
+        "pytest_args": _ignore_args(exclude),
+    }
+
+
+def _run_worker(run_root: str, exclude: tuple[str, ...],
+                timeout_seconds: float) -> dict:
+    script = os.path.abspath(__file__)
+    fd, envelope_path = tempfile.mkstemp(prefix="veridict-dogfood-result-",
+                                         suffix=".json")
+    os.close(fd)
+    cmd = [sys.executable, script, _WORKER_FLAG,
+           "--root", str(run_root), "--jsonout", envelope_path]
+    for path in exclude:
+        cmd += ["--exclude", str(path)]
+    child_env = {k: v for k, v in os.environ.items() if k != _GUARD_ENV}
+    proc = subprocess.Popen(
+        cmd, cwd=str(run_root), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, start_new_session=True, env=child_env)
+    try:
+        _, stderr_text = proc.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        _kill_tree(proc)
+        try:
+            proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        _unlink(envelope_path)
+        return _fail_closed(
+            run_root, exclude, timeout_seconds,
+            f"dogfood() exceeded its {timeout_seconds}s hard timeout and its "
+            f"worker was force-killed — fail-closed: blocked=True, the "
+            f"certificate was not reissued", timeout=True)
+    stderr_tail = (stderr_text or "")[-800:]
+    if proc.returncode != 0:
+        _unlink(envelope_path)
+        return _fail_closed(
+            run_root, exclude, timeout_seconds,
+            f"dogfood worker exited with rc={proc.returncode}: {stderr_tail}")
+    try:
+        with open(envelope_path, encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, ValueError) as exc:
+        _unlink(envelope_path)
+        return _fail_closed(
+            run_root, exclude, timeout_seconds,
+            f"dogfood worker produced no readable result envelope: {exc!r}")
+    _unlink(envelope_path)
+    payload["outcome"] = _outcome_from_dict(payload["outcome"])
+    report_flags = (payload.get("report") or {}).get("flags")
+    if isinstance(report_flags, list):
+        payload["report"]["flags"] = tuple(report_flags)
+    payload["timeout"] = False
+    payload["excluded"] = tuple(exclude)
+    payload["pytest_args"] = _ignore_args(exclude)
+    return payload
+
+
+def _worker_main(argv: list[str]) -> int:
+    """Worker entry: runs the whole self-audit and writes a JSON result
+    envelope the parent parses. Anything that goes wrong exits non-zero and
+    the parent fails closed with the reason."""
+    run_root: str | None = None
+    jsonout: str | None = None
+    exclude: list[str] = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--root" and i + 1 < len(argv):
+            run_root = argv[i + 1]
+            i += 2
+        elif argv[i] == "--jsonout" and i + 1 < len(argv):
+            jsonout = argv[i + 1]
+            i += 2
+        elif argv[i] == "--exclude" and i + 1 < len(argv):
+            exclude.append(argv[i + 1])
+            i += 2
+        else:
+            sys.stderr.write(f"dogfood worker: unknown argument {argv[i]!r}\n")
+            return 2
+    if not jsonout:
+        sys.stderr.write("dogfood worker: --jsonout is required\n")
+        return 2
+    try:
+        result = _dogfood_impl(run_root or REPO_ROOT, tuple(exclude))
+    except Exception as exc:          # fail-closed with the reason, no envelope
+        sys.stderr.write(f"dogfood worker failed: {exc!r}\n")
+        return 1
+    payload = {k: v for k, v in result.items() if k != "outcome"}
+    payload["outcome"] = _outcome_to_dict(result["outcome"])
+    with open(jsonout, "w", encoding="utf-8") as f:
+        json.dump(payload, f)
+    return 0
+
+
+def _dogfood_impl(run_root: str, exclude: tuple[str, ...]) -> dict:
+    """The audit itself. Runs only inside the worker process so a budget
+    overrun can kill it without orphaning its nested pytest."""
+    os.environ[_GUARD_ENV] = "1"   # re-entry guard for this process tree
     policy_path = os.path.join(run_root, "dogfood_policy.json")
     if os.path.exists(policy_path):
         with open(policy_path, encoding="utf-8") as f:
@@ -261,34 +448,77 @@ def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None) -> di
     # Main self-audit LAST (same ledger, same append-only chain): the main
     # certificate anchors the final state, and its verdicts are recomputed at
     # verify time only from its own claims — segment claims/artifacts use
-    # distinct task ids and can never collide with them.
-    task = TaskManifest(
-        task_id="dogfood-v0.1", artifact_path=run_root, actor_identity="veridict-v0.1",
-        intent_lines=("DOCTRINE: core modules are idiomatic python",),
-        criticality=(), has_existing_tests=True,
-        pytest_args=("--ignore=tests/test_dogfood.py",))
-    orch = build_orchestrator(pol, provider_overrides=jury_overrides or {},
-                              ledger=ledger)
+    # distinct task ids and can never collide with them. The nested pytest
+    # ignores the files that would re-enter or duplicate the audit (v0.3).
+    task = _main_task(run_root, exclude)
+    orch = build_orchestrator(pol, ledger=ledger)
     result = orch.run(task)
+    # Fail-closed artifact writes: stage into uniquely-named .tmp files,
+    # verify, then atomically swap. A killed or unverifying run never replaces
+    # the good receipts already on disk.
     ledger_path = os.path.join(run_root, "dogfood_ledger.jsonl")
     cert_path = os.path.join(run_root, "dogfood_cert.json")
     index_path = os.path.join(run_root, "dogfood_index.json")
-    orch.ledger.save(ledger_path)
-    with open(cert_path, "w", encoding="utf-8") as f:
-        json.dump(result["cert"], f, indent=2, sort_keys=True)
-    export_index(orch.ledger, index_path)
-    verification = verify_certificate(ledger_path, cert_path)
+    stage = {p: f"{p}.tmp-{uuid.uuid4().hex}"
+             for p in (ledger_path, cert_path, index_path)}
+    try:
+        orch.ledger.save(stage[ledger_path])
+        with open(stage[cert_path], "w", encoding="utf-8") as f:
+            json.dump(result["cert"], f, indent=2, sort_keys=True)
+        export_index(orch.ledger, stage[index_path])
+        verification = verify_certificate(stage[ledger_path], stage[cert_path])
+    except OSError:
+        for tmp in stage.values():
+            _unlink(tmp)
+        raise
+    if verification["valid"]:
+        for final, tmp in stage.items():
+            os.replace(tmp, final)
+    else:
+        for tmp in stage.values():
+            _unlink(tmp)    # keep the previous, still-verifiable artifacts
     return {**result, "verification": verification,
             "ledger_path": ledger_path, "cert_path": cert_path,
             "index_path": index_path,
             "phase2": _phase2_summary(orch.ledger, watcher_ids, conformance)}
 
 
+def dogfood(run_root: str = REPO_ROOT, jury_overrides: dict | None = None,
+            exclude=DEFAULT_EXCLUDE,
+            timeout_seconds: float = DOGFOOD_TIMEOUT_SECONDS) -> dict:
+    """Self-audit the repository.
+
+    exclude: files the nested pytest run must NOT collect — defaults to the
+    self-audit test and the canary corpus test, whose presence made the audit
+    re-enter itself and drag past 600 s (v0.3). Pass () to ignore nothing.
+    timeout_seconds: hard wall-clock budget. Exceeding it kills the worker's
+    process group and fails closed (blocked=True, previous cert untouched).
+    """
+    if os.environ.get(_GUARD_ENV):
+        raise RuntimeError("dogfood() re-entered — refusing recursive self-audit")
+    if jury_overrides:
+        raise TypeError(
+            "jury_overrides cannot cross the worker-process boundary — "
+            "dogfood() runs its whole audit in a child it can hard-kill; use "
+            "the default stub jury or scripts/dogfood.py --dogfood-worker")
+    exclude = tuple(exclude) if exclude is not None else DEFAULT_EXCLUDE
+    os.environ[_GUARD_ENV] = "1"
+    try:
+        return _run_worker(run_root, exclude, timeout_seconds)
+    finally:
+        os.environ.pop(_GUARD_ENV, None)
+
+
 if __name__ == "__main__":
+    if _WORKER_FLAG in sys.argv:
+        argv = [a for a in sys.argv[1:] if a != _WORKER_FLAG]
+        raise SystemExit(_worker_main(argv))
     out = dogfood()
-    print(json.dumps({"risk_level": out["cert"]["risk_level"],
-                      "score": out["cert"]["score"],
+    cert = out.get("cert") or {}
+    print(json.dumps({"risk_level": cert.get("risk_level"),
+                      "score": cert.get("score"),
                       "blocked": out["outcome"].blocked,
+                      "timeout": out.get("timeout"),
                       "verification": out["verification"],
                       "duration_seconds": out["report"]["duration_seconds"],
-                      "phase2": out["phase2"]}, indent=2))
+                      "phase2": out.get("phase2")}, indent=2))
