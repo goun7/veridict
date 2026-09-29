@@ -17,6 +17,7 @@
   "divergence_summary": {
     "0d8f9f68e771008b": "UNANIMOUS"
   },
+  "issued_at": "2026-09-10T09:00:06+00:00",
   "issued_at_task": "vector-1",
   "jury_composition": {
     "families": [
@@ -40,6 +41,11 @@
       "min_w1_coverage": 0.8
     }
   },
+  "public_key": {
+    "algorithm": "ed25519",
+    "key_id": "56475aa75463474c",
+    "public_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAA6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=\n-----END PUBLIC KEY-----\n"
+  },
   "risk_level": "low",
   "schema_version": "1.0.0",
   "scope_limits": [
@@ -51,7 +57,7 @@
     {
       "algorithm": "ed25519",
       "key_id": "56475aa75463474c",
-      "sig_b64": "YUW/lWFTtmArFM59olZ8Pgjv1Pa9zOwNZSmzItQIad7UoaLOw1m2sdRqsI43Kb+5aL9wdUlX9LorpZMlBorFBw=="
+      "sig_b64": "sgHDkUntMAaAzvhHKAS32ZSyw62mrV8cG/OzXxRLGDH3/yAARJCBVXntzUwPQQGBQEtKUcGnvzMu+pSGa/4LAw=="
     }
   ],
   "subject": {

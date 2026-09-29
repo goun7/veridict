@@ -10,7 +10,7 @@
   "transport": "stdio",
   "install": {
     "command": "python",
-    "args": ["-m", "veridict_receipt_mcp.server"],
+    "args": ["mcp/run_server.py"],
     "env": {
       "VERIDICT_HOME": {
         "description": "Workspace directory holding the append-only ledger and the issuer's local signing key. Defaults to ./.veridict in the server's working directory.",

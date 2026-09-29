@@ -158,9 +158,29 @@ def test_mcp_json_is_valid_and_publishable():
     assert d["name"] == "veridict-receipt"
     assert d["transport"] == "stdio"
     assert {t["name"] for t in d["tools"]} == {"issue", "verify", "revoke", "list"}
-    assert d["install"]["args"] == ["-m", "veridict_receipt_mcp.server"]
-    # the launcher must resolve to a real module on disk
+    # the launcher is the standalone runner (it resolves veridict_receipt_mcp
+    # without putting the repo root on sys.path, which would shadow the SDK)
+    assert d["install"]["args"] == ["mcp/run_server.py"]
+    assert os.path.exists(os.path.join(MCP_DIR, "run_server.py")), \
+        "the declared launcher must exist"
     assert os.path.exists(_SERVER)
+
+
+def test_runner_does_not_shadow_the_mcp_sdk():
+    """`python mcp/run_server.py` must import the installed MCP SDK, not the
+    repo's own mcp/ directory. A launcher that put the repo root on sys.path
+    would resolve `mcp` to this directory and break the server's import —
+    the runner adds only mcp/ itself."""
+    import subprocess
+    r = subprocess.run([sys.executable, "-c",
+                        "import sys, runpy; "
+                        "sys.path.insert(0, 'mcp'); "
+                        "runpy.run_path('mcp/run_server.py', run_name='__main__')"],
+                       capture_output=True, text=True, timeout=30,
+                       cwd=ROOT)
+    # the server starts and blocks reading stdio; a broken SDK import instead
+    # exits with 2 and a message naming the SDK.
+    assert "needs the MCP SDK" not in r.stderr, r.stderr
 
 
 # ---- against the REAL SDK ----------------------------------------------

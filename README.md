@@ -114,10 +114,10 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 428 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 434 passed (both invocation styles, Python 3.12–3.14 in CI) |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
-| Standalone verification | receipt/cert verified from the **file alone** — content hash + signature + signed timestamp; 32 tests cover issue/verify/revoke/list, tamper, custody and the MCP protocol surface |
+| Standalone verification | receipt/cert verified from the **file alone** — content hash + signature + signed timestamp; new suites cover issue/verify/revoke/list, tamper, custody and the MCP protocol surface |
 | Canary (scripted jury) | 23 catches / 3 honest misses / 0 false positives across 26 defect classes — measures a hand-authored refutation table, **not model capability**; labeled as such |
 | Canary (real LLM, lower bound) | **2/25** classes caught, **0 false positives**, by local qwen2.5:3b + llama3.2:3b — the audit's end-to-end catch rate; the earlier 23/25 figure was inflated by a metric bug that counted coverage-meta-claim refusals as findings; sheets in `docs/notes/` |
 | Judgment sonde (model, decoupled from the ladder) | **42/48** correct refutations of defective artifacts by the same 3B jurors (23/24 + 19/24), but **2/4 false refutations on clean code** — the model sees most of the defects; §5.3 rule 2 keeps those refutations from turning a W1a-supported verdict, and the false-refutation rate is the measured justification for that rule |
@@ -244,9 +244,15 @@ veridict receipt verify --cert .veridict/receipts/<cert_id>.json \
   --ledger .veridict/ledger.jsonl
 
 # revoke (append-only: the receipt file is never modified) and list
-veridict receipt revoke --cert-id <cert_id> --reason "chargeback case 91"
+veridict receipt revoke --cert .veridict/receipts/<cert_id>.json \
+  --reason "chargeback case 91"
 veridict receipt list --active-only
 ```
+
+`veridict verify` dispatches on `certificate_type`: a receipt proves chain
+integrity, issuance and revocation over a ledger, an audit certificate adds
+the claim replay — the top-level command handles both. Revoke accepts the
+receipt file (`--cert`) or a bare `--cert-id`.
 
 Every receipt carries a `content_digest` recomputable from its own fields,
 an Ed25519 signature over the canonical body verified against the public key

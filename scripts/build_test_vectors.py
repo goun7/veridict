@@ -159,7 +159,8 @@ def build() -> None:
         evidence_by_claim={claim.claim_id: items},
         jury_families=["model-family-1", "model-family-2"],
         disclosure_level="REDACTED",
-        scope_limits=["claim coverage is heuristic, not exhaustive"])
+        scope_limits=["claim coverage is heuristic, not exhaustive"],
+        issued_at=FIXED_TS[6])
 
     _pin_timestamps(led, ks, cert)
 

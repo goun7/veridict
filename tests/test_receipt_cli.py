@@ -137,3 +137,38 @@ def test_receipt_rejects_empty_achievement(tmp_path, capsys):
                "--workspace", str(ws)])
     assert rc == 1
     assert "achievement" in capsys.readouterr().err
+
+
+def test_top_level_verify_receipt_over_ledger(tmp_path):
+    """Regression: `veridict verify receipt.json --ledger` used to dispatch to
+    the AUDIT-certificate verifier and die on the receipt's missing `claims`
+    (a receipt carries no ladder-replayable claims). The top-level verify must
+    dispatch on certificate_type — over a ledger a receipt proves chain
+    integrity, issuance and revocation, not a claim replay."""
+    ws = tmp_path / "ws"
+    rc = main(["receipt", "issue", "--achievement", "top-level verify path",
+               "--workspace", str(ws), "--out", str(tmp_path / "r.json")])
+    assert rc == 0
+    ledger = str(ws / "ledger.jsonl")
+    assert main(["verify", str(tmp_path / "r.json"), "--ledger", ledger]) == 0
+    # revoke, then the same top-level verify must be invalid
+    assert main(["receipt", "revoke", "--cert", str(tmp_path / "r.json"),
+                 "--reason", "superseded", "--workspace", str(ws)]) == 0
+    assert main(["verify", str(tmp_path / "r.json"), "--ledger", ledger]) == 1
+    # and the receipt alone is still structurally sound — the file was not edited
+    assert main(["verify", str(tmp_path / "r.json")]) == 0
+
+
+def test_receipt_revoke_takes_the_cert_file(tmp_path, capsys):
+    """Revocation accepts the receipt FILE (--cert) and reads the cert_id out
+    of it — you revoke the receipt you hold, not an id you memorized. The
+    id-only form stays for scripts, and neither is a silent no-op."""
+    ws = tmp_path / "ws"
+    rc = main(["receipt", "issue", "--achievement", "revoke by file",
+               "--workspace", str(ws), "--out", str(tmp_path / "r.json")])
+    assert rc == 0
+    assert main(["receipt", "revoke", "--cert", str(tmp_path / "r.json"),
+                 "--reason", "canary regressed"]) == 0
+    assert main(["receipt", "revoke", "--reason", "x",
+                 "--workspace", str(ws)]) == 1
+    assert "cert_id" in capsys.readouterr().err

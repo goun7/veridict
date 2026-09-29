@@ -1,0 +1,31 @@
+# Smithery registry configuration — veridict-receipt MCP server.
+#
+# Publishing (Smithery CLI, Node.js 20+):
+#   smithery mcp publish ./veridict-receipt.mcpb -n <org>/veridict-receipt
+# or the URL path (Streamable HTTP + OAuth) via https://smithery.ai/new
+#
+# Local trial (without a registry):
+#   smithery mcp add ./mcp/run_server.py --id veridict-receipt
+#   smithery tool list veridict-receipt
+#   smithery tool call veridict-receipt verify '{"cert":"receipt.json"}'
+#
+# Docs: https://smithery.ai/docs  ·  MCP spec: https://modelcontextprotocol.io/specification/2025-06-18
+version: 1
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      veridict_home:
+        type: string
+        description: "Workspace dir holding the append-only ledger and the local 0600 signing key"
+        default: ""
+  command: python
+  args:
+    - mcp/run_server.py
+  env:
+    VERIDICT_HOME:
+      description: "Workspace directory. Empty = ./.veridict in the server's cwd."
+      default: ""
+      required: false

@@ -5,6 +5,26 @@ digest preimage, a payload schema, or a tier rule are MAJOR.
 
 ## Unreleased
 
+- **verify(receipts over a ledger):** `veridict verify <receipt.json> --ledger`
+  now dispatches on `certificate_type`. It previously always routed to the
+  audit-certificate verifier, which died on the receipt's missing `claims`
+  (a receipt carries no ladder-replayable claims) — the top-level command now
+  proves chain integrity, issuance and revocation for receipts, and keeps the
+  claim replay for audit certificates. `receipt revoke` accepts the receipt
+  file (`--cert`, reading the cert_id from it) in addition to `--cert-id`.
+
+- **erratum(E-CERT-1):** `docs/schemas/veridict-certificate-1.0.schema.json`
+  declares the two new optional properties (`public_key`, `issued_at`) plus a
+  `certificate_type` discriminator. Backward compatible — pre-erratum
+  certificates still validate; verifiers treat a missing `issued_at` as
+  "timestamp unknown", never invalid. `CertificateIssuer.issue` accepts an
+  injectable `issued_at` so the conformance test vectors stay
+  byte-deterministic (a live clock would make the signed vectors
+  non-reproducible). The spec-only verifier (`examples/spec_verifier.py`)
+  mirrors the revocation check through `errors` — the report schema is a
+  byte-equality contract between the two verifiers, so revocation is
+  reported there rather than as a new top-level key.
+
 - **verify(standalone):** certificates now embed the signer's PUBLIC key and
   a signed `issued_at`, so `veridict verify <cert.json>` works from the file
   alone — no ledger, no network. The check proves exactly what a

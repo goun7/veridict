@@ -74,7 +74,7 @@ class CertificateIssuer:
     def issue(self, task, artifact_digest: str, policy: PolicyDeclaration,
               claims: list[Claim], adjudications: list, evidence_by_claim: dict,
               jury_families: list[str], disclosure_level: str,
-              scope_limits: list[str]) -> dict:
+              scope_limits: list[str], issued_at: str | None = None) -> dict:
         adj_by_id = {a.claim_id: a for a in adjudications}
         cert = {
             "schema_version": SCHEMA_VERSION,
@@ -116,9 +116,12 @@ class CertificateIssuer:
             # issuer's say-so, which is exactly the claim-versus-proof gap the
             # certificate exists to close. The PRIVATE key never leaves the
             # issuer; only its public verifier does.
+            # issued_at is injectable so deterministic builds (the conformance
+            # test vectors) can pin it — a live clock would make the signed
+            # vectors non-reproducible byte-for-byte.
             "public_key": {"key_id": self.key_id, "algorithm": "ed25519",
                            "public_pem": self.keystore.public_pem(self.key_id)},
-            "issued_at": datetime.now(timezone.utc).isoformat(),
+            "issued_at": issued_at or datetime.now(timezone.utc).isoformat(),
             "scope_limits": ["claim coverage is heuristic, not exhaustive",
                              *scope_limits],
             "issued_at_task": task.task_id,
@@ -384,9 +387,15 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
     revoked = _revocation_status(led, cert.get("cert_id"))
     if revoked:
         errors.append(f"revoked: {revoked}")
+    # Revocation is reported through `errors` (and drives `valid`) rather than
+    # as a new top-level key: this report's schema is a byte-for-byte contract
+    # with the spec-only verifier (examples/spec_verifier.py) — the two must
+    # agree exactly (tests/test_spec_verifier_parity.py, test_fuzz_e2e.py) —
+    # and a caller learns everything it needs from `valid` + the error line.
+    # The receipt path (verify_receipt) has no parity contract and reports a
+    # top-level `revoked`.
     return {"valid": not errors, "chain_valid": chain_ok, "signature_valid": sig_ok,
-            "verdicts_match": verdicts_match, "revoked": bool(revoked),
-            "errors": errors}
+            "verdicts_match": verdicts_match, "errors": errors}
 
 
 def _revocation_status(ledger: Ledger, cert_id) -> str | None:

@@ -49,6 +49,11 @@ digest + sıra + yazar + zaman damgasıyla bağlı; sertifika asiden
 değiştirilemiyor, sadece yeni girdi eklenebiliyor. İptal bile zincire
 yazılır — belgeye dokunulmaz, imza bozulmaz, denetlenebilir kalır.
 
+MCP server'ı kayıt-publishable formatta hazırdır (`mcp/mcp.json` +
+`mcp/smithery.yaml`); Smithery / Glama / mcp.so için adım-adım rehber
+[`mcp/REGISTRIES.md`](../mcp/REGISTRIES.md)'dedir. Kayıt **yapılmadı**,
+kullanıcı onayı bekleniyor, maliyet $0 (yalnızca ücretsiz tier'lar).
+
 ## Çalışan örnek (gerçek komutlar)
 
 ```bash

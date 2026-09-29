@@ -176,3 +176,70 @@ def test_unknown_entry_type_is_accepted_by_both(tmp_path, ledger_entries,
     s, r = _run(tmp_path, led.entries, cert_json)
     assert (s, r) == (True, True), \
         "an extension entry_type must verify GREEN on both verifiers"
+
+
+def _append_revocation(entries, cert_json, reason="superseded by v2"):
+    """Append a chain-consistent certificate.revoked entry (pinned ts kept)."""
+    from veridict.ledger import Ledger, _entry_hash
+    from veridict.utils import payload_digest
+    out = copy.deepcopy(entries)
+    last = out[-1]
+    payload = {"cert_id": cert_json["cert_id"], "reason": reason,
+               "revoked_at": "2026-09-10T09:00:40+00:00"}
+    entry = {
+        "schema_version": last["schema_version"], "seq": len(out),
+        "prev_hash": last["entry_hash"], "entry_type": "certificate.revoked",
+        "author": {"kind": "system", "identity": "veridict-issuer",
+                   "version": "0.1.0"},
+        "payload": payload, "ts": "2026-09-10T09:00:40+00:00",
+        "payload_hash": payload_digest(payload),
+    }
+    entry["entry_hash"] = _entry_hash(
+        entry["prev_hash"], payload, entry["entry_type"], entry["seq"],
+        entry["author"], entry["ts"], entry["schema_version"])
+    out.append(entry)
+    led = Ledger()
+    led.entries = out
+    return led.entries
+
+
+def _run_reports(tmp_path, entries, cert):
+    lp = tmp_path / "l2.jsonl"
+    with lp.open("w") as f:
+        for e in entries:
+            f.write(json.dumps(e) + "\n")
+    cp = tmp_path / "c2.json"
+    cp.write_text(json.dumps(cert))
+    return spec_verify(str(lp), str(cp)), ref_verify(str(lp), str(cp))
+
+
+def test_revoked_certificate_rejected_by_both(tmp_path, ledger_entries, cert_json):
+    """Erratum E-CERT-1: an appended certificate.revoked entry must make BOTH
+    verifiers reject the certificate, for the SAME reason. This is the parity
+    that keeps the two implementations honest about the new revocation rule —
+    a one-sided implementation would silently disagree on a revoked cert."""
+    s, r = _run_reports(tmp_path, _append_revocation(ledger_entries, cert_json),
+                        cert_json)
+    assert s["valid"] is False and r["valid"] is False
+    assert s["errors"] == r["errors"], (s["errors"], r["errors"])
+    assert any("revoked: superseded by v2" in e for e in r["errors"]), r["errors"]
+
+
+def test_unrevoked_certificate_reports_no_revocation_error(tmp_path, ledger_entries,
+                                                           cert_json):
+    """Control: without a revocation entry, NEITHER verifier mentions one —
+    otherwise the revocation path would be firing on every clean certificate."""
+    s, r = _run_reports(tmp_path, ledger_entries, cert_json)
+    assert s == r, (s, r)
+    assert not any("revoked" in e for e in r["errors"]), r["errors"]
+
+
+def test_revoked_entry_for_another_cert_is_ignored_by_both(tmp_path, ledger_entries,
+                                                           cert_json):
+    """A revocation naming a DIFFERENT cert_id must not touch this one —
+    otherwise an issuer revoking any certificate could invalidate all of them."""
+    s, r = _run_reports(tmp_path,
+                        _append_revocation(ledger_entries,
+                                           {**cert_json, "cert_id": "0" * 24}),
+                        cert_json)
+    assert s["valid"] is True and r["valid"] is True, (s, r)

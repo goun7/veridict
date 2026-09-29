@@ -225,6 +225,22 @@ def verify_certificate(ledger_path: str, cert_path: str) -> dict:
             errors.append(f"verdict mismatch for {c['claim_id']}: "
                           f"cert={c['verdict_value']} recomputed={recomputed}")
             verdicts_match = False
+    # §6.6 class applied to certificates (erratum E-CERT-1): an append-only
+    # certificate.revoked entry naming this cert_id disavows it, and a
+    # verifier that ignores it keeps honoring a certificate the issuer
+    # already revoked. Checked on the whole chain — revocation is by
+    # definition post-issuance, so scoping it to the anchored prefix would
+    # make revocation impossible. Reported through `errors` exactly as the
+    # reference verifier does, so the two reports stay byte-equal.
+    revoked = None
+    for e in entries:
+        if (e["entry_type"] == "certificate.revoked"
+                and e["payload"].get("cert_id") == cert.get("cert_id")):
+            reason = str(e["payload"].get("reason", "")).strip()
+            revoked = reason or "revoked by issuer (no reason recorded)"
+            break
+    if revoked:
+        errors.append(f"revoked: {revoked}")
     report["verdicts_match"] = verdicts_match
     report["valid"] = not errors
     return report

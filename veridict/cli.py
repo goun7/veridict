@@ -11,6 +11,7 @@ from . import anchor
 from .audit import AuditOrchestrator
 from .certificate import (revoke_certificate, verify_certificate,
                           verify_certificate_standalone)
+from .receipt import RECEIPT_TYPE, verify_receipt
 from .dossier import dossier_for, render_markdown, resolve_dossier
 from .jury import Jury, OpenAICompatProvider, Opinion, ScriptedProvider
 from .keys import KeyStore
@@ -169,8 +170,19 @@ def _cmd_verify(args) -> int:
         print("veridict: error: a certificate is required (positional or --cert)",
               file=sys.stderr)
         return 1
-    if getattr(args, "ledger", None):
-        report = verify_certificate(args.ledger, cert_path)
+    ledger = getattr(args, "ledger", None)
+    if ledger:
+        # The file may be a receipt, not an audit certificate: both share the
+        # subject schema and the standalone verifier, but only an audit
+        # certificate carries claims for the ladder to replay — a receipt has
+        # none, so the certificate_type selects the path. A receipt over a
+        # ledger still proves chain integrity, issuance and revocation.
+        with open(cert_path, encoding="utf-8") as f:
+            ctype = json.load(f).get("certificate_type")
+        if ctype == RECEIPT_TYPE:
+            report = verify_receipt(cert_path, ledger)
+        else:
+            report = verify_certificate(ledger, cert_path)
     else:
         # Standalone: the certificate file is the ONLY input. This is the
         # view a third party actually has — someone hands them a receipt —
@@ -238,8 +250,23 @@ def _cmd_receipt(args) -> int:
         print(json.dumps(report, indent=2))
         return 0 if report["valid"] else 1
     if action == "revoke":
+        # You revoke the receipt you hold, not an id you memorized: accept the
+        # file (--cert) and read the cert_id out of it, or an explicit --cert-id.
+        cert_id = args.cert_id
+        if not cert_id and args.cert:
+            try:
+                with open(args.cert, encoding="utf-8") as f:
+                    cert_id = json.load(f).get("cert_id")
+            except OSError as exc:
+                print(f"veridict: error: cannot read {args.cert}: {exc}",
+                      file=sys.stderr)
+                return 1
+        if not cert_id:
+            print("veridict: error: give the receipt to revoke with --cert, "
+                  "or its cert_id with --cert-id", file=sys.stderr)
+            return 1
         try:
-            res = revoke_receipt(ws, args.cert_id, args.reason,
+            res = revoke_receipt(ws, cert_id, args.reason,
                                  issuer_identity=getattr(args, "issuer",
                                                          "veridict-receipt"))
         except ReceiptError as exc:
@@ -631,8 +658,9 @@ def main(argv=None) -> int:
                      help="issue: a ground the issuer relied on (repeatable)")
     rec.add_argument("--issuer", default="veridict-receipt",
                      help="issue/revoke: issuer identity")
-    rec.add_argument("--cert", help="verify: the receipt JSON")
-    rec.add_argument("--cert-id", help="revoke: the cert_id to revoke")
+    rec.add_argument("--cert", help="verify/revoke: the receipt JSON")
+    rec.add_argument("--cert-id", help="revoke: the cert_id to revoke "
+                                       "(alternative to --cert)")
     rec.add_argument("--reason", default="", help="revoke: why (recorded in "
                                                    "the chain, human-readable)")
     rec.add_argument("--ledger", help="verify: the issuer's ledger, enabling "

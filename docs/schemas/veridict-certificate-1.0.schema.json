@@ -156,6 +156,39 @@
     "issued_at_task": {
       "type": "string"
     },
+    "issued_at": {
+      "type": "string",
+      "description": "Optional (erratum E-CERT-1). ISO-8601 UTC issuance timestamp, INSIDE the signed body, so the signature binds issuance order and not only content. Enables standalone verification (verify_certificate_standalone): a third party holding only the certificate can reject one manufactured in the future. Absent on certificates issued before the erratum; verifiers MUST treat absence as 'timestamp unknown' rather than invalid."
+    },
+    "public_key": {
+      "type": "object",
+      "description": "Optional (erratum E-CERT-1). The signer's PUBLIC half, embedded so a third party holding only the certificate can verify the signature without the ledger. Only the public half ever appears; the private key never leaves the issuer.",
+      "required": [
+        "key_id",
+        "algorithm",
+        "public_pem"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8,64}$"
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": [
+            "ed25519"
+          ]
+        },
+        "public_pem": {
+          "type": "string"
+        }
+      }
+    },
+    "certificate_type": {
+      "type": "string",
+      "description": "Optional document-kind discriminator. Absent means an audit certificate (this schema); 'veridict-receipt-v1' means a receipt (proof-of-done), which shares this schema's subject and cert_id derivation."
+    },
     "scope_limits": {
       "type": "array",
       "minItems": 1,

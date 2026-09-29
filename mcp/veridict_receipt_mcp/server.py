@@ -45,13 +45,19 @@ except ImportError:
             f"(import failed: {exc})\n")
         sys.exit(2)
 
-# Allow running straight from a checkout (pip install -e . also works):
-# mcp/veridict_receipt_mcp/server.py -> repo root two levels up.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
+# The server needs two imports: the MCP SDK (`mcp`) and the runtime core
+# (`veridict.*`). `veridict` is importable wherever veridict-standard is
+# installed (pip install veridict-standard / pip install -e .); the transport
+# package `veridict_receipt_mcp` is importable because `mcp/` is on the path —
+# the documented launchers arrange that: `python mcp/run_server.py` (adds
+# mcp/ only) or `python -m veridict_receipt_mcp.server` from mcp/.
+#
+# Deliberately NOT done: inserting the REPO ROOT into sys.path. The repo has
+# an `mcp/` directory, so a repo-root entry makes `import mcp` resolve to
+# that directory instead of the installed MCP SDK, breaking
+# `from mcp.server.fastmcp import FastMCP` for any later import. Keeping the
+# SDK resolvable matters more than supporting a bare uninstalled checkout —
+# which the README already covers with `pip install -e .`.
 from veridict.receipt import (ReceiptError, ReceiptWorkspace, issue_receipt,
                               list_receipts, revoke_receipt, verify_receipt)
 
