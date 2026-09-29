@@ -17,8 +17,8 @@ audit while it is already running, and tests/test_canary.py would replay the
 whole 25-case canary corpus inside it; together they dragged one dogfood()
 past 600 s. dogfood() therefore (a) ignores both files in its nested pytest
 run by default (exclude=…, backward compatible — still callable with no
-arguments), and (b) runs its whole audit in a worker subprocess under a hard
-wall-clock budget (DOGFOOD_TIMEOUT_SECONDS = 300): exceeding it kills the
+arguments), and (b) runs the whole audit in a worker subprocess under a hard
+wall-clock budget (DOGFOOD_TIMEOUT_SECONDS = 420): exceeding it kills the
 worker's process group and fails CLOSED — blocked=True, no certificate
 replaces the previous one on disk — instead of hanging the suite (§6).
 """
@@ -62,8 +62,22 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # v0.3 — the self-audit must never re-enter itself through the very suite it
 # runs as evidence, nor pay for the canary corpus a second time inside it.
-DEFAULT_EXCLUDE = ("tests/test_dogfood.py", "tests/test_canary.py")
-DOGFOOD_TIMEOUT_SECONDS = 300
+# v0.3.1 — test_quality_sheet_reports_stub_jury_context alone costs ~141s
+# (it replays the canary corpus through the CLI). The W1a claim is about the
+# core audit modules; outer CI already covers that CLI e2e path, so skipping
+# it here keeps the nested run smaller. The remaining run still measures
+# 300-342 s on this box, so the budget is 420 s (see below).
+DEFAULT_EXCLUDE = (
+    "tests/test_dogfood.py",
+    "tests/test_canary.py",
+    "tests/test_cli.py::test_quality_sheet_reports_stub_jury_context",
+)
+# v0.3.1 budget: measured full dogfood() runs 300-342 s on this box
+# (W1a evidence = the repo's own suite minus the excludes above). The budget
+# must sit ABOVE the measured wall clock with headroom, otherwise the budget
+# itself is what fails. 420 s gives ~80 s headroom while still catching a
+# genuine hang (the old 600 s recursion) well inside CI's tolerance.
+DOGFOOD_TIMEOUT_SECONDS = 420
 _WORKER_FLAG = "--dogfood-worker"
 _GUARD_ENV = "VERIDICT_DOGFOOD_ACTIVE"
 

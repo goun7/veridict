@@ -32,9 +32,16 @@ def _scrub_guard(monkeypatch) -> None:
 
 
 def test_default_exclude_and_budget_pin_the_contract():
-    assert set(DEFAULT_EXCLUDE) == {"tests/test_dogfood.py",
-                                    "tests/test_canary.py"}
-    assert DOGFOOD_TIMEOUT_SECONDS == 300
+    # v0.3.1: the slow CLI e2e (replays the canary corpus through the CLI,
+    # ~141 s alone) is excluded too — the W1a claim is about the core audit
+    # modules and outer CI already covers that CLI path. The remaining nested
+    # run measures 300-342 s, so the budget is 420 s with headroom.
+    assert set(DEFAULT_EXCLUDE) == {
+        "tests/test_dogfood.py",
+        "tests/test_canary.py",
+        "tests/test_cli.py::test_quality_sheet_reports_stub_jury_context",
+    }
+    assert DOGFOOD_TIMEOUT_SECONDS == 420
 
 
 def test_nested_pytest_command_ignores_self_and_canary():
@@ -74,7 +81,7 @@ def test_dogfood_completes_under_budget_on_a_tiny_artifact(tmp_path, monkeypatch
     (tmp_path / "calc.py").write_text(CALC)
     (tmp_path / "test_calc.py").write_text(CALC_TEST)
     started = time.time()
-    out = dogfood(run_root=str(tmp_path))          # the default 300 s budget
+    out = dogfood(run_root=str(tmp_path))          # the default 420 s budget
     assert time.time() - started < DOGFOOD_TIMEOUT_SECONDS
     assert out["timeout"] is False
     assert out["outcome"].blocked is False
