@@ -1,6 +1,9 @@
 import json
 
-from veridict.certificate import CertificateIssuer, verify_certificate
+from datetime import datetime, timedelta, timezone
+
+from veridict.certificate import (CertificateIssuer, revoke_certificate,
+                                  verify_certificate, verify_certificate_standalone)
 from veridict.claim_extractor import ClaimExtractor
 from veridict.keys import SYSTEM_AUTHOR, KeyStore
 from veridict.ladder import adjudicate
@@ -19,7 +22,7 @@ def _fixture(tmp_path, code, test):
                         has_existing_tests=True, pytest_args=())
 
 
-def _run(tmp_path):
+def _run(tmp_path, issued_at=None):
     task = _fixture(tmp_path, "def add(a, b):\n    return a + b\n",
                     "def test_add():\n    assert add(1, 1) == 2\n")
     led = Ledger()
@@ -43,7 +46,8 @@ def _run(tmp_path):
         task=task, artifact_digest="digest", policy=pol, claims=claims,
         adjudications=adjs, evidence_by_claim=ev, jury_families=["stub-a", "stub-b"],
         disclosure_level="REDACTED",
-        scope_limits=["claim coverage is heuristic, not exhaustive"])
+        scope_limits=["claim coverage is heuristic, not exhaustive"],
+        issued_at=issued_at)
     ledger_path = str(tmp_path / "ledger.jsonl")
     cert_path = str(tmp_path / "cert.json")
     led.save(ledger_path)
@@ -415,3 +419,94 @@ def test_post_issuance_evidence_cannot_flip_a_verdict(tmp_path):
     assert not rf["valid"], "forged VERIFIED verdict must not verify"
     assert any("verdict mismatch" in e for e in rf["errors"]), \
         "rejection must come from the replay, not a side channel"
+
+
+def test_forged_signature_fails_verification(tmp_path):
+    """Tahrir testi: corrupt the certificate's signature after issue.
+
+    An attacker who lacks the issuer key can only corrupt or replace the
+    signature bytes. The body, chain and verdicts stay intact — which is
+    exactly why the signature must be checked INDEPENDENTLY of the replay:
+    it is the only binding the forgery breaks.
+    """
+    cert, lp, cp = _run(tmp_path)
+    sig = cert["signatures"][0]["sig_b64"]
+    cert["signatures"][0]["sig_b64"] = ("A" if sig[0] != "A" else "B") + sig[1:]
+    with open(cp, "w") as f:
+        json.dump(cert, f)
+    report = verify_certificate(lp, cp)
+    assert report["valid"] is False
+    assert report["signature_valid"] is False
+    assert any(e.startswith("signature:") for e in report["errors"])
+    # everything else still recomputes — the signature is the alarm, not a
+    # side effect of a broken certificate
+    assert report["chain_valid"] is True
+    assert report["verdicts_match"] is True
+    # the standalone verifier rejects the same forgery from the file alone
+    rep = verify_certificate_standalone(cp)
+    assert rep["valid"] is False
+    assert rep["signature_valid"] is False
+
+
+def test_standalone_rejects_future_timestamp(tmp_path):
+    """A certificate manufactured in the future fails the 24h sanity bound.
+
+    The signed ts is provenance, not proof of when the work happened: a
+    grossly forged future ts is rejected by any standalone verifier whose
+    own clock disagrees by more than the bound.
+    """
+    future = (datetime.now(timezone.utc) + timedelta(hours=48)).isoformat()
+    _, _, cp = _run(tmp_path, issued_at=future)
+    rep = verify_certificate_standalone(cp)
+    assert rep["valid"] is False
+    assert rep["timestamp_valid"] is False
+    assert any("sanity bound" in e for e in rep["errors"])
+    # the signature really does cover the future ts — this is a well-formed
+    # certificate with a lying clock, not a broken one
+    assert rep["signature_valid"] is True
+    assert rep["content_hash_valid"] is True
+
+
+def test_standalone_rejects_malformed_timestamp(tmp_path):
+    """issued_at must parse as ISO-8601 — 'soon' is not a timestamp."""
+    _, _, cp = _run(tmp_path, issued_at="soon-oglen")
+    rep = verify_certificate_standalone(cp)
+    assert rep["valid"] is False
+    assert rep["timestamp_valid"] is False
+    assert any("is not ISO-8601" in e for e in rep["errors"])
+    assert rep["signature_valid"] is True
+
+
+def test_revoked_certificate_fails_verification(tmp_path):
+    """§6.6: an append-only revocation entry kills the certificate.
+
+    The certificate itself is never rewritten (its signature stays intact,
+    the revocation is independently auditable in the same chain) — but the
+    verifier must stop honoring what the issuer disavowed.
+    """
+    cert, lp, cp = _run(tmp_path)
+    led = Ledger.load(lp)
+    revoke_certificate(led, cert["cert_id"], "key compromise")
+    led.save(lp)
+    report = verify_certificate(lp, cp)
+    assert report["valid"] is False
+    assert report["signature_valid"] is True        # the signature is still good
+    assert any(e.startswith("revoked:") for e in report["errors"])
+    assert "key compromise" in " ".join(report["errors"])
+
+
+def test_standalone_rejects_subject_rebinding(tmp_path):
+    """Tahrir (second flavor): rebind the certificate to a different artifact.
+
+    The attacker keeps a valid signature and a well-formed file, but swaps
+    the subject — cert_id is a recompute of the subject fields, so the
+    binding between the certificate and what it certifies visibly breaks.
+    """
+    cert, _, cp = _run(tmp_path)
+    cert["subject"]["artifact_digest"] = "deadbeef-deadbeef-deadbeef"
+    with open(cp, "w") as f:
+        json.dump(cert, f)
+    rep = verify_certificate_standalone(cp)
+    assert rep["valid"] is False
+    assert rep["content_hash_valid"] is False
+    assert any("cert_id mismatch" in e for e in rep["errors"])
