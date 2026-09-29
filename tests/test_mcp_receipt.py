@@ -185,7 +185,7 @@ def test_runner_does_not_shadow_the_mcp_sdk():
 
 # ---- against the REAL SDK ----------------------------------------------
 def _real():
-    pytest.importorskip("mcp")
+    pytest.importorskip("mcp.server.fastmcp")
     for k in [k for k in sys.modules if k.startswith("veridict_receipt_mcp")]:
         del sys.modules[k]
     if MCP_DIR not in sys.path:

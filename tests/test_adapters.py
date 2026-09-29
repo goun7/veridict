@@ -278,7 +278,7 @@ def test_mcp_rejects_bad_stance(tmp_path, monkeypatch):
 # which the stub cannot check. This is the test that caught the v1→v2
 # FastMCP→MCPServer rename.
 def _real_mcp():
-    pytest.importorskip("mcp")
+    pytest.importorskip("mcp.server.fastmcp")
     # The stub tests above inject a fake `veridict_mcp.server` into
     # sys.modules; drop it so this path resolves the real module.
     for k in [k for k in sys.modules if k.startswith("veridict_mcp")]:
