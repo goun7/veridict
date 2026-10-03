@@ -97,6 +97,12 @@ jobs:
                                  identity=it.producer["identity"], version=it.producer["version"]),
                                  it.to_dict())
                   adj = adjudicate(claim, items, pol)
+                  # D19: verifier reconciles policy_ref against the ledger's recorded
+                  # policy — without this the cert names a policy the ledger never
+                  # attested and the reference verifier (correctly) rejects it.
+                  __import__("veridict.policy", fromlist=["PolicyEngine"]).PolicyEngine(
+                      led).apply([claim], {claim.claim_id: items}, pol,
+                                 ActorRef(kind="system", identity="soak", version="1"))
                   cert = CertificateIssuer(led, ks, kid).issue(
                       task=task, artifact_digest=f"art-{i}", policy=pol, claims=[claim],
                       adjudications=[adj], evidence_by_claim={claim.claim_id: items},
