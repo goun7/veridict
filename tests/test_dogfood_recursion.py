@@ -17,6 +17,7 @@ import time
 from scripts.dogfood import (
     DEFAULT_EXCLUDE,
     DOGFOOD_TIMEOUT_SECONDS,
+    _DEFAULT_DOGFOOD_TIMEOUT_SECONDS,
     _ignore_args,
     _main_task,
     dogfood,
@@ -34,14 +35,18 @@ def _scrub_guard(monkeypatch) -> None:
 def test_default_exclude_and_budget_pin_the_contract():
     # v0.3.1: the slow CLI e2e (replays the canary corpus through the CLI,
     # ~141 s alone) is excluded too — the W1a claim is about the core audit
-    # modules and outer CI already covers that CLI path. The remaining nested
-    # run measures 300-342 s, so the budget is 420 s with headroom.
+    # modules and outer CI already covers that CLI path.
+    # v0.3.2 [Fix-2026-10-03]: the nested run outgrew the old 420 s budget
+    # (now measures ~661 s), so the default rose to 900 s. The pin targets
+    # _DEFAULT_DOGFOOD_TIMEOUT_SECONDS on purpose — DOGFOOD_TIMEOUT_SECONDS
+    # is env-overridable (VERIDICT_DOGFOOD_TIMEOUT_S; CI sets 1800 s), so
+    # pinning the resolved value would break wherever the override is set.
     assert set(DEFAULT_EXCLUDE) == {
         "tests/test_dogfood.py",
         "tests/test_canary.py",
         "tests/test_cli.py::test_quality_sheet_reports_stub_jury_context",
     }
-    assert DOGFOOD_TIMEOUT_SECONDS == 420
+    assert _DEFAULT_DOGFOOD_TIMEOUT_SECONDS == 900
 
 
 def test_nested_pytest_command_ignores_self_and_canary():

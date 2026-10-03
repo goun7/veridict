@@ -77,7 +77,20 @@ DEFAULT_EXCLUDE = (
 # must sit ABOVE the measured wall clock with headroom, otherwise the budget
 # itself is what fails. 420 s gives ~80 s headroom while still catching a
 # genuine hang (the old 600 s recursion) well inside CI's tolerance.
-DOGFOOD_TIMEOUT_SECONDS = 420
+#
+# v0.3.2 [Fix-2026-10-03]: the suite outgrew 420 s — a full run now measures
+# ~713 s on this box, so the old budget was itself the failure (CI #161-#165:
+# "exceeded its 420s hard timeout" → fail-closed blocked=True, not a real
+# audit defect). Raised to 900 s (~190 s headroom over 713 s) and made
+# overridable via VERIDICT_DOGFOOD_TIMEOUT_S so slower CI runners can widen
+# it without a code change; the hang-detection property is preserved (a
+# worker that truly wedges is still force-killed at the budget and fails
+# closed). CI sets 1800 s (ci.yml) — GitHub runners are materially slower
+# than this box and run 3 Python versions.
+_DEFAULT_DOGFOOD_TIMEOUT_SECONDS = 900
+DOGFOOD_TIMEOUT_SECONDS = int(
+    os.environ.get("VERIDICT_DOGFOOD_TIMEOUT_S",
+                   str(_DEFAULT_DOGFOOD_TIMEOUT_SECONDS)))
 _WORKER_FLAG = "--dogfood-worker"
 _GUARD_ENV = "VERIDICT_DOGFOOD_ACTIVE"
 

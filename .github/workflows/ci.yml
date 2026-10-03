@@ -11,6 +11,12 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # GitHub runners are materially slower than the dev box where the dogfood
+    # budget was calibrated (713 s local). The default 900 s budget would
+    # itself become the failure on a slow runner, so widen it here — the audit
+    # still fail-closes if a worker truly wedges (scripts/dogfood.py).
+    env:
+      VERIDICT_DOGFOOD_TIMEOUT_S: "1800"
     strategy:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
