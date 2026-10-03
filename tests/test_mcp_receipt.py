@@ -171,6 +171,12 @@ def test_runner_does_not_shadow_the_mcp_sdk():
     repo's own mcp/ directory. A launcher that put the repo root on sys.path
     would resolve `mcp` to this directory and break the server's import —
     the runner adds only mcp/ itself."""
+    # Fix-2026-10-03 (CI #166): bu kontrolün ÖNERMESİ yüklenen SDK'dır —
+    # SDK YOKSA runner doğruca "needs the MCP SDK" fail-closed mesajını
+    # yazar ve assert onu ARADIĞI için yeşil-boyanamaz. SDK opsiyonel bir
+    # bağımlılıktır (CI kurulumunda yoktur), bu yüzden _real()'in (L188)
+    # yerleşik-deseniyle aynı importorskip ile İNDETERMİNE der.
+    pytest.importorskip("mcp.server.fastmcp")
     import subprocess
     r = subprocess.run([sys.executable, "-c",
                         "import sys, runpy; "
