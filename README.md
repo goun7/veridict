@@ -392,3 +392,91 @@ expansion plan is [Roadmap v2 (#10)](https://github.com/goun7/veridict/issues/10
 formal verification); the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
+## Akademik Kaynaklar (2024-2026)
+
+Veridict'in dayandığı alan — DSSE/in-toto tarzı imzalı attestation, yazılım
+tedarik zinciri güvenliği, doğrulanabilir iddialar (verifiable claims) ve SLSA
+build provenance — üzerine 2024-2026 yayınları. Tüm bağlantılar canlı arXiv
+sayfalarıdır.
+
+- **[1] DSSE İmzalı, Değişmez ve Yeniden Oynatılabilir Ajan Kanıtı** —
+  *NovaFabric: Tamper-Evident, Replayable Evidence for Autonomous AI Agent
+  Runs* — Ardebili, arXiv 2026.
+  Otonom bir ajan çalışmasını, hiçbir ajan mantığını değiştirmeden, DSSE
+  imzası + RFC 3161 zaman damgası + Merkle log ile mühürlü, taşınabilir ve
+  yeniden oynatılabilir bir "Run Capsule" olarak kaydeder. Veridict'in
+  hash-chained ledger + çevrimdışı doğrulanabilir sertifika yaklaşımının
+  aynı ailesinden, doğrudan DSSE uygulaması.
+  [arXiv:2609.12582](https://arxiv.org/abs/2609.12582)
+
+- **[2] Doğrulanabilir Eğitim/Yayın İddiaları için Attestation Geçidi** —
+  *Attesting LLM Pipelines: Enforcing Verifiable Training and Release Claims*
+  — Tan et al., arXiv 2026.
+  Üçüncü parti ağırlıklar, adapter'lar ve dependency'lerden oluşan LLM
+  tedarik zincirinde "data/code lineage, build environment, security
+  scanning" gibi iddiaların kriptografik olarak artifact'e bağlanmamasını
+  bir boşluk olarak tanımlar ve attestation-aware bir promotion gate önerir.
+  Veridict'in "iddia → imzalı, makine-doğrulanabilir kanıt" dönüşümünün
+  ML pipeline genellemesi.
+  [arXiv:2603.28988](https://arxiv.org/abs/2603.28988)
+
+- **[3] CI Hatları için Kanıt Tabanlı Provenance Protokolü** —
+  *An Evidence-driven Protocol for Trustworthy CI Pipelines* — Castillo et
+  al., arXiv 2026.
+  Deterministic Build Systems + Trusted Execution Environments kombinasyonuyla
+  CI artifact'leri için kriptografik doğrulanabilir bütünlük, özgünlük ve
+  attestation garantisi sunar; her tüketicinin build'i yeniden çalıştırmasının
+  doğurduğu doğrulama darboğazını çözer. SLSA build provenance hedefinin
+  kanıt-odaklı bir gerçeklemesi.
+  [arXiv:2605.21089](https://arxiv.org/abs/2605.21089)
+
+- **[4] SLSA/in-toto Ötesinde Otonom Tedarik Zinciri Savunması** —
+  *Agentic AI for Autonomous Defense in Software Supply Chain Security:
+  Beyond Provenance to Vulnerability Mitigation* — Syed et al., arXiv 2025.
+  Mevcut SLSA, SBOM ve in-toto çerçevelerinin provenance ve izlenebilirlik
+  sağladığını ama üretime gömülü zafiyetleri aktif olarak tespit edip
+  gideremediğini belirtir; LLM tabanlı otonom savunmayla tamamlamayı önerir.
+  Veridict'in kanıt katmanının (provenance) ötesine geçiş ihtiyacını
+  tanımlayan referans.
+  [arXiv:2512.23480](https://arxiv.org/abs/2512.23480)
+
+- **[5] Kod Asistanları Provenance Sinyallerini Okuyor mu?** —
+  *Do AI Coding Assistants Check Before They Install? A Pre-Registered
+  Demand-Side Audit of Trust Signals in the Research Software Supply Chain*
+  — Shan, arXiv 2026.
+  SBOM, imzalı release'ler, build provenance attestations ve resmi kanal
+  beyanları gibi makine-okunabilir güven sinyallerinin, paket seçip kuran
+  AI kod asistanları tarafından okunup okunmadığını ölçen önceden
+  kayıtlı bir deney. İmzalı kanıtın üretildiğiyle tüketildiği arasındaki
+  açığı gösterir.
+  [arXiv:2609.07754](https://arxiv.org/abs/2609.07754)
+
+- **[6] LLM Ajanlarında Yürütüm Provenance'ı ve Kanıt İzleme Araştırması** —
+  *From Agent Traces to Trust: A Survey of Evidence Tracing and Execution
+  Provenance in LLM Agents* — Wang et al., arXiv 2026.
+  Ajan izlerini (trace) salt gözlemden, süreç düzeyinde hesap verebilirliğin
+  temeli olarak yürütüm provenance'ına yükseltir: her iddianın arkasındaki
+  kanıt, araç çağrılarının gerekçesi ve belleğin kararlara etkisi. Veridict'in
+  evidence ladder'ının akademik zeminini oluşturur.
+  [arXiv:2606.04990](https://arxiv.org/abs/2606.04990)
+
+- **[7] Skor Değil, İddia Doğrulaması** —
+  *Verify Claims, Not Scores: Evidence-Based Verification of Modular Agents*
+  — Alzahrani, arXiv 2026.
+  Ajanı toplam bir görev skoruyla yargılamak yerine, her sonucu arkasındaki
+  kanıtla birlikte kaydeden ve destekli / desteklenmiyor / çözümlenemedi /
+  değerlendirilmedi olmak üzere dört verdicttan biriyle etiketleyen bir
+  doğrulama denetimi önerir. Veridict'in fail-closed INCONCLUSIVE verdict
+  felsefesiyle aynı özü taşır.
+  [arXiv:2610.01348](https://arxiv.org/abs/2610.01348)
+
+- **[8] Yapısal Ajan Eylemleri için Kaynaklarası Bütünlük Sertifikası** —
+  *Certified Multi-Source Integrity for Structured Agent Actions* — Pandey
+  et al., arXiv 2026.
+  Ajanların ayrıcalıklı, geri alınamaz yapısal eylemlerini (ör. fatura ödeme)
+  bozabilecek belge/araç çıktısı kirlenmesi ve prompt injection'a karşı,
+  bir corruption budget altında eylemin ne zaman güvenle sertifikalanabileceğini
+  tanımlar. Veridict'in imzalı makine-verifier'larıyla aynı "sertifikala,
+  sonra serbest bırak" modeli.
+  [arXiv:2609.34245](https://arxiv.org/abs/2609.34245)
+
