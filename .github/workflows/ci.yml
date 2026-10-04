@@ -32,7 +32,7 @@ jobs:
         # They are optional at runtime (import-guarded), required here.
         run: |
           pip install -e . && pip install pytest cryptography pyyaml jsonschema \
-            langchain-core llama-index-core
+            langchain-core llama-index-core mcp
       - name: Full suite (python -m pytest)
         run: python -m pytest -q
       - name: Full suite (pytest entrypoint)
