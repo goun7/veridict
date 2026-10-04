@@ -27,7 +27,7 @@ jobs:
           python-version: "3.14"
       - run: pip install markdown
       - run: python scripts/render_site.py
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
