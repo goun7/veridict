@@ -289,6 +289,19 @@ certificate) is refused. Exit code 0 means the claim holds; non-zero
 means it does not — a pipeline that ignores the report and pays on any rc
 has a bug, and the tool will not help it.
 
+If your workflow keeps a dossier (a machine-readable decision record)
+rather than a bare certificate, `veridict resolve` is the same boundary
+for that shape: it records a human decision on an already-issued dossier
+into the ledger — which dossier, which of the four decisions, who decided,
+and the risk note they accepted under. A resolution for a dossier that was
+never issued is refused, so no human authority can be fabricated.
+
+```bash
+veridict resolve --ledger ledger.jsonl --dossier doss-2026-10 \
+                 --decision accepted --decided-by oncall@example.com \
+                 --note "tutor reviewed the diff"
+```
+
 This is deliberately a **claim generator**, not a payment executor. It
 answers "was provably-done work done", not "should money move". Keeping
 those separate is what stops a dropped or replayed settlement message
