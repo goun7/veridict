@@ -112,6 +112,25 @@ def _b64(s: str) -> bytes:
 # --------------------------------------------------------------------------
 # publish
 
+def locate_checkpoint(ledger_entries: list[dict], bound: dict) -> dict:
+    """Find the checkpoint.anchored entry a binding claims to pin.
+
+    Shared by every anchor transport (Rekor, tamga): the checkpoint must exist
+    in the ledger AND carry the chain_hash the certificate claims, or the
+    binding is not anchorable — no transport pins what it cannot see.
+    """
+    cp = next((e for e in ledger_entries
+               if e.get("seq") == bound["checkpoint_seq"]
+               and e.get("entry_type") == "checkpoint.anchored"), None)
+    if cp is None:
+        raise RuntimeError(f"no checkpoint.anchored entry at seq "
+                           f"{bound['checkpoint_seq']} — refusing to anchor")
+    if cp.get("payload", {}).get("chain_hash") != bound["chain_hash"]:
+        raise RuntimeError("ledger chain_hash at checkpoint_seq disagrees "
+                           "with the certificate — refusing to anchor")
+    return cp
+
+
 def publish(ledger_entries: list[dict], cert: dict, *,
             rekor_url: str = REKOR_SERVER, timeout: float = 60.0) -> dict:
     """Anchor the certificate's checkpoint to Rekor. Raises RuntimeError on
@@ -126,15 +145,7 @@ def publish(ledger_entries: list[dict], cert: dict, *,
     import httpx
 
     bound = bound_fields(cert)
-    cp = next((e for e in ledger_entries
-               if e.get("seq") == bound["checkpoint_seq"]
-               and e.get("entry_type") == "checkpoint.anchored"), None)
-    if cp is None:
-        raise RuntimeError(f"no checkpoint.anchored entry at seq "
-                           f"{bound['checkpoint_seq']} — refusing to anchor")
-    if cp.get("payload", {}).get("chain_hash") != bound["chain_hash"]:
-        raise RuntimeError("ledger chain_hash at checkpoint_seq disagrees "
-                           "with the certificate — refusing to anchor")
+    cp = locate_checkpoint(ledger_entries, bound)
     digest = anchor_digest(bound)
 
     priv = ec.generate_private_key(ec.SECP256R1())     # ephemeral; see header

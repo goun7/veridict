@@ -47,6 +47,8 @@ reference is `docs/specs/2026-09-10-veridict-standard-v1.0.md` (the
 | Dogfood | `scripts/dogfood.py` | the system audits itself; phase-2 receipt block; reentrancy-guarded |
 | Vectors builder | `scripts/build_test_vectors.py` | deterministic regeneration |
 | Fuzz | `tests/test_fuzz_ledger.py` | seeded properties: roundtrip byte-exactness, tamper always caught |
+| External anchor (Rekor) | `veridict/anchor.py` | checkpoint → public Sigstore log; offline verify against the pinned Rekor key |
+| Mesh anchor (Tamga) | `veridict/tamga_anchor.py` | the SAME checkpoint binding → a Tamga-grammar hash-chained ledger (the mesh's anchor layer); verified by Tamga's own `ledger-verify` in a parity test |
 
 ## Governance docs
 

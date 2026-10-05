@@ -7,7 +7,7 @@ import json
 import os
 import sys
 
-from . import anchor
+from . import anchor, tamga_anchor
 from .audit import AuditOrchestrator
 from .certificate import (revoke_certificate, verify_certificate,
                           verify_certificate_standalone)
@@ -157,6 +157,26 @@ def _cmd_audit(args) -> int:
             anchor_info = {"error": str(exc)}  # silent-pass risk: it reports
             if getattr(args, "anchor_required", False):
                 raise
+    elif getattr(args, "anchor", "none") == "tamga":
+        from . import tamga_anchor             # mesh-local anchor transport
+        sidecar_target = args.anchor_out or (args.cert_out + ".anchor.json")
+        ledger_target = args.anchor_ledger or (args.cert_out + ".tamga.jsonl")
+        entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
+                   if l.strip()]
+        try:
+            sidecar = tamga_anchor.publish(
+                entries, result["cert"], ledger_target,
+                node_key=getattr(args, "anchor_node_key", None))
+            with open(sidecar_target, "w", encoding="utf-8") as f:
+                json.dump(sidecar, f, indent=2, sort_keys=True)
+            anchor_info = {"out": sidecar_target, "ledger": ledger_target,
+                           "seq": sidecar["tamga"]["seq"],
+                           "h": sidecar["tamga"]["h"],
+                           "node_signed": sidecar["tamga"]["node_signed"]}
+        except Exception as exc:               # same discipline as rekor:
+            anchor_info = {"error": str(exc)}  # report, never silently pass
+            if getattr(args, "anchor_required", False):
+                raise
     print(json.dumps({"report": result["report"],
                       "blocked": result["outcome"].blocked,
                       "anchor": anchor_info,
@@ -191,12 +211,11 @@ def _cmd_verify(args) -> int:
         # unknown rather than assumed.
         report = verify_certificate_standalone(cert_path)
     if getattr(args, "anchor", None):
-        from . import anchor as anchor_mod
         with open(args.anchor, encoding="utf-8") as f:
             sidecar = json.load(f)
         with open(cert_path, encoding="utf-8") as f:
             cert = json.load(f)
-        a_res = anchor_mod.verify(sidecar, cert)
+        a_res = _anchor_verify(sidecar, cert)
         report["anchor"] = a_res
         report["valid"] = report["valid"] and a_res["valid"]
     print(json.dumps(report, indent=2))
@@ -284,14 +303,38 @@ def _cmd_receipt(args) -> int:
     return 1
 
 
-def _cmd_anchor(args) -> int:
+def _anchor_verify(sidecar: dict, cert: dict) -> dict:
+    """Dispatch a sidecar to its transport's verifier.
+
+    Both transports bind the SAME fields (anchor.bound_fields), so a relying
+    party mixes them freely; the sidecar's anchor_version selects the
+    verifier, and an unknown version is a refusal, not a fallback.
+    """
+    if sidecar.get("anchor_version") == tamga_anchor.TAMGA_ANCHOR_VERSION:
+        return tamga_anchor.verify(sidecar, cert)
     from . import anchor as anchor_mod
+    return anchor_mod.verify(sidecar, cert)
+
+
+def _cmd_anchor(args) -> int:
+    transport = getattr(args, "transport", "rekor")
     with open(args.cert, encoding="utf-8") as f:
         cert = json.load(f)
     if args.action == "publish":
         entries = [json.loads(l) for l in open(args.ledger, encoding="utf-8")
                    if l.strip()]
-        sidecar = anchor_mod.publish(entries, cert, rekor_url=args.rekor_url)
+        if transport == "tamga":
+            if not args.anchor_ledger:
+                print("veridict: error: tamga publish requires --anchor-ledger",
+                      file=sys.stderr)
+                return 1
+            sidecar = tamga_anchor.publish(
+                entries, cert, args.anchor_ledger,
+                node_key=getattr(args, "anchor_node_key", None))
+        else:
+            from . import anchor as anchor_mod
+            sidecar = anchor_mod.publish(entries, cert,
+                                         rekor_url=args.rekor_url)
         text = json.dumps(sidecar, indent=2, sort_keys=True)
         if args.out:
             with open(args.out, "w", encoding="utf-8") as f:
@@ -300,7 +343,7 @@ def _cmd_anchor(args) -> int:
         return 0
     with open(args.anchor, encoding="utf-8") as f:
         sidecar = json.load(f)
-    res = anchor_mod.verify(sidecar, cert)
+    res = _anchor_verify(sidecar, cert)
     print(json.dumps(res, indent=2))
     return 0 if res["valid"] else 1
 
@@ -566,12 +609,21 @@ def main(argv=None) -> int:
                         "and ACTIVE there (§6.6); revocation is enforced")
     a.add_argument("--disclosure", default="REDACTED",
                    choices=("LOCAL_ONLY", "REDACTED", "FULL"))
-    a.add_argument("--anchor", choices=("none", "rekor"), default="none",
-                   help="pin the certificate's checkpoint to an external "
-                        "transparency log (Sigstore Rekor public-good)")
+    a.add_argument("--anchor", choices=("none", "rekor", "tamga"), default="none",
+                   help="pin the certificate's checkpoint to a transparency "
+                        "surface: rekor = the public Sigstore log (external); "
+                        "tamga = the mesh's own anchor layer, a Tamga-grammar "
+                        "hash-chained ledger (offline, no third party)")
     a.add_argument("--anchor-out",
                    help="where to write the anchor sidecar JSON "
                         "(default: <cert-out>.anchor.json)")
+    a.add_argument("--anchor-ledger",
+                   help="tamga transport: the Tamga-grammar ledger file to "
+                        "append the checkpoint into "
+                        "(default: <cert-out>.tamga.jsonl)")
+    a.add_argument("--anchor-node-key", metavar="HEX",
+                   help="tamga transport: ed25519 node key (64-hex) cosigning "
+                        "the anchor record (L1 node-cosign; optional)")
     a.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
     a.add_argument("--anchor-required", action="store_true",
                    help="fail the run if the anchor cannot be published "
@@ -579,10 +631,17 @@ def main(argv=None) -> int:
     a.set_defaults(func=_cmd_audit)
     an = sub.add_parser("anchor")
     an.add_argument("action", choices=("publish", "verify"))
+    an.add_argument("--transport", choices=("rekor", "tamga"), default="rekor",
+                    help="which anchor transport (the sidecar's "
+                         "anchor_version selects the verifier on `verify`)")
     an.add_argument("--ledger", required=True)
     an.add_argument("--cert", required=True)
     an.add_argument("--out", help="publish: write the sidecar here")
     an.add_argument("--anchor", help="verify: the sidecar JSON to check")
+    an.add_argument("--anchor-ledger",
+                    help="tamga publish: the ledger file to append into")
+    an.add_argument("--anchor-node-key", metavar="HEX",
+                    help="tamga publish: ed25519 node key cosigning the record")
     an.add_argument("--rekor-url", default=anchor.REKOR_SERVER)
     an.set_defaults(func=_cmd_anchor)
     e = sub.add_parser("export")

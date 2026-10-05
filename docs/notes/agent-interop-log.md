@@ -72,3 +72,47 @@ F7 birim testiyle kapatıldı, gerçek çapraz-yapıt senaryosu koşulmadı.
 
 Bekleyen dış işler: Sester A2 bağımsız implementasyonu (issue #1 çıkış
 koşulu) + §9.5(c) D20 parite raporu — mailbox üzerinden istendi, yanıt yok.
+
+---
+
+## 2026-10-05 — TAMGA-MESH turu: tek-yönlü kanalın kodla kapatılması
+
+**Mesajlaşma kanalının bilinen sınırı (yukarıda, 2026-09-20 satırında
+yazıldı):** Tamga→Veridict yönlü makine-denetimliydi (`sovereign_verify`
+`veridict verify --ledger X --cert Y` çağırır, test_cli_surface.py bu
+sözleşmeyi kilitler); ters yönde ise *hiçbir şey* yoktu ve mesajların
+okunduğu ALINDI ile dönmedi — köprü prose'de iddia, kodda yoktu.
+
+**Kapatma:** yeni `veridict/tamga_anchor.py` — bir anchor transport'u.
+Rekor'a pinlenen checkpoint bağımnın TAMAMINI (`anchor.bound_fields` +
+`anchor.anchor_digest`: cert_id, key_id, checkpoint_seq, chain_hash) aynı
+digest ile bir **Tamga gramerli hash-zincir ledger'a** yazar. Yani
+Veridict'in kanıtı artık mesh'in kendi kalıcı-anchor katmanında da duruyor
+ve iki yüzey de aynı baytlara bağlı.
+
+Parite iddia değil, ölçüldü: `tests/test_tamga_anchor.py`'deki
+`test_tamga_native_verifier_accepts_veridict_anchor` bu modülün yazdığı
+ledger'ı alıp **Tamga'nın kendi `tamga_runner.py ledger-verify`'ine**
+subprocess'ten verir (TamgaProtocol bu makinede yoksa skip — public CI'de
+mesh kardeşi olmadığı için). Geçti: ok=true, head == bu modülün kaydettiği
+h. node-cosign'lu varyantta imza Veridict'in `cryptography`'iyle atılıp
+Tamga'nın PyNaCl yoluyla doğrulanıyor — çapraz-kütüphane Ed25519 uyuşumu
+bayt seviyesinde kanıtlandı, varsayımla değil.
+
+Sınırlar (dürüst): (1) op `veridict.anchor` Tamga'nın emitter-kayıdında
+yok — modül bir Tamga emittersi gibi davranmaz, kayıt op'ünü kendisi
+etiketler; Tamga'nın `_verify_chain` op'u opak veri olarak hash'lediği
+için zincir yeşil doğrulanır, ama alıcı-tarafı `unknown_ops()` politikası
+yabancı op'u görecek ve kendi abstain/warn/reject kararını verecek
+(tasarım gereği alıcıda). Mesh operatörü bu kayıtları Tamga-yönetilen bir
+paket-ledger'ına isterse emitter'ı orada kaydetmeli (`publish(op=...)` ile
+kayıtlı isim kullanılır). (2) jcs serileştiricisi bilinçli olarak RFC 8785'nin
+dar bir alt-kümesi: anchor kayıtları sadece ASCII string + küçük tamsayı
+içerir; float reddedilir (Python'a-özel serileştirme hash paritesini
+bozardı — tamga_canon'un 2026-09-17'de dışarıdan bir denetmenci tarafından
+bululan divergansı ile aynı ders).
+
+CLI: `audit --anchor tamga --anchor-ledger F` ve `anchor publish/verify
+--transport tamga`; `verify --anchor` sidecar'ın `anchor_version`'ına göre
+dispatch eder, böylece tek komut iki transport'u da doğrular. 11 yeni test;
+mevcut suite düşmedi.

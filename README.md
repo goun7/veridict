@@ -114,7 +114,7 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | 434 passed (both invocation styles, Python 3.12–3.14 in CI) |
+| Test suite | 433 passed, 22 skipped (verified locally; skips are the real-LLM/MCP/soak suites and the two Tamga-parity tests, which skip where the mesh sibling is absent) — both invocation styles, Python 3.12–3.14 in CI |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Standalone verification | receipt/cert verified from the **file alone** — content hash + signature + signed timestamp; new suites cover issue/verify/revoke/list, tamper, custody and the MCP protocol surface |
@@ -326,6 +326,18 @@ Two ways a Veridict verdict reaches tooling that never heard of us:
   `veridict verify --ledger L --cert C --anchor A` (pinned Rekor key, no
   network, no trust in us). The v1 release's dogfood certificate is anchored
   live — see `docs/receipts-anchor-v1-dogfood.json`.
+- **Mesh-local anchoring** — `veridict audit … --anchor tamga --anchor-ledger
+  mesh.jsonl` pins the *same* checkpoint binding (same `bound_fields`, same
+  digest) into a [Tamga](https://github.com/goun7/tamga-protocol)-grammar
+  hash-chained ledger — the mesh's own permanent proof-anchor layer, no third
+  party and no network at all. Both transports commit to identical bytes, so a
+  relying party can check either surface. The record follows Tamga's chain
+  rules byte-for-byte (`h = sha256(prev + jcs(rec))`, 1-based seq, optional
+  ed25519 node-cosign), which means Tamga's *own* `ledger-verify` accepts a
+  ledger Veridict wrote — verified by a parity test that shells out to Tamga's
+  verifier rather than asserting agreement. `veridict verify … --anchor A`
+  dispatches on the sidecar's `anchor_version`, so both anchors verify through
+  one command.
 - **SLSA export** — `veridict export --format vsa` projects a certificate onto
   a SLSA v1.2 Verification Summary Attestation (in-toto Statement) so existing
   supply-chain policy engines can consume the verdict. The VSA is a lossy
