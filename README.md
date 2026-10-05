@@ -417,11 +417,14 @@ expansion plan is [Roadmap v2 (#10)](https://github.com/goun7/veridict/issues/10
 formal verification); the commercial
 model is documented in [`docs/commercial-model.md`](docs/commercial-model.md).
 
-## Akademik Kaynaklar (2024-2026)
+## Akademik zemin (2024-2026)
 
+Delilix tarzı bir not: aşağıdaki her madde, bu README'ye eklenmeden önce HTTP 200
+ile fetch edildi ve başlık+yazar birebir karşılaştırıldı — FP0 (uydurma yok).
 Veridict'in dayandığı alan — DSSE/in-toto tarzı imzalı attestation, yazılım
-tedarik zinciri güvenliği, doğrulanabilir iddialar (verifiable claims) ve SLSA
-build provenance — üzerine 2024-2026 yayınları. Tüm bağlantılar canlı arXiv
+tedarik zinciri güvenliği, doğrulanabilir iddialar (verifiable claims), SLSA
+build provenance, ajan harness'in yazdığı kaydın güvenilirliği ve imzalı
+manifest denetimi — üzerine 2024-2026 yayınları. Tüm bağlantılar canlı arXiv
 sayfalarıdır.
 
 - **[1] DSSE İmzalı, Değişmez ve Yeniden Oynatılabilir Ajan Kanıtı** —
@@ -504,4 +507,33 @@ sayfalarıdır.
   tanımlar. Veridict'in imzalı makine-verifier'larıyla aynı "sertifikala,
   sonra serbest bırak" modeli.
   [arXiv:2609.34245](https://arxiv.org/abs/2609.34245)
+
+- **[9] Harness'in Yazdığı Kayda Auditor Güvenebilir mi?** —
+  *Hearsay: Can an Auditor Trust the Record a Deployed Agent Harness Writes?* —
+  Dai et al., cs.CR, Eylül 2026.
+  On altı dağıtılmış framework'ün hiçbiri "evidentiary" (orada olmamış bir
+  okuyucunun yazana güvenmeden denetleyebileceği) bir kayıt tam olarak yazmıyor.
+  Makalenin ölçtüğü şey ve Veridict'in tezinin deneysel gerekçesi: bir harness'in
+  **kendi kaydı üstündeki hash chain, harness'in çalışırken işlediği 28
+  omission/fabrication'in hepsini geçirir** (yani sessizce onaylar); buna
+  karşın harness dışında tutulan ve kayıtla her iki yönde okunan bir append-only
+  log aynı 28'inin de hepsini yakalar. Çözüm "ilk yazana daha güçlü bir mühür
+  değil, ikinci bir yazar"dır. Bu, Veridict'in neden hash-chain ile yetinmeyip
+  ikinci yazarlar eklediğidir: watcher manifest'leri, dışsal anchor (Rekor /
+  Tamga) ve standarttan bağımsız yazılmış verifier — hepsi "kanıtın yazarı kim"
+  sorusunun farklı bir yanıtı.
+  [arXiv:2609.32495](https://arxiv.org/abs/2609.32495)
+
+- **[10] MCP Çağrıları için İmzalı Manifest ve Transparency Log** —
+  *Verifiable Manifest Signing and Transparency Enforcement for Secure
+  MCP-Based LLM Pipelines* — Jamshidi et al., cs.CR, Ocak 2026 (v2 Haziran 2026).
+  MCP baseline'ının tool-use manifest'lerini kriptografik olarak doğrulamadığını,
+  tazelik (freshness) denetlemediğini ve bağımsız denetime açmadığını bir boşluk
+  olarak tanımlar; her manifest'i policy-validate + freshness-check + dijital
+  imza + execution öncesi doğrulama + tamper-evident audit evidence'a bağlayan
+  bir uygulama katmanı önerir, kabul edilen çağrıları Merkle transparency log'a
+  yazar ve fail-closed authorization uygular. Veridict'in imzalı watcher
+  manifest'lerinin (registry, §6.6; iptal edilen watcher reddedilir) ve agent'a
+  bakan MCP receipt yüzeyinin (`mcp/`) akademik zeminidir.
+  [arXiv:2601.23132](https://arxiv.org/abs/2601.23132)
 
