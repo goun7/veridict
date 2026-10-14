@@ -114,7 +114,7 @@ A failing audit turns it amber or red — worst-verdict-wins.
 
 | Check | Result |
 |---|---|
-| Test suite | **1.491 passed, 7 skipped, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest tests/`, 1.251 collected; verified locally; skips are the real-LLM/MCP/soak suites and the two Tamga-parity tests, which skip where the mesh sibling is absent) — both invocation styles, Python 3.12–3.14 in CI |
+| Test suite | **1.704 passed, 7 skipped, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest tests/`, 1.251 collected; verified locally; skips are the real-LLM/MCP/soak suites and the two Tamga-parity tests, which skip where the mesh sibling is absent) — both invocation styles, Python 3.12–3.14 in CI |
 | Self-audit | valid certificate, risk `low`, GATE not blocked |
 | Offline replay | `veridict verify` rc 0 on the dogfood certificate |
 | Standalone verification | receipt/cert verified from the **file alone** — content hash + signature + signed timestamp; new suites cover issue/verify/revoke/list, tamper, custody and the MCP protocol surface |
