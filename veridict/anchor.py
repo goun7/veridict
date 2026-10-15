@@ -184,6 +184,13 @@ def verify(sidecar: dict, cert: dict | None = None, *,
     commitment to `sidecar.digest`, without claiming what it binds.
     """
     errors: list[str] = []
+    # VERIDICT-ANC-1: sidecar bir dict DEĞILSE ( None/metin/liste) eski kod
+    # AttributeError ile çöküyordu — verify sözleşmesi fail-closed'dir:
+    # her hata-ekleyip geçersiz-kılan tek bir转为 exit VERIR.
+    if not isinstance(sidecar, dict):
+        return {"valid": False,
+                "errors": [f"sidecar must be a dict, got {type(sidecar).__name__}"],
+                "summary": {}}
     r = (sidecar.get("rekor") or {})
     entry = r.get("entry") or {}
     bound = sidecar.get("bound") or {}
@@ -229,16 +236,26 @@ def verify(sidecar: dict, cert: dict | None = None, *,
     try:
         root_from_note = base64.b64decode(root_b64).hex()
     except Exception:
+        # VERIDICT-ANC-1: sessiz-geçiş ( root_from_note="" → kontrol-atlanır)
+        # fail-open idi — geçersiz kök artık doğrudan hata.
+        errors.append("checkpoint root is not valid base64")
         root_from_note = ""
     if root_from_note and root_from_note != proof.get("rootHash"):
         errors.append("proof rootHash disagrees with the signed checkpoint")
-    if tree_size.isdigit() and int(tree_size) <= int(proof.get("logIndex", -1)):
+    # VERIDICT-ANC-1: tree_size rakam-DEĞİLSE sessizce-atlanıyordu — artık hata.
+    if not tree_size.isdigit():
+        errors.append("checkpoint tree_size is not a decimal number")
+    elif int(tree_size) <= int(proof.get("logIndex", -1)):
         errors.append("proof logIndex is not inside the signed tree")
 
     # 2) UUID structure: treeID || leaf || treeID (live-log convention)
+    # VERIDICT-ANC-1: 'len == 96 ve leaf eşleşmez' — 96-olmayan UUID sessizce
+    # geçiyordu (alternasyon-yanı); artık uzunluk da doğrulanır.
     uuid = r.get("uuid", "")
     leaf_hex = leaf_hash(body).hex()
-    if len(uuid) == 96 and uuid[16:80] != leaf_hex:
+    if len(uuid) != 96:
+        errors.append("uuid is not the 96-hex Rekor format")
+    elif uuid[16:80] != leaf_hex:
         errors.append("uuid does not embed the entry's Merkle leaf hash")
 
     # 3) SET: Rekor's signature over the canonicalized 4-field entry

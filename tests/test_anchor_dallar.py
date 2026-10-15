@@ -537,16 +537,19 @@ class TestVerify:
         assert res["valid"] is False
         assert any("rootHash disagrees" in e for e in res["errors"])
 
-    def test_note_root_base64_değil_atlanır(self, rekor):
-        """B1: note'un root satırı base64 değilse kök çapraz-kontrol atlanır
-        (fail-open) — proof.rootHash ile uyuşmaz olmasına rağmen verify GEÇER."""
+    def test_note_root_base64_değil_reddedilir(self, rekor):
+        """B1 (DUZELTILDI VERIDICT-ANC-1): note'un root satırı base64 değilse
+        eskiden kök çapraz-kontrol atlanıyordu (fail-open — rootHash uyuşmaz
+        olmasına rağmen verify GEÇER idi). Artık hata eklenip reddedilir."""
         sc = anchor.publish(_defter(), _sertifika())
         notlar = sc["rekor"]["entry"]["verification"]["inclusionProof"]
         satırlar = self._head(notlar).split("\n")
         satırlar[2] = "!!!!base64-değil!!!!"
         self._note_uygula(rekor, notlar, "\n".join(satırlar))
         res = anchor.verify(sc, _sertifika(), rekor_key_pem=rekor.pin)
-        assert res["valid"] is True, res["errors"]
+        assert res["valid"] is False
+        assert any("checkpoint root is not valid base64" in e
+                   for e in res["errors"])
 
     def test_tree_size_logindex_içinde_değil(self, rekor):
         sc = anchor.publish(_defter(), _sertifika())
@@ -556,9 +559,10 @@ class TestVerify:
         assert any("logIndex is not inside the signed tree" in e
                    for e in res["errors"])
 
-    def test_tree_size_rakam_değil_atlanır(self, rekor):
-        """B2: tree_size rakam değilse (örn. 'on') logIndex-kapsam kontrolü de
-        atlanır; summary.tree_size_at_anchor ham dizeyi taşır."""
+    def test_tree_size_rakam_değil_reddedilir(self, rekor):
+        """B2 (DUZELTILDI VERIDICT-ANC-1): tree_size rakam değilse (örn. 'on')
+        eskiden logIndex-kapsam kontrolü de atlanıyordu (fail-open); artık
+        doğrudan hata. summary.tree_size_at_anchor ham dizeyi taşımaya devam."""
         sc = anchor.publish(_defter(), _sertifika())
         notlar = sc["rekor"]["entry"]["verification"]["inclusionProof"]
         satırlar = self._head(notlar).split("\n")
@@ -566,16 +570,18 @@ class TestVerify:
         self._note_uygula(rekor, notlar, "\n".join(satırlar))
         notlar["logIndex"] = 999
         res = anchor.verify(sc, _sertifika(), rekor_key_pem=rekor.pin)
-        assert res["valid"] is True, res["errors"]
+        assert res["valid"] is False, res["errors"]
+        assert any("tree_size is not a decimal" in e for e in res["errors"])
         assert res["summary"]["tree_size_at_anchor"] == "on"
 
-    def test_uuid_kısa_atlanır(self, rekor):
-        """B3: uuid 96 karakter değilse leaf-gömme kontrolü atlanır."""
+    def test_uuid_kısa_reddedilir(self, rekor):
+        """B3 (DUZELTILDI VERIDICT-ANC-1): uuid 96 karakter değilse eskiden
+        leaf-gömme kontrolü atlanıyordu; artık uzunluk hatası."""
         sc = anchor.publish(_defter(), _sertifika())
         sc["rekor"]["uuid"] = "ff"
         res = anchor.verify(sc, _sertifika(), rekor_key_pem=rekor.pin)
-        assert res["valid"] is True, res["errors"]
-        assert res["summary"]["uuid"] == "ff"
+        assert res["valid"] is False, res["errors"]
+        assert any("96-hex Rekor format" in e for e in res["errors"])
 
     def test_uuid_yaprak_gömmüyor(self, rekor):
         sc = anchor.publish(_defter(), _sertifika())
@@ -637,7 +643,10 @@ class TestVerify:
         assert res["valid"] is False
         assert res["errors"]
 
-    def test_none_sidecar_attributeerror(self):
-        """B5: docstring 'never raises' yalnız dict girdilerinde geçerlidir."""
-        with pytest.raises(AttributeError):
-            anchor.verify(None)
+    def test_none_sidecar_reddedilir(self):
+        """B5 (DUZELTILDI VERIDICT-ANC-1): docstring 'never raises' yalnız dict
+        girdilerinde geçerliydi — None/metin sidecar AttributeError çöküşü
+        yerine artık fail-closed ret döner."""
+        res = anchor.verify(None)
+        assert res["valid"] is False
+        assert res["errors"] == ["sidecar must be a dict, got NoneType"]
