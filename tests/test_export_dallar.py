@@ -261,13 +261,16 @@ class TestToVsaReddetmeler:
         with pytest.raises(ValueError):
             to_vsa(_sertifika(), girdi)
 
-    def test_cert_id_olmadan_none_none_govese_eslesir(self):
-        """BULGU B4: iki tarafta da cert_id yoksa None==None eşleşir."""
+    def test_cert_id_olmadan_unattributed_govese_eslesir(self):
+        """BULGU B4 (DUZELTILDI VERIDICT-EXP-B4): iki tarafta da cert_id yoksa
+        None==None eşleşir; URI eskiden 'veridict:cert/None' sentezliyordu —
+        artık policy_id'nin 'default'-ön-koşulunun aynısı 'unattributed'."""
         cert = _sertifika()
         cert.pop("cert_id")
         girdi = [{"entry_type": "certificate.issued", "ts": TS, "payload": {}}]
         vsa = to_vsa(cert, girdi)
-        assert vsa["predicate"]["inputAttestations"][0]["uri"] == "veridict:cert/None"
+        assert vsa["predicate"]["inputAttestations"][0]["uri"] \
+            == "veridict:cert/unattributed"
 
     def test_payload_dict_degilse_attribute_error(self):
         """BULGU B5: string payload .get'i çökerür (ValueError değil)."""
@@ -455,21 +458,21 @@ class TestDsseZarfi:
         env["payload"] = "!!!"
         assert dsse_verify(env, pub) is False
 
-    def test_kotu_base64_payload_firlatir(self):
-        """BULGU B1: 'A' geçersiz dolama -> binascii.Error yayılır."""
+    def test_kotu_base64_payload_reddedilir(self):
+        """BULGU B1 (DUZELTILDI VERIDICT-EXP-B1): 'A' geçersiz dolama eskiden
+        binascii.Error-yayıyordu — verify sözleşmesi bool'dur (her-başarısızlık
+        False, çağıran doğrulamayı ayırt-etmez)."""
         priv, pub = _anahtar_cifti()
         env = dsse_envelope({"a": 1}, priv, "kid-1")
         env["payload"] = "A"
-        with pytest.raises(binascii.Error):
-            dsse_verify(env, pub)
+        assert dsse_verify(env, pub) is False
 
-    def test_kotu_base64_sig_firlatir(self):
-        """BULGU B1: imzada kötü base64 -> binascii.Error yayılır."""
+    def test_kotu_base64_sig_reddedilir(self):
+        """BULGU B1 (DUZELTILDI): imzada kötü base64 -> eskiden fırlatır."""
         priv, pub = _anahtar_cifti()
         env = dsse_envelope({"a": 1}, priv, "kid-1")
         env["signatures"][0]["sig"] = "A"
-        with pytest.raises(binascii.Error):
-            dsse_verify(env, pub)
+        assert dsse_verify(env, pub) is False
 
 
 # =============================================================== _spdx_ts ===
@@ -613,7 +616,7 @@ class TestToSpdxYapi:
         assert "logIndex 7" in r2["comment"]
 
     @pytest.mark.parametrize("anchor, beklenen", [
-        ({"rekor": {}}, "https://rekor.sigstore.io/api/v1/log/entries/"),
+        ({"rekor": {}}, None),
         ({"rekor": {"uuid": "u1"}},
          "https://rekor.sigstore.io/api/v1/log/entries/u1"),
         ({"rekor": {"uuid": "u1", "entry": {}}},
@@ -621,6 +624,11 @@ class TestToSpdxYapi:
     ])
     def test_anchor_eksikse_ontanimlilar(self, anchor, beklenen):
         pkg = _spdx_eleman(to_spdx(_sertifika(), _defter(), anchor=anchor), "pkg")
+        if beklenen is None:
+            # DALGA-6-F4 (DUZELTILDI): uuid'siz rekor-anchor bos-uuid'li
+            # '.../log/entries/' mis-locatoRU-sentezliyordu; artik ref-EKLENMEZ.
+            assert len(pkg["externalRef"]) == 2
+            return
         assert len(pkg["externalRef"]) == 3
         assert pkg["externalRef"][2]["locator"] == [beklenen]
         assert "logIndex ?" in pkg["externalRef"][2]["comment"]

@@ -708,6 +708,15 @@ class TestExportDallari:
                                 str(sc_yol)])
         assert rc == 0
         assert "/api/v1/log/entries/" in out
+        # DALGA-6-F4 (DUZELTILDI): tamga-binding'i tasiyan GERCEK sidecar
+        # eskiden ExternalRef'i sessizce-dusuruyordu (kanit-kaybı); artik
+        # tamga-ledger-yolu-da-yansitilir.
+        rc2, out2, _ = _calistir(["export", "--format", "spdx", "--cert",
+                                  cert, "--ledger", led, "--anchor-file",
+                                  str(tmp_path / "cert.json.anchor.json")])
+        assert rc2 == 0
+        assert "veridict:tamga:" in out2
+        assert f"#seq={sc['tamga']['seq']}" in out2
 
 
 # ----------------------------------------------------------- settle D40-D42

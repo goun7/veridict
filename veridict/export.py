@@ -31,6 +31,7 @@ silently half-signed.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 
 from .utils import sha256_hex
@@ -88,7 +89,10 @@ def to_vsa(cert: dict, ledger_entries: list[dict], *,
         "policy": {"uri": f"veridict:policy/{policy_ref.get('policy_id', 'default')}",
                    "digest": {"sha256": sha256_hex(_canonical(policy_ref))}},
         "inputAttestations": [
-            {"uri": f"veridict:cert/{cert.get('cert_id')}",
+            # VERIDICT-EXP-B4: cert_id None ise 'veridict:cert/None' sentez-
+            # leniyordu (policy_ref.get('policy_id','default') ön-koşulunun
+            # aynısı) — artık 'unattributed'.
+            {"uri": f"veridict:cert/{cert.get('cert_id') or 'unattributed'}",
              "digest": {"sha256": sha256_hex(_canonical(cert))}}],
         "verificationResult": result,
         "verifiedLevels": [],           # Veridict asserts no SLSA level
@@ -141,7 +145,12 @@ def dsse_verify(envelope: dict, public_key_pem: str) -> bool:
         pub = load_pem_public_key(public_key_pem.encode())
         pub.verify(base64.b64decode(envelope["signatures"][0]["sig"]), pae)
         return True
-    except (InvalidSignature, KeyError, IndexError):
+    # VERIDICT-EXP-B1: bozuk base64 (binascii.Error) veya tipli girdi
+    # (ValueError/TypeError) eskiden-yayılıyordu — verify sözleşmesi
+    # 'bool döner', her-başarısızlık False'tur (fail-closed, öyle ki çağıran
+    # bölmeler 'doğru-imza-DEĞİL' ile 'zarf-okunamıyor' ayırmaz).
+    except (InvalidSignature, KeyError, IndexError,
+            binascii.Error, ValueError, TypeError):
         return False
 
 
@@ -225,15 +234,32 @@ def to_spdx(cert: dict, ledger_entries: list[dict], *,
     if anchor:
         rek = anchor.get("rekor") or {}
         entry = rek.get("entry") or {}
-        ext_refs.append(
-            {"type": "ExternalRef",
-             "externalRefType": "other",
-             "locator": [f"{rek.get('server', 'https://rekor.sigstore.io')}"
-                         f"/api/v1/log/entries/{rek.get('uuid', '')}"],
-             "comment": ("Public transparency-log entry anchoring the audit "
-                         f"checkpoint (logIndex {entry.get('logIndex', '?')}; "
-                         "existence-at-time proof — verify offline: "
-                         "veridict verify --anchor).")})
+        # DALGA-6-F4: rekor-olmayan (tamga) anchor için boş-uuid'li rekor-
+        # URL'i sentezlenip-yayan-mis-locatör-yayılıyordu — uuid-YOKSA bu
+        # ExternalRef-başlı-başına-atılır.
+        if rek.get("uuid"):
+            ext_refs.append(
+                {"type": "ExternalRef",
+                 "externalRefType": "other",
+                 "locator": [f"{rek.get('server', 'https://rekor.sigstore.io')}"
+                             f"/api/v1/log/entries/{rek['uuid']}"],
+                 "comment": ("Public transparency-log entry anchoring the audit "
+                             f"checkpoint (logIndex {entry.get('logIndex', '?')}; "
+                             "existence-at-time proof — verify offline: "
+                             "veridict verify --anchor).")})
+        # DALGA-6-F4: tamga-binding'i TAŞIYAN anchor (aynı-bound/digest'e
+        # commit) için ExternalRef-sessizce-düşürülüyordu (kanıt-kaybı);
+        # artık tamga-ledger-yolu da yansıtılır.
+        tg = anchor.get("tamga") or {}
+        if tg:
+            ext_refs.append(
+                {"type": "ExternalRef",
+                 "externalRefType": "other",
+                 "locator": [f"veridict:tamga:{tg.get('ledger')}#seq={tg.get('seq', '?')}"],
+                 "comment": ("TAMGA-MESH ledger anchoring the audit checkpoint "
+                             f"(seq {tg.get('seq')}; root {str(tg.get('h', ''))[:16]}; "
+                             f"node_signed={tg.get('node_signed')}) — existence-at-time "
+                             "proof; verify offline: veridict verify --anchor.")})
 
     def el(suffix, etype, extra):
         out = {"type": etype, "spdxId": f"{base}#{suffix}",
