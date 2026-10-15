@@ -28,6 +28,13 @@ class ClaimExtractor:
             if not m:
                 raise ValueError(f"invalid intent line: {line!r}")
             kind, cls, body = m.group(1), m.group(2), m.group(3)
+            if not body.strip():
+                # DALGA-6-F1: regex-backtrack body'yi ' ' (yalniz-bosluk)
+                # birakabiliyordu — 'falsifiable statement' sözleşmesine
+                # aykiri bos-claim ( predicate='' summary=' ') dogrulamadan
+                # gecerdi. Bos-ruhu-garantisi: fail-closed ValueError.
+                raise ValueError(
+                    f"invalid intent line (empty statement): {line!r}")
             claim = self.make_claim(
                 task, artifact_digest, subject="intent", predicate=_slug(body),
                 summary=body, verifiability="MACHINE_CHECKABLE" if kind == "MACHINE"

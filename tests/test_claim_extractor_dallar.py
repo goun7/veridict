@@ -119,19 +119,15 @@ class TestBoslukBodySiniri:
     gecer (raporlandigi uzere uretime dokunulmaz).
     """
 
-    def test_bosluk_body_gecerli_sayilir_ve_bos_predicate_verir(self):
-        claims = ClaimExtractor().extract(_gorev(["MACHINE:   "]), "d")
-        intent = [c for c in claims if c.subject == "intent"]
-        assert len(intent) == 1
-        assert intent[0].predicate == ""
-        assert intent[0].summary == " "
-        assert intent[0].verifiability == "MACHINE_CHECKABLE"
+    def test_bosluk_body_reddedilir(self):
+        """D4 (DUZELTILDI DALGA-6-F1): bos-ruhu-garantisi — body yalniz
+        bosluksa ValueError ('empty statement')."""
+        with pytest.raises(ValueError, match="empty statement"):
+            ClaimExtractor().extract(_gorev(["MACHINE:   "]), "d")
 
-    def test_tab_ve_bosluk_karmasi_da_gecerli(self):
-        claims = ClaimExtractor().extract(_gorev(["DOCTRINE: \t "]), "d")
-        intent = [c for c in claims if c.subject == "intent"]
-        assert len(intent) == 1
-        assert intent[0].predicate == ""
+    def test_tab_ve_bosluk_karmasi_da_reddedilir(self):
+        with pytest.raises(ValueError, match="empty statement"):
+            ClaimExtractor().extract(_gorev(["DOCTRINE: \t "]), "d")
 
 
 class TestTekrarDallari:
