@@ -46,14 +46,26 @@ def _build_jury() -> tuple[Jury, list[str]]:
             api_key=os.environ.get("VERIDICT_JURY_KEY2"),
             model=os.environ.get("VERIDICT_JURY_MODEL2")))
     n = 0
+    # DALGA-6-F6: gercek-saglayici-sayisi — stub-doldurma-öncesi.
+    gercek = len(providers)
     while len(providers) < 2:
         n += 1
         warnings.append(f"jury provider {len(providers) + 1} is a SCRIPTED STUB — "
                         "configure VERIDICT_JURY_URL[/URL2] for real doctrine")
         providers.append(ScriptedProvider(family=f"stub-{n}", identity=f"stub-{n}-1",
                                           default=Opinion("SUPPORTS", 0.8, "stub")))
-    return Jury(providers, author_family=os.environ.get("VERIDICT_ACTOR_FAMILY")
-                or None), warnings
+    # DALGA-6-F6: stub-only-panelde (hic-network-saglayici-yok) author_family
+    # §5.2'>=2-farkli-aile'-kosulunu-vurup-tum-audit'i-rc-1-ölduruyordu —
+    # stub-oylari-zaten-betimlenmis-SCRIPTED oldugundan aile-burada-anlamsiz:
+    # uyar-not-dus ve-aileyi-None-dusur ( fail-closed-degil, kasitsiz-cokus-
+    # degil: gosterim-modunda-uyari-ile-devam).
+    aile = os.environ.get("VERIDICT_ACTOR_FAMILY") or None
+    if aile and gercek == 0:
+        warnings.append(f"VERIDICT_ACTOR_FAMILY={aile} ignored — stub-only "
+                        "panel (no VERIDICT_JURY_URL configured); the §5.2 "
+                        "author-family rule applies to real doctrine panels")
+        aile = None
+    return Jury(providers, author_family=aile), warnings
 
 
 def _load_watchers(specs, ledger, keystore, key_id, warnings,
@@ -313,7 +325,17 @@ def _anchor_verify(sidecar: dict, cert: dict) -> dict:
     if sidecar.get("anchor_version") == tamga_anchor.TAMGA_ANCHOR_VERSION:
         return tamga_anchor.verify(sidecar, cert)
     from . import anchor as anchor_mod
-    return anchor_mod.verify(sidecar, cert)
+    if sidecar.get("anchor_version") == anchor_mod.ANCHOR_TYPE:
+        return anchor_mod.verify(sidecar, cert)
+    # DALGA-6-F5: docstring 'unknown version is a refusal, not a fallback'
+    # diyordu — kod bilinmeyen versiyonu rekor-dogrulayicisina-fallback-
+    # ediyordu. Artik fail-closed-RET (verify-sozlesmesi-dict'si):
+    # bilinmeyen-versiyon-da reddedilir, gecici-olarak-rekor-a-yollanmaz.
+    return {"valid": False,
+            "errors": [f"unknown anchor_version "
+                       f"{sidecar.get('anchor_version')!r} — refusing to "
+                       "dispatch without transport semantics"],
+            "summary": {}}
 
 
 def _cmd_anchor(args) -> int:

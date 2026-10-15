@@ -1051,12 +1051,15 @@ class TestBuildJuryDallari:
         juri, uyari = cli._build_jury()
         assert len(juri.providers) == 2
 
-    def test_actor_family_stub_aile_deger_atabilir(self, monkeypatch):
-        # SINIR: sadece stub saglayici varken actor_family stub ailelerden
-        # biri ise Jury ayiklama >=2 aile kosulunu vurur -> ValueError
+    def test_actor_family_stub_only_panelde_yok_sayilir(self, monkeypatch):
+        """DALGA-6-F6 (DUZELTILDI): sadece stub saglayici varken actor_family
+        eskiden §5.2 '>=2 providers' kosulunu-vurup-tüm-audit'i-ölduruyordu —
+        stub-panelde-aile-anlamsiz: uyar-not-dus ve-None'a-dusulur."""
         monkeypatch.setenv("VERIDICT_ACTOR_FAMILY", "stub-1")
-        with pytest.raises(ValueError, match=">=2 providers"):
-            cli._build_jury()
+        juri, uyari = cli._build_jury()
+        assert len(juri.providers) == 2   # stub-1 + stub-2, aile-filtresi-yok
+        assert juri.excluded == []
+        assert any("ignored" in u for u in uyari)
 
 
 # ------------------------------------------------- _load_watchers D58-D60
