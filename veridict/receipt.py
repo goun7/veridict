@@ -261,6 +261,20 @@ def revoke_receipt(workspace: ReceiptWorkspace, cert_id: str, reason: str,
     if not isinstance(cert_id, str) or not cert_id.strip():
         raise ReceiptError("cert_id is required")
     ledger = workspace.ledger()
+    # VERIDICT-REC-3 (fd289f30-bulgu-3): hic verilmemis bir cert_id'nin
+    # revoke'u sessizce-basariydi (rc 0 + bos-revoke-entry — islecin
+    # var-olmayan-bir-makami-iptal-ettigini-sanmasi). verify-yolu zaten
+    # 'issued'-zorunlu; revoke-da-ayni-kaynaktan-denetilir. (Iki-kere-revoke
+    # append-only-log-charterina-gore-hala-kabul-edilir — bu-guard-yalnizca
+    # 'hic-cikmayan-makam'i-reddeder.)
+    issued = any(e["entry_type"] == "receipt.issued"
+                 and e["payload"].get("cert_id") == cert_id
+                 for e in ledger.entries)
+    if not issued:
+        raise ReceiptError(
+            "receipt: no matching receipt.issued entry for cert_id "
+            f"{cert_id!r} — refusing to revoke a receipt the ledger never "
+            "issued")
     # Enrolling/loading the issuer key keeps the workspace's custody story
     # uniform: the same identity that issues is the identity that revokes.
     workspace.issuer_key(ledger, issuer_identity)

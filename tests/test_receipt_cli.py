@@ -168,7 +168,8 @@ def test_receipt_revoke_takes_the_cert_file(tmp_path, capsys):
                "--workspace", str(ws), "--out", str(tmp_path / "r.json")])
     assert rc == 0
     assert main(["receipt", "revoke", "--cert", str(tmp_path / "r.json"),
-                 "--reason", "canary regressed"]) == 0
+                 "--reason", "canary regressed",
+                 "--workspace", str(ws)]) == 0
     assert main(["receipt", "revoke", "--reason", "x",
                  "--workspace", str(ws)]) == 1
     assert "cert_id" in capsys.readouterr().err

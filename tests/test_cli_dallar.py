@@ -512,12 +512,12 @@ class TestReceiptDallari:
         rc, _, err = _calistir(["receipt", "revoke", "--workspace", str(ws)])
         assert rc == 1
         assert "give the receipt" in err
-        # --cert-id ile bilinmeyen id: revoke_receipt idempotent'tir — hic
-        # verilmemis bir id'nin revoke'u sessizce gecer (SINIR/BUG-suphesi:
-        # rc 0, ledger'a bos bir revoke eklenir)
-        rc, out, _ = _calistir(["receipt", "revoke", "--workspace", str(ws),
+        # --cert-id ile bilinmeyen id (DUZELTILDI VERIDICT-REC-3): revoke_receipt
+        # artik 'receipt.issued'-zorunludur — var-olmayan-makam-revoke'u rc 1.
+        rc, _, err = _calistir(["receipt", "revoke", "--workspace", str(ws),
                                 "--cert-id", "boyle-bir-id-yok"])
-        assert rc == 0
+        assert rc == 1
+        assert "never" in err
         # gecerli revoke --cert
         rc, out, _ = _calistir(["receipt", "revoke", "--workspace", str(ws),
                                 "--cert", yol, "--reason", "tekrarlandi"])
