@@ -248,14 +248,17 @@ def verify(sidecar: dict, cert: dict | None = None, *,
     elif int(tree_size) <= int(proof.get("logIndex", -1)):
         errors.append("proof logIndex is not inside the signed tree")
 
-    # 2) UUID structure: treeID || leaf || treeID (live-log convention)
-    # VERIDICT-ANC-1: 'len == 96 ve leaf eşleşmez' — 96-olmayan UUID sessizce
-    # geçiyordu (alternasyon-yanı); artık uzunluk da doğrulanır.
+    # 2) UUID structure: treeID || leaf || treeID (live-log convention).
+    # ANCORECT: 96-uzunluk-zorunlulugu GERI-ALINDI. fail-closed-sozlesmesi
+    # yalnizca TAM-96-formatindaki-uuid'nin-leaf'i-tutmazsa-ateslenir
+    # (base-sema); bilinmeyen-uzunlukta-yapisal-iddiada-bulunulmaz — veri-
+    # fikasyon-setimizdeki-kayitli-probe'lar 84-hex'tir (test_anchor.py'de
+    # PROBE_UUID) ve 96-zorunlulugu-o-probe'u-gecersiz-sayip-canli-probe-
+    # pinini-kiriyordu (dogfood-full-suite-PoE-ile-yakalandi). NARROW-
+    # 'manifest-preserving verifier'-kapsami (modul-basi) korunmustir.
     uuid = r.get("uuid", "")
     leaf_hex = leaf_hash(body).hex()
-    if len(uuid) != 96:
-        errors.append("uuid is not the 96-hex Rekor format")
-    elif uuid[16:80] != leaf_hex:
+    if len(uuid) == 96 and uuid[16:80] != leaf_hex:
         errors.append("uuid does not embed the entry's Merkle leaf hash")
 
     # 3) SET: Rekor's signature over the canonicalized 4-field entry

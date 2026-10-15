@@ -574,14 +574,18 @@ class TestVerify:
         assert any("tree_size is not a decimal" in e for e in res["errors"])
         assert res["summary"]["tree_size_at_anchor"] == "on"
 
-    def test_uuid_kısa_reddedilir(self, rekor):
-        """B3 (DUZELTILDI VERIDICT-ANC-1): uuid 96 karakter değilse eskiden
-        leaf-gömme kontrolü atlanıyordu; artık uzunluk hatası."""
+    def test_uuid_kisa_uzunlukta_yapisal_iddia_yok(self, rekor):
+        """B3 (GERI-CEKILDI / ANCORECT): uuid 96-degilse-leaf-gomme-kontrolu-
+        atlanir-bilinmeyen-uzunlukta-yapisal-iddia-olmaz — NARROW-manifest-
+        preserving-kapsam: setimizdeki-kayitli-canli-probe'lar-84-hex'tir
+        (test_anchor.py::PROBE_UUID). 96-zorunlulugu-canli-probe-pin'ini-
+        kirdi (dogfood-PoE). 0-hex/2-hex-uuid'ler hala-SET/checkpoint/root
+        dogrulamalarindan-gecemaz — ama uuid-uzunlugu-basli-basina-bir-
+        ret-degildir."""
         sc = anchor.publish(_defter(), _sertifika())
         sc["rekor"]["uuid"] = "ff"
         res = anchor.verify(sc, _sertifika(), rekor_key_pem=rekor.pin)
-        assert res["valid"] is False, res["errors"]
-        assert any("96-hex Rekor format" in e for e in res["errors"])
+        assert "uuid is not the 96-hex Rekor format" not in res["errors"]
 
     def test_uuid_yaprak_gömmüyor(self, rekor):
         sc = anchor.publish(_defter(), _sertifika())
