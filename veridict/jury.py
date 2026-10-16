@@ -13,7 +13,9 @@ Calibration layer (added 0.4.0, grounded in the LLM-as-judge literature):
   (VERIDICT_JURY_SAMPLES>1, temperature floored at 0.7 so repeats are
   genuinely sampled): strict-majority stance wins, confidence is discounted
   by the agreement fraction, and a split with no majority abstains
-  ("sample-split") instead of silently averaging an inconsistency.
+  ("sample-split") instead of silently averaging an inconsistency. A single
+  broken sample abstains on its own and the run continues; only an all-broken
+  run abstains the whole juror.
 """
 from __future__ import annotations
 
@@ -66,10 +68,21 @@ def _read_sources(artifact_dir: str | None) -> str | None:
                 text = f.read(_MAX_SOURCE_BYTES - total)
         except OSError:
             continue
+        # VERIDICT-JURY-B3: bütçe KARAKTER değil UTF-8 BAYT'tır. text-mode
+        # read(n) n KARAKTER verir ve Türkçe (çok-baytlı) kaynakta bir
+        # karakter 1-4 bayt tutar; karakter-sayımlı muhasebe gerçek bayt
+        # sınırını aşabiliyordu — küçük yerel modeller için konmuş bir
+        # sınır buysa anlamını yitirir. Kodla, kalan bayta kırp, yarım
+        # kalan çok-baytlı karakteri düşür.
+        encoded = text.encode("utf-8")
+        kalan = _MAX_SOURCE_BYTES - total
+        if len(encoded) > kalan:
+            encoded = encoded[:kalan]
+        text = encoded.decode("utf-8", errors="ignore")
         if not text.strip():
             continue
         chunks.append(f"--- {name} ---\n{text}")
-        total += len(text)
+        total += len(encoded)
         taken += 1
     if not chunks:
         return None
@@ -155,19 +168,41 @@ class OpenAICompatProvider:
             return self._one(claim_summary, artifact_digest, self._temperature(n),
                              sources)
         ops: list[Opinion] = []
+        failed = 0
+        ilk_hata: str | None = None
         temp = self._temperature(n)
         for _ in range(n):
-            ops.append(self._one(claim_summary, artifact_digest, temp, sources))
+            try:
+                # VERIDICT-JURY-B2: örnek BAŞINA yalıtım. Çağrı eskiden
+                # try/except'sizdi — tek bir bozuk örnek (kötü stance, kopan
+                # bağlantı, bozuk JSON) try/except olmadığı için BÜTÜN
+                # doktrin koşusunu ProviderError ile iptal ediyordu: sağlam
+                # örneklerin oy hakkı çöpe gidiyor, jüri tek bir aksak
+                # örnekle eksiliyordu. Artık hatalı örnek çekimser/notr
+                # sayılır ve koşuya devam edilir.
+                ops.append(self._one(claim_summary, artifact_digest, temp,
+                                     sources))
+            except ProviderError as exc:
+                failed += 1
+                if ilk_hata is None:
+                    ilk_hata = str(exc)
+        if not ops:
+            # Hepsi bozuksa ortada görüş yok: fail-closed — çekimser.
+            raise ProviderError(f"all {n} samples failed: {ilk_hata}")
         counts = Counter(o.stance for o in ops)
         top_stance, top_n = counts.most_common(1)[0]
-        if top_n * 2 <= n:                       # no strict majority
+        if top_n * 2 <= len(ops):          # sağlam örneklerde sıkı çoğunluk yok
             # Honest degradation: an unresolved sample split is NOT evidence.
             raise ProviderError(f"sample-split, no majority: {dict(counts)}")
-        agree = top_n / n
+        agree = top_n / len(ops)
         same = [o.confidence for o in ops if o.stance == top_stance]
         conf = (sum(same) / len(same)) * agree
         base_rationale = next(o.rationale for o in ops if o.stance == top_stance)
-        note = f" [sample-calibration: {top_n}/{n} {top_stance}]"
+        note = f" [sample-calibration: {top_n}/{len(ops)} {top_stance}]"
+        if failed:
+            # Dürüstlük kaydı: atılan örnek kullanılabilir temeli inceltir,
+            # çoğunluk daha az oyla kazanılabilir — bu fark receipt'e işlensin.
+            note = f" [{failed}/{n} sample-failed]" + note
         return Opinion(top_stance, conf, base_rationale + note)
 
     def _timeout(self) -> float:
@@ -303,14 +338,22 @@ class Jury:
             rationale=opinion.rationale)
 
     def deliberate(self, claim: Claim, artifact_digest: str,
-                   first_items: list[EvidenceItem],
-                   tolerance: float) -> tuple[list[EvidenceItem], list[str]]:
+                   first_items: list[EvidenceItem]
+                   ) -> tuple[list[EvidenceItem], list[str]]:
         """Cross-visible revision round (§4.4.3) — the ONE blindness exception.
 
         Only called after a first-round SPLIT. Each provider sees the OTHER
         first-round opinions (identity-labeled, self excluded) and may revise;
         without a revise hook the provider keeps its first-round opinion. The
         first-round items stay in the ledger untouched.
+
+        VERIDICT-JURY-B1: imzada bir `tolerance` parametresi vardı ve HİÇBİR
+        dal onu okumuyordu — ölü ayar düğmesi. Çağıran (audit) politikanın
+        divergence_tolerance değerini revizyonu derecelendiriyormuş gibi
+        geçiriyor, değer ise sessizce yok sayılıyordu. Kaldırıldı: sapma
+        eşiği uygulanması gereken yerde (compute_divergence / adjudicate)
+        zaten uygulanıyor, revizyon turunun kendi eşiği yok. Bir girdiyi
+        sessizce yok sayansa, gürültülü TypeError yeğdir (fail-closed).
         """
         packets: dict[str, list[dict]] = {
             p.identity: [{"identity": it.producer["identity"],

@@ -60,6 +60,47 @@ def _veridict_version() -> str:
     return "0.5.0+source"               # running from an uninstalled checkout
 
 
+def _issued_entry(cert: dict, ledger_entries: list[dict]) -> dict | None:
+    """İlk eşleşen `certificate.issued` defter girdisi; yoksa None.
+
+    VERIDICT-EXP-B5: eşleşme `e.get("payload", {}).get("cert_id")` ile
+    kuruluyordu — payload dict DEĞİLSE (kırpılmış/tamamlanmamış defter
+    kopyası, uzak JSON'dan gelen string payload, hatta girdinin kendisi
+    dict değilse) `.get` AttributeError fırlatıyordu: projeksiyon
+    REDDETMEK yerine çöküyordu. Biçimsiz girdi issuance kaydı DEĞİLDİR →
+    atlanır; hiç eşleşme kalmazsa çağıran kendi anlamlı ValueError reddiyle
+    durur (fail-closed, çökme değil).
+    """
+    hedef = cert.get("cert_id")
+    for e in ledger_entries:
+        if not isinstance(e, dict):
+            continue
+        if e.get("entry_type") != "certificate.issued":
+            continue
+        payload = e.get("payload")
+        if not isinstance(payload, dict):
+            payload = {}
+        if payload.get("cert_id") == hedef:
+            return e
+    return None
+
+
+def _issued_ts(issued: dict) -> str:
+    """İssuance girdisinin HAM ISO zaman damgası (VSA timeVerified).
+
+    VERIDICT-EXP-B6: `issued["ts"]` anahtarı olmayan/None olan bir girdide
+    ham KeyError/TypeError projeksiyonun içinden dışarı yayılıyordu.ts
+    yoksa projeksiyon kurulamaz — alanı adıyla söyleyen ValueError ile
+    reddedilir (to_vsa/to_spdx'in zaten ilan ettiği reddetme kanalı).
+    """
+    ts = issued.get("ts") if isinstance(issued, dict) else None
+    if not isinstance(ts, str) or not ts:
+        raise ValueError(f"certificate.issued ledger entry carries no usable "
+                         f"'ts' (got {ts!r}) — refusing to project a "
+                         f"certificate whose issuance time cannot be stated")
+    return ts
+
+
 def to_vsa(cert: dict, ledger_entries: list[dict], *,
            verifier_version: str | None = None) -> dict:
     """Project a certificate onto an in-toto Statement with a SLSA VSA
@@ -70,10 +111,7 @@ def to_vsa(cert: dict, ledger_entries: list[dict], *,
     if not digest:
         raise ValueError("certificate subject carries no artifact_digest — "
                          "a VSA must name a digested artifact, not a guess")
-    issued = next((e for e in ledger_entries
-                   if e.get("entry_type") == "certificate.issued"
-                   and e.get("payload", {}).get("cert_id") == cert.get("cert_id")),
-                  None)
+    issued = _issued_entry(cert, ledger_entries)
     if issued is None:
         raise ValueError(f"no certificate.issued ledger entry for cert_id "
                          f"{cert.get('cert_id')} — refusing to project a "
@@ -84,7 +122,7 @@ def to_vsa(cert: dict, ledger_entries: list[dict], *,
         "verifier": {"id": VERIFIER_ID,
                      "version": {"veridict": verifier_version
                                  or _veridict_version()}},
-        "timeVerified": issued["ts"],
+        "timeVerified": _issued_ts(issued),
         "resourceUri": f"veridict:artifact/sha256:{digest}",
         "policy": {"uri": f"veridict:policy/{policy_ref.get('policy_id', 'default')}",
                    "digest": {"sha256": sha256_hex(_canonical(policy_ref))}},
@@ -185,12 +223,47 @@ SPDX_SPEC_VERSION = "3.0.1"
 
 def _spdx_ts(iso: str) -> str:
     """SPDX 3.0.1 `created` demands second precision and a Z/offset zone;
-    ledger timestamps carry microseconds. Same instant, valid rendering."""
+    ledger timestamps carry microseconds. Same instant, valid rendering.
+
+    VERIDICT-EXP-B6: bozuk ISO eskiden `datetime.fromisoformat`'ın ham
+    "Invalid isoformat string: '...'" ValueError'ını projeksiyonun içinden
+    dışarı taşıyordu — hangi alanın bozuk olduğu SÖYLENMEDEN. Artık değeri
+    adıyla söyleyen ValueError (aşağıdaki `_issued_ts` ile birlikte çağıran
+    da alanı ekler). str-dışı girdi TypeError olarak kalır: bu sözleşme
+    tests/test_export_anchor_dallar.py tarafından pinlenmiştir."""
     from datetime import datetime, timezone
-    dt = datetime.fromisoformat(iso)
+    try:
+        dt = datetime.fromisoformat(iso)
+    except ValueError as exc:
+        raise ValueError(f"not a valid ISO-8601 timestamp: {iso!r} ({exc})"
+                         ) from exc
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _jury_families(jc) -> list:
+    """`jury_composition` → annotation'da listelenecek aileler.
+
+    VERIDICT-EXP-B3: kod `jc.get("families") or jc` idi — `.get` bir LİSTE
+    girdide AttributeError fırlatıyordu ve `or` yedeği listeler için
+    ulaşılamaz (ölü) kalmıştı. Üretim her zaman {"families": [...]} yazıyor
+    (certificate.py:100) ama from_dict / uzak JSON / kırpılmış defter bu
+    garantiyi taşımaz. Artık liste, tekil string ve dict dışı anlamsızlık da
+    DÜRÜSTÇE listelenir, çökmez — uydurma aile üretilmez.
+    (EXP-B2 pinli dal korunur: dict + boş/None families → dict ANAHTARLARI.)
+    """
+    if isinstance(jc, dict):
+        fams = jc.get("families") or jc
+    elif isinstance(jc, str):
+        fams = [jc]
+    elif isinstance(jc, (list, tuple)):
+        fams = list(jc)
+    else:
+        fams = [jc]                      # sayı/bool gibi tekil girdi
+    if isinstance(fams, dict):
+        return list(fams)               # dict → anahtarları (B2 pinli dal)
+    return fams
 
 
 def to_spdx(cert: dict, ledger_entries: list[dict], *,
@@ -204,14 +277,19 @@ def to_spdx(cert: dict, ledger_entries: list[dict], *,
     if not digest:
         raise ValueError("certificate subject carries no artifact_digest — "
                          "an SPDX package must name a digested artifact")
-    issued = next((e for e in ledger_entries
-                   if e.get("entry_type") == "certificate.issued"
-                   and e.get("payload", {}).get("cert_id") == cert.get("cert_id")),
-                  None)
+    issued = _issued_entry(cert, ledger_entries)
     if issued is None:
         raise ValueError(f"no certificate.issued ledger entry for cert_id "
                          f"{cert.get('cert_id')} — refusing to project a "
                          f"certificate the ledger does not carry")
+    # VERIDICT-EXP-B6: bozuk/eksik issuance zamanı eskiden to_spdx'in
+    # içinden ham ValueError/KeyError ile patlıyordu; artık alanı adıyla
+    # söyleyen reddetme — created ve releaseTime aynı anlık, tek doğrulama.
+    try:
+        created = _spdx_ts(_issued_ts(issued))
+    except ValueError as exc:
+        raise ValueError("certificate.issued ledger entry has an unrenderable "
+                         f"issuance time — refusing to project: {exc}") from exc
     cid = cert.get("cert_id")
     base = f"https://veridict.dev/spdx/{cid}"
     task_id = subject.get("task_id", "unknown")
@@ -269,7 +347,7 @@ def to_spdx(cert: dict, ledger_entries: list[dict], *,
 
     graph = [
         {"@id": "_:ci", "type": "CreationInfo", "specVersion": SPDX_SPEC_VERSION,
-         "created": _spdx_ts(issued["ts"]),
+         "created": created,
          "createdBy": [f"{base}#veridict-agent", f"{base}#actor"],
          "comment": "Document generated by veridict export --format spdx; "
                     "created timestamp is the certificate's ledger issuance "
@@ -292,7 +370,7 @@ def to_spdx(cert: dict, ledger_entries: list[dict], *,
             "software_downloadLocation": "NOASSERTION",
             "software_packageVersion": "NOASSERTION",
             "software_primaryPurpose": "other",
-            "releaseTime": _spdx_ts(issued["ts"]),
+            "releaseTime": created,
             "suppliedBy": f"{base}#actor",
             "verifiedUsing": [{"type": "Hash", "algorithm": "sha256",
                                "hashValue": digest}],
@@ -342,9 +420,10 @@ def to_spdx(cert: dict, ledger_entries: list[dict], *,
             annotate(f"ev{i}-{j}", f"{ev.get('tier')} {ev.get('stance')} "
                                    f"producer={prod} class={ev.get('evidence_class')}")
     if cert.get("jury_composition"):
-        fams = cert["jury_composition"].get("families") \
-             or cert["jury_composition"]
-        annotate("jury", "jury families: " + ", ".join(str(x) for x in fams))
+        # VERIDICT-EXP-B3: `.get` zinciri liste/str girdide çöküyordu —
+        # normalizasyon `_jury_families` içinde (çökme yok, uydurma yok).
+        annotate("jury", "jury families: " + ", ".join(
+            str(x) for x in _jury_families(cert["jury_composition"])))
 
     for lic in ("hasDeclaredLicense", "hasConcludedLicense"):
         rels.append(el(lic, "Relationship",

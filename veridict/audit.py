@@ -134,8 +134,13 @@ class AuditOrchestrator:
                           if i.producer["kind"] == "jury"]
             if not jury_first:
                 continue
+            # VERIDICT-JURY-B1: buradan geçen divergence_tolerance değeri
+            # revizyon turunda HİÇ okunmuyordu (ölü argüman) — kaldırıldı.
+            # Eşik, uygulanması gereken yerde uygulanıyor: compute_divergence
+            # (yukarıdaki SPLIT kararı ve ledger'daki post-deliberation
+            # consensus) ile adjudicate.
             revised_items, delib_abst = self.jury.deliberate(
-                c, digest, jury_first, self.policy.divergence_tolerance)
+                c, digest, jury_first)
             abstentions.extend(delib_abst)
             for ev in revised_items:
                 self._record(ev, "jury")

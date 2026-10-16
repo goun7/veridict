@@ -21,8 +21,11 @@ DAL LİSTESİ:
   to_vsa: subject'inde artifact_digest yoksa / boşsa -> ValueError;
     certificate.issued girdisi yoksa -> ValueError (cert_id mesajda);
     farklı cert_id'li girdi -> ValueError; farklı entry_type -> ValueError;
-    risk_level "low" -> PASSED; medium/high/eksik/"LOW" -> FAILED (tam
-    eşleşme); verifier_version açık vs None; timeVerified == issued["ts"];
+    payload/entry dict-değilse -> issuance kaydı SAYILMAZ, atlanır ->
+    ValueError reddi (EXP-B5; eskiden AttributeError); ts yoksa/bozuksa ->
+    ValueError (EXP-B6); risk_level "low" -> PASSED; medium/high/eksik/"LOW"
+    -> FAILED (tam eşleşme); verifier_version açık vs None;
+    timeVerified == issued["ts"];
     resourceUri; policy uri + özeti; policy_ref yoksa "default";
     inputAttestations uri + cert özeti; verifiedLevels []; dependencyLevels
     {}; slsaVersion "1.2"; subject task_id yoksa "unknown"; extension alanı
@@ -33,7 +36,9 @@ DAL LİSTESİ:
     signatures -> False; eksik sig -> False; "!!!" payload sessizce b''
     çözülür -> False; payload canonical'a eşit
   _spdx_ts: mikro-saniyeli ISO -> saniye Z; tz-naive -> UTC kabul; offsetli
-    -> UTC'ye dönüştür; .999999 kırpılır (yuvarlanmaz)
+    -> UTC'ye dönüştür; .999999 kırpılır (yuvarlanmaz); ISO-olmayan str ->
+    değeri adıyla söyleyen ValueError (EXP-B6; ham fromisoformat mesajı
+    yerine); str-dışı -> TypeError (test_export_anchor_dallar pin'i)
   to_spdx: digest yok -> ValueError; issued yok -> ValueError; @context;
     CreationInfo (created == _spdx_ts, createdBy); SoftwareAgent;
     Organization (actor_identity; eksikse "unknown-actor"); License
@@ -46,10 +51,14 @@ DAL LİSTESİ:
     öntanımlılar; claim başına annotation; evidence annotation'ları
     (producer dict -> identity; producer str -> kendisi; defterde olmayan
     evidence atlanır); jury_composition families -> annotation;
+    jury_composition LİSTE/tekil-string -> aileler dürüstçe listelenir
+    (EXP-B3; eskiden AttributeError); ts bozuksa -> ValueError (EXP-B6);
+    payload dict-değilse -> ValueError (EXP-B5);
     profileConformance/rootElement/element listesi; hasDeclaredLicense /
     hasConcludedLicense ilişkileri
 
-BULGULAR (production koduna DOKUNULMADI — burada belgelendi):
+BULGULAR (B1/B4/B5/B6 üretimde DÜZELTİLDİ — pinler yeni doğru davranışı
+gösterir; B2/B3 belgededir/kısmen düzeltildi):
   B1: dsse_verify yalnızca (InvalidSignature, KeyError, IndexError) yakalar
       — bozuk DOLU/şifreli base64 (örn. "A") binascii.Error (ValueError
       alt sınıfı) FIRLATIR, False DÖNDÜRMEZ. bool döndürme sözleşmesi
@@ -57,20 +66,26 @@ BULGULAR (production koduna DOKUNULMADI — burada belgelendi):
   B2: to_spdx'te jury_composition boş/None families ama dolu dict ise
       `cert["jury_composition"]` fallback'i DICT ANAHTARLARI üzerinde
       dolaşır → "jury families: families" gibi anlamsız bir annotation
-      üretilir (boş liste dürüstçe belirtilmez).
-  B3: to_spdx'te jury_composition bir LİSTE ise (ledger/JSON'dan gelebilir)
-      `.get` AttributeError fırlatır — `or` fallback'i listeler için
-      ulaşılamaz (ölü kod). Üretim her zaman {"families": [...]} yazıyor
-      (certificate.py:100) ama from_dict/uzak JSON bu garantiyi taşımaz.
+      üretilir (boş liste dürüstçe belirtilmez). BU DAL BİLİNÇLİ OLARAK
+      PINLİ DAVRANIŞINI KORUR (B3 normalizasyonunun dokunmadığı dal).
+  B3 (DÜZELTİLDİ VERIDICT-EXP-B3): to_spdx'te jury_composition bir LİSTE ise
+      (ledger/JSON'dan gelebilir) `.get` AttributeError fırlatıyordu — `or`
+      fallback'i listeler için ulaşılamaz (ölü) koddu. Artık `_jury_families`
+      liste/tekil-string/dict-dışı girdiyi de dürüstçe listeler (çökme yok,
+      uydurma aile yok).
   B4: to_vsa/to_spdx issued-girdi eşleşmesi `payload.cert_id == cert_id`
       ile; iki tarafta da cert_id YOKSA None==None EŞLEŞİR — cert_id'siz
       bir cert, içinde cert_id bulunmayan herhangi bir issued girdisiyle
       eşleşip "veridict:cert/None" URI'siyle projeksiyon üretir.
-  B5: issued girdisinin payload'u dict DEĞİLse (string vb.)
-      `e.get("payload", {}).get(...)` AttributeError fırlatır —
-      reddetmek (ValueError) yerine çöker.
-  B6: _spdx_ts ISO-olmayan string alırsa ValueError yayılır (to_spdx
-      içinden) — zaman damgası bozuksa projeksiyon reddetmez, çöker.
+  B5 (DÜZELTİLDİ VERIDICT-EXP-B5): issued girdisinin payload'u dict DEĞİLse
+      (string vb.) `e.get("payload", {}).get(...)` AttributeError fırlatıyordu
+      — reddetmek (ValueError) yerine çökerdi. Artık biçimsiz girdi issuance
+      kaydı SAYILMAZ ve atlanır; eşleşme kalmazsa bilinen ValueError reddi.
+  B6 (DÜZELTİLDİ VERIDICT-EXP-B6): _spdx_ts ISO-olmayan string alırsa ham
+      fromisoformat ValueError'ını (ve ts yoksa KeyError'ı) projeksiyonun
+      içinden yayıyordu — zaman damgası bozuksa projeksiyon reddetmez,
+      çökerdi. Artık alanı+değeri adıyla söyleyen ValueError; `_issued_ts`
+      eksik/boş ts'yi de aynı kanal ile reddeder.
 """
 from __future__ import annotations
 
@@ -272,11 +287,57 @@ class TestToVsaReddetmeler:
         assert vsa["predicate"]["inputAttestations"][0]["uri"] \
             == "veridict:cert/unattributed"
 
-    def test_payload_dict_degilse_attribute_error(self):
-        """BULGU B5: string payload .get'i çökerür (ValueError değil)."""
+    def test_payload_dict_degilse_value_error(self):
+        """BULGU B5 (DÜZELTİLDİ VERIDICT-EXP-B5): string payload'un `.get`i
+        eskiden AttributeError ile çökertiyordu — artık böyle bir girdi
+        issuance KAYDI SAYILMAZ ve bilinen ValueError ile reddedilir."""
         girdi = [{"entry_type": "certificate.issued", "ts": TS,
                   "payload": "string!"}]
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValueError, match="no certificate.issued"):
+            to_vsa(_sertifika(), girdi)
+
+    @pytest.mark.parametrize("payload", ["string!", 42, ["payload"], None, True])
+    def test_payload_biçimi_bozuk_girdi_issuance_sayilmaz(self, payload):
+        """B5: payload dict değilse girdi issuance kaydı SAYILMAZ — proje
+        çökmez, dürüstçe reddeder (her iki projeksiyon da)."""
+        girdi = [{"entry_type": "certificate.issued", "ts": TS,
+                  "payload": payload}]
+        with pytest.raises(ValueError, match="no certificate.issued"):
+            to_vsa(_sertifika(), girdi)
+        with pytest.raises(ValueError, match="no certificate.issued"):
+            to_spdx(_sertifika(), girdi)
+
+    @pytest.mark.parametrize("girdi", ["çöp", 42, None, ["x"]])
+    def test_girdinin_kendi_dict_degilse_atlanir(self, girdi):
+        """B5: defter listesindeki dict-olmayan öğe de çökertmez — ValueError
+        ile reddedilir."""
+        with pytest.raises(ValueError, match="no certificate.issued"):
+            to_vsa(_sertifika(), [girdi])
+
+    def test_dict_olmayan_girdi_atlanir_eslesen_ise_bulunur(self):
+        """B5 yalıtımı eşleşmeyi bozmasın: biçimsiz girdiler atlanır, sonra
+        gelen geçerli issuance kaydı bulunur ve projeksiyon kurulur."""
+        girdi = ["çöp", {"entry_type": "certificate.issued", "ts": TS,
+                         "payload": "string!"},
+                 {"entry_type": "certificate.issued", "ts": TS,
+                  "payload": {"cert_id": "cid-1"}}]
+        s = to_vsa(_sertifika(), girdi)
+        assert s["predicate"]["timeVerified"] == TS
+
+    def test_ts_yoksa_value_error(self):
+        """B6 (VERIDICT-EXP-B6): issued girdisinde `ts` YOKSA eskiden ham
+        KeyError yayılıyordu — artık alanı adıyla söyleyen ValueError."""
+        girdi = [{"entry_type": "certificate.issued",
+                  "payload": {"cert_id": "cid-1"}}]
+        with pytest.raises(ValueError, match="'ts'"):
+            to_vsa(_sertifika(), girdi)
+        with pytest.raises(ValueError, match="'ts'"):
+            to_spdx(_sertifika(), girdi)
+
+    def test_ts_bos_string_ise_value_error(self):
+        girdi = [{"entry_type": "certificate.issued", "ts": "",
+                  "payload": {"cert_id": "cid-1"}}]
+        with pytest.raises(ValueError, match="'ts'"):
             to_vsa(_sertifika(), girdi)
 
 
@@ -491,10 +552,28 @@ class TestSpdxTs:
     def test_saniye_kesinliginde_z(self, iso, beklenen):
         assert _spdx_ts(iso) == beklenen
 
-    def test_kotu_string_value_error(self):
-        """BULGU B6: ISO-olmayan string ValueError yayılır."""
-        with pytest.raises(ValueError):
+    def test_kotu_string_degeri_soyleyen_value_error(self):
+        """BULGU B6 (DÜZELTİLDİ VERIDICT-EXP-B6): ISO-olmayan string eskiden
+        ham fromisoformat mesajıyla yayılıyordu; artık değeri adıyla söyleyen
+        ValueError (hâlâ ValueError — sessiz-böcek yok, fail-loud)."""
+        with pytest.raises(ValueError, match="not-a-timestamp"):
             _spdx_ts("not-a-timestamp")
+
+    @pytest.mark.parametrize("iso", ["", "kotu", "2026-13-45T99:99:99"])
+    def test_bozuk_iso_mesaji_alani_ve_degeri_soyler(self, iso):
+        with pytest.raises(ValueError) as ei:
+            _spdx_ts(iso)
+        assert "ISO-8601" in str(ei.value)
+        assert repr(iso) in str(ei.value)
+
+    def test_to_spdx_bozuk_ts_red_eder_cokmez(self):
+        """B6: bozuk issuance zamanı projeksiyonu çökertmez — alanı adıyla
+        söyleyen ValueError ile reddeder (KeyError/AttributeError DEĞİL)."""
+        girdi = [{"entry_type": "certificate.issued", "ts": "çöp-zaman",
+                  "payload": {"cert_id": "cid-1"}}]
+        with pytest.raises(ValueError, match="issuance time") as ei:
+            to_spdx(_sertifika(), girdi)
+        assert "certificate.issued" in str(ei.value)
 
 
 # ========================================================= to_spdx reddetme =
@@ -698,10 +777,34 @@ class TestToSpdxYapi:
         j = next(a for a in _annotationlar(doc) if a["name"] == "veridict-jury")
         assert j["statement"] == "jury families: families"
 
-    def test_jury_composition_list_ise_attribute_error(self):
-        """BULGU B3: liste jury_composition `.get` ile çöker."""
-        with pytest.raises(AttributeError):
-            to_spdx(_sertifika(jury_composition=["fa", "fb"]), _defter())
+    def test_jury_composition_liste_ise_aileler_listelenir(self):
+        """BULGU B3 (DÜZELTİLDİ VERIDICT-EXP-B3): liste jury_composition
+        eskiden `.get` ile AttributeError çökertiyordu — artık aileler
+        dürüstçe listelenir (uydurma yok, çökme yok)."""
+        doc = to_spdx(_sertifika(jury_composition=["fa", "fb"]), _defter())
+        j = next(a for a in _annotationlar(doc) if a["name"] == "veridict-jury")
+        assert j["statement"] == "jury families: fa, fb"
+
+    @pytest.mark.parametrize("jc, beklenen", [
+        (["fa"], "jury families: fa"),
+        ("fa", "jury families: fa"),                # tekil string
+        (("fa", "fb"), "jury families: fa, fb"),    # tuple
+        ([{"a": 1}], "jury families: {'a': 1}"),    # dict öğeler str'lenir
+        ([None], "jury families: None"),
+        (7, "jury families: 7"),                    # tekil/sayı: uydurma yok
+    ])
+    def test_jury_composition_biçim_toleransi(self, jc, beklenen):
+        """B3: JSON'dan/from_dict'ten gelen her biçim çökertmez."""
+        doc = to_spdx(_sertifika(jury_composition=jc), _defter())
+        j = next(a for a in _annotationlar(doc) if a["name"] == "veridict-jury")
+        assert j["statement"] == beklenen
+
+    def test_to_vsa_liste_jury_composition_tasir(self):
+        """B3 karşılığı: VSA extension alanı jürüyü OLDUĞU GİBİ taşır —
+        liste de dict de çökertmez (projeksiyon süzmez, yansıtır)."""
+        s = to_vsa(_sertifika(jury_composition=["fa", "fb"]), _defter())
+        assert s["predicate"][CERT_EXTENSION_FIELD]["jury_composition"] \
+            == ["fa", "fb"]
 
     @pytest.mark.parametrize("jc", [None, {}])
     def test_jury_composition_yoksa_annotation_yok(self, jc):

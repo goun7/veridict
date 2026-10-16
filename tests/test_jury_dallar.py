@@ -13,7 +13,7 @@ Kapsanan public API:
     * ._samples() / ._temperature(n) / ._timeout()  (kalibrasyon düğmeleri)
   * Jury(providers, *, author_family=None)
     * .evaluate(claim, artifact_digest, artifact_dir=None)
-    * .deliberate(claim, artifact_digest, first_items, tolerance)
+    * .deliberate(claim, artifact_digest, first_items)
     * ._build_item(claim, artifact_digest, provider, opinion, round_salt)
 
 DAL LİSTESİ:
@@ -22,6 +22,8 @@ DAL LİSTESİ:
     hariç; boş/beyaz-uzaylı .py atlanır; okunamayan dosya (dizin yolu, OSError)
     atlanır; sıralı (sorted) birleştirme "--- ad ---" başlığıyla;
     _MAX_SOURCE_FILES=6 üst sınırı; _MAX_SOURCE_BYTES=6000 üst sınırı
+    (BAYT sayımı: UTF-8 kodlanmış bayt; çok-baytlı kaynakta karakter
+    sayısı değil bayt bütçesi dolar, JURY-B3 düzeltmesi)
   ScriptedProvider.doctrine: responses'ta yoksa default; responses'ta varsa
     responses; fn varsa hepsini geçersiz kılar; artifact_digest/sources argümanları
     göz ardı edilir (sadece claim_summary'e bakılır)
@@ -44,9 +46,12 @@ DAL LİSTESİ:
     api_key boşsa Authorization başlığı yoksa vardır; sources varsa prompt
     kaynak bloğunu içerir, yoksa içermez; URL "/" ile bitince kırpılır;
     model+temperature payload'da
-  doctrine (n>1): sıkı çoğunluk -> conf = mean(anlaşan) * (k/n), rationale
-    " [sample-calibration: k/n STANCE]"; çoğunluk yok (sample-split) ->
-    ProviderError; oybirliği (n=n) -> agree=1.0
+  doctrine (n>1): sıkı çoğunluk -> conf = mean(anlaşan) * (k/kullanılabilir),
+    rationale " [sample-calibration: k/kullanılabilir STANCE]"; çoğunluk yok
+    (sample-split) -> ProviderError; oybirliği (n=n) -> agree=1.0;
+    BOZUK ÖRNEK yalıtılır (JURY-B2): hatasal örnek atılır, koşuya devam,
+    rationale " [h/n sample-failed]" öneki taşır; SADECE tüm örnekler
+    bozuksa ProviderError("all n samples failed")
   Jury.__init__: <2 sağlayıcı -> ValueError; 2 sağlayıcı aynı aile ->
     ValueError; >=2 sağlayıcı >=2 aile -> OK; author_family dışlama
     (büyük-küçük harf + beyaz-uzay duyarsız); author_family boş/None ->
@@ -65,17 +70,23 @@ DAL LİSTESİ:
     packet'lar kendi identity'sini hariç tutar; first-round öğesi olmayan
     sağlayıcı abstained'a gider; hepsinde öğe varsa abstained==[]
 
-BULGULAR (production koduna DOKUNULMADI — burada belgelendi):
-  B1: Jury.deliberate'in `tolerance` parametresi HİÇ OKUNMUYOR — ölü
-      parametre; revizyon sonucu tolerance'a bağlanamaz (çağıranların
-      iletmesi beklenen değer hiçbir dalda kullanılmıyor).
-  B2: OpenAICompatProvider.doctrine'un n>1 örneklem döngüsünde _one çağrısı
-      try/except'e ALINMAMIŞTIR — tek bir bozuk örnek (örn. kötü stance)
-      bütün örneklem koşusunu ProviderError ile iptal eder; o örnek
-      çekimser (abstain) sayılmaz, tüm doctrine çağrısı başarısız olur.
-  B3: _read_sources bayt değil KARAKTER sayar: f.read(_MAX_SOURCE_BYTES-total)
-      karakter okur ve total += len(text) karakter sayar. Çok baytlı UTF-8
-      (Türkçe) kaynaklarda gerçek bayt bütçesi aşılabilir.
+BULGULAR (B1/B2/B3 DALGA-7-A'da ÜRETİMDE DÜZELTİLDİ, pinler yeni doğru
+davranışı gösterir; B4 belgededir):
+  B1 (DÜZELTİLDİ VERIDICT-JURY-B1): Jury.deliberate'in `tolerance`
+      parametresi HİÇ OKUNMUYORDU — ölü parametre. İşlevsel uygulanacak
+      anlamlı bir dal yoktu (sapma eşiği compute_divergence/adjudicate
+      tarafında zaten uygulanıyor), bu yüzden parametre KALDIRILDI: çağıran
+      artık sessizce-yok-sayılan bir ayar düğmesi geçemiyor; eski 4.
+      konumlu argüman gürültülü TypeError verir.
+  B2 (DÜZELTİLDİ VERIDICT-JURY-B2): OpenAICompatProvider.doctrine'un n>1
+      örneklem döngüsünde _one çağrısı artık örnek BAŞINA try/except içinde:
+      tek bozuk örnek bütün koşuyu ProviderError ile iptal etmiyor, atılır
+      (çekimser/notr) ve koşu devam eder; yalnızca tüm örnekler bozuksa
+      jüri çekimser kalır.
+  B3 (DÜZELTİLDİ VERIDICT-JURY-B3): _read_sources artık KARAKTER değil
+      UTF-8 BAYT sayar: okunan parça encode edilip kalan bayda kırpılır,
+      total bayt artar. Çok baytlı (Türkçe) kaynakta gerçek bayt bütçesi
+      aşılamaz.
   B4: ScriptedProvider.doctrine responses haritası YALNIZCA tam-string
       eşleşmeyle arar (summary'nin leading/trailing beyaz uzayı vs. farklı
       ise default döner); `fn` hem responses'ı hem default'u geçersiz kılar.
@@ -271,6 +282,48 @@ class TestReadSources:
         out = _read_sources(str(tmp_path))
         assert out is not None
         assert "Türkçe açıklama" in out
+
+    def test_butce_utf8_byte_ile_olculur(self, tmp_path):
+        """BULGU B3 (DÜZELTİLDİ VERIDICT-JURY-B3): bütçe KARAKTER değil
+        UTF-8 BAYT — 2-baytlık 'ş' ile 6000 karakterlik değil 6000 baytlık
+        içerik döner."""
+        (tmp_path / "tr.py").write_text("ş" * 5_000, encoding="utf-8")  # 10000 B
+        out = _read_sources(str(tmp_path))
+        assert out is not None
+        gövde = out.split("--- tr.py ---\n", 1)[1]
+        assert len(gövde.encode("utf-8")) == 6_000
+        assert len(gövde) == 3_000                 # 3000 kar = tam 6000 bayt
+
+    def test_cok_baytli_kaynak_toplam_byte_butcesini_asmaz(self, tmp_path):
+        """Çok-baytlı ilk dosya bütçeyi BAYT olarak doldurur: sonraki dosya
+        okunmaz (karakter-sayımlı eskiden 2-baytlıkta bütçe aşılıyordu)."""
+        (tmp_path / "a.py").write_text("ğ" * 4_000, encoding="utf-8")   # 8000 B
+        (tmp_path / "z.py").write_text("x" * 100, encoding="utf-8")
+        out = _read_sources(str(tmp_path))
+        assert out is not None
+        gövde = out.split("--- a.py ---\n", 1)[1]
+        assert len(gövde.encode("utf-8")) == 6_000
+        assert "z.py" not in out
+
+    def test_yarim_kalan_cok_baytli_karakter_dusurulur(self, tmp_path):
+        """Bayt-kırpması bir karakterin ORTASINDA kalırsa yarım bayt dizisi
+        değil eksik karakter döner (decode errors=ignore): çıktı her zaman
+        geçerli UTF-8 ve bütçe içinde."""
+        (tmp_path / "euro.py").write_text("€" * 2_500, encoding="utf-8")  # 7500 B
+        out = _read_sources(str(tmp_path))
+        assert out is not None
+        gövde = out.split("--- euro.py ---\n", 1)[1]
+        assert len(gövde.encode("utf-8")) <= 6_000
+        assert gövde == "€" * 2_000                # 2000*3 = tam 6000 bayt
+        gövde.encode("utf-8").decode("utf-8")      # patlamaz: yarım bayt yok
+
+    def test_ascii_butce_davranisi_ayni_kalir(self, tmp_path):
+        """B3 düzeltmesi ASCII dalını oynatmaz: 4000+2000 karakter = 4000+2000
+        bayt, ikinci dosyanın tamamı alınır."""
+        (tmp_path / "big.py").write_text("A" * 4_000, encoding="utf-8")
+        (tmp_path / "b.py").write_text("B" * 2_000, encoding="utf-8")
+        out = _read_sources(str(tmp_path))
+        assert out.count("A") == 4_000 and out.count("B") == 2_000
 
 
 # ======================================================= ScriptedProvider ====
@@ -639,9 +692,10 @@ class TestSampleCalibration:
         p.doctrine("öz", "dig")
         assert kayit["caglar"][0]["json"]["temperature"] == 0.7
 
-    def test_tek_bozuk_ornek_tum_kosuyu_iptal_eder(self, monkeypatch):
-        """BULGU B2: örneklem döngüsü try/except'siz — tek bozuk örnek
-        bütün koşuyu ProviderError ile iptal eder (çekimser sayılmaz)."""
+    def test_tek_bozuk_ornek_yalitilir_kosu_devam_eder(self, monkeypatch):
+        """BULGU B2 (DÜZELTİLDİ VERIDICT-JURY-B2): örnek başına yalıtım —
+        tek bozuk örnek atılır (çekimser/notr), sağlam örnekler oylanır ve
+        doktrin çağrısı ARTIK düşmez."""
         monkeypatch.setenv("VERIDICT_JURY_SAMPLES", "3")
         yanitlar = [_Yanit({"choices": [{"message": {"content": json.dumps(
             _opinion_body())}}]}),
@@ -651,9 +705,78 @@ class TestSampleCalibration:
                 _opinion_body())}}]})]
         kayit: dict = {}
         p = _provider(monkeypatch, kayit, lambda i: yanitlar[i])
-        with pytest.raises(ProviderError):
+        op = p.doctrine("öz", "dig")
+        assert len(kayit["caglar"]) == 3            # 2. örnekte DURMADI
+        assert op.stance == "SUPPORTS"
+        assert op.confidence == pytest.approx(0.9)   # mean(0.9, 0.9) * (2/2)
+        assert " [1/3 sample-failed]" in op.rationale
+        assert op.rationale.endswith(" [sample-calibration: 2/2 SUPPORTS]")
+
+    def test_bozuk_ornek_sayilir_istenen_toplam_ornege_kayit_duser(
+            self, monkeypatch):
+        """Dürüstlük kaydı: atılan örnek receipt'te görünür (kullanılabilir
+        örnek < istenen örnek)."""
+        monkeypatch.setenv("VERIDICT_JURY_SAMPLES", "4")
+        iyi = _Yanit({"choices": [{"message": {"content": json.dumps(
+            _opinion_body(stance="REFUTES", confidence=0.5))}}]})
+        kotu = _Yanit({"choices": [{"message": {"content": json.dumps(
+            _opinion_body(stance="KÖKÜ")
+        )}}]})
+        yanitlar = [iyi, kotu, iyi, iyi]
+        kayit: dict = {}
+        p = _provider(monkeypatch, kayit, lambda i: yanitlar[i])
+        op = p.doctrine("öz", "dig")
+        assert op.stance == "REFUTES"
+        assert " [1/4 sample-failed]" in op.rationale
+        assert op.rationale.endswith(" [sample-calibration: 3/3 REFUTES]")
+        assert len(kayit["caglar"]) == 4
+
+    def test_transport_hatasi_olan_ornek_de_yalitilir(self, monkeypatch):
+        """Bozuk örnek yalnızca bozuk-GÖVDE değil, bozuk-ULAŞIM da olabilir:
+        _one'ın ProviderError'ı yakalanır, koşu devam eder."""
+        monkeypatch.setenv("VERIDICT_JURY_SAMPLES", "3")
+        iyi = _Yanit({"choices": [{"message": {"content": json.dumps(
+            _opinion_body(confidence=0.8))}}]})
+
+        def yanit(i):
+            if i == 1:
+                raise httpx.ConnectError("endpoint öldü")
+            return iyi
+
+        kayit: dict = {}
+        p = _provider(monkeypatch, kayit, yanit)
+        op = p.doctrine("öz", "dig")
+        assert op.stance == "SUPPORTS" and op.confidence == pytest.approx(0.8)
+        assert " [1/3 sample-failed]" in op.rationale
+
+    def test_bozuk_ornek_sonrasi_bolunme_yine_provider_error(
+            self, monkeypatch):
+        """Yalıtım çoğunluk uydurmaz: atılan örnekten sonra kalanlar
+        bölünmüşse sample-split ile yine çekimser."""
+        monkeypatch.setenv("VERIDICT_JURY_SAMPLES", "3")
+        yanitlar = [_Yanit({"choices": [{"message": {"content": json.dumps(
+            _opinion_body(stance="SUPPORTS"))}}]}),
+            _Yanit({"choices": [{"message": {"content": json.dumps(
+                _opinion_body(stance="MAYBE"))}}]}),
+            _Yanit({"choices": [{"message": {"content": json.dumps(
+                _opinion_body(stance="REFUTES"))}}]})]
+        kayit: dict = {}
+        p = _provider(monkeypatch, kayit, lambda i: yanitlar[i])
+        with pytest.raises(ProviderError, match="sample-split"):
             p.doctrine("öz", "dig")
-        assert len(kayit["caglar"]) == 2   # 2. örnekte durdu
+        assert len(kayit["caglar"]) == 3
+
+    def test_tum_ornekler_bozuksa_cekimser(self, monkeypatch):
+        """Fail-closed taban: kullanılabilir örnek hiç yoksa jüri çekimser
+        kalır (ProviderError), boş çoğunluk uydurulmaz."""
+        monkeypatch.setenv("VERIDICT_JURY_SAMPLES", "3")
+        yanitlar = [_Yanit({"choices": [{"message": {"content": json.dumps(
+            _opinion_body(stance="MAYBE"))}}]}) for _ in range(3)]
+        kayit: dict = {}
+        p = _provider(monkeypatch, kayit, lambda i: yanitlar[i])
+        with pytest.raises(ProviderError, match="all 3 samples failed"):
+            p.doctrine("öz", "dig")
+        assert len(kayit["caglar"]) == 3        # hepsi denendi
 
 
 # ============================================================== Jury.init ====
@@ -892,7 +1015,7 @@ class TestJuryDeliberate:
     def test_revise_hook_yoksa_ilk_gorugu_korur(self):
         j = _iki_juri()
         first = self._ilkeler(j)
-        revised, abstained = j.deliberate(_claim(), "dig", [first], 0.3)
+        revised, abstained = j.deliberate(_claim(), "dig", [first])
         # yalnızca fa-1'in first-round öğesi var; fb-1'in yok -> çekimser
         assert abstained == ["fb-1"]
         assert len(revised) == 1
@@ -912,7 +1035,7 @@ class TestJuryDeliberate:
                                    revise=revise),
                   _scripted("fb")])
         first = self._ilkeler(j)
-        revised, abstained = j.deliberate(_claim(), "dig", [first], 0.3)
+        revised, abstained = j.deliberate(_claim(), "dig", [first])
         assert revised[0].stance == "REFUTES"
         assert revised[0].confidence == 0.2
         assert revised[0].rationale == "revize edildi"
@@ -926,7 +1049,7 @@ class TestJuryDeliberate:
                                    revise=revise),
                   _scripted("fb")])
         first = self._ilkeler(j, duruş="REFUTES")
-        revised, _ = j.deliberate(_claim(), "dig", [first], 0.3)
+        revised, _ = j.deliberate(_claim(), "dig", [first])
         # fail-open değil: ilk REFUTES korunur (silinmez)
         assert revised[0].stance == "REFUTES"
         assert revised[0].rationale == "ilk görüş"
@@ -948,7 +1071,7 @@ class TestJuryDeliberate:
         first = [j._build_item(_claim(), "dig", p,
                                Opinion("SUPPORTS", 0.8, "ilk görüş"))
                  for p in j.providers]
-        j.deliberate(_claim(), "dig", first, 0.3)
+        j.deliberate(_claim(), "dig", first)
         # her sağlayıcı sadece DİĞERİNİN packet'ını görür (kördür)
         assert goruldu[0] == [{"identity": "fb-1", "family": "fb",
                                "stance": "SUPPORTS", "confidence": 0.8,
@@ -961,16 +1084,36 @@ class TestJuryDeliberate:
         j = _iki_juri()
         # sadece fa-1'in first-round öğesi var
         first = [self._ilkeler(j)]
-        revised, abstained = j.deliberate(_claim(), "dig", first, 0.3)
+        revised, abstained = j.deliberate(_claim(), "dig", first)
         assert len(revised) == 1
         assert abstained == ["fb-1"]
 
-    def test_tolerance_parametresi_kullanilmiyor(self):
-        """BULGU B1: `tolerance` hiçbir dalda okunmaz."""
+    def test_tolerance_parametresi_kaldirildi(self):
+        """BULGU B1 (DÜZELTİLDİ VERIDICT-JURY-B1): `tolerance` ölü
+        parametreydi (hiçbir dal okumuyordu) — KALDIRILDI. Eski 4-konumlu
+        çağrı artık sessiz-kabul değil gürültülü TypeError verir."""
+        import inspect
+        beklenen = ["self", "claim", "artifact_digest", "first_items"]
+        assert list(inspect.signature(Jury.deliberate).parameters) == beklenen
+        assert "tolerance" not in inspect.signature(
+            Jury.deliberate).parameters
+
+    def test_eski_tolerance_argumanı_gorulekli_red(self):
+        """Fail-closed: politika eşiğini revizyona geçiriyormuş gibi yapan
+        eski çağrı biçimi artık kabul edilmez (ölü argüman sessizce
+        yutılmaz)."""
         j = _iki_juri()
         first = self._ilkeler(j)
-        a, _ = j.deliberate(_claim(), "dig", [first], 0.0)
-        b, _ = j.deliberate(_claim(), "dig", [first], 1.0)
+        with pytest.raises(TypeError):
+            j.deliberate(_claim(), "dig", [first], 0.3)
+
+    def test_turde_gore_sonuc_degismez(self):
+        """B1 sonrası korunan gözlem: revizyon turu sapma eşiğinden bağımsız
+        (eşik compute_divergence/adjudicate tarafında uygulanıyor)."""
+        j = _iki_juri()
+        first = self._ilkeler(j)
+        a, _ = j.deliberate(_claim(), "dig", [first])
+        b, _ = j.deliberate(_claim(), "dig", [first])
         assert a[0].evidence_id == b[0].evidence_id
         assert a[0].stance == b[0].stance
 
@@ -979,7 +1122,7 @@ class TestJuryDeliberate:
         first = [j._build_item(_claim(), "dig", p,
                                Opinion("SUPPORTS", 0.8, "ilk görüş"))
                  for p in j.providers]
-        revised, abstained = j.deliberate(_claim(), "dig", first, 0.3)
+        revised, abstained = j.deliberate(_claim(), "dig", first)
         assert abstained == []
         assert len(revised) == 2
         assert {r.producer["identity"] for r in revised} == {"fa-1", "fb-1"}

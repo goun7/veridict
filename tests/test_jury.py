@@ -55,7 +55,7 @@ def test_deliberate_without_revise_keeps_first_round_rationale():
               ScriptedProvider(family="b", identity="b-1",
                                default=Opinion("REFUTES", 0.9, "rounding drops cents"))])
     items, _ = j.evaluate(CLAIM, "digest")
-    revised, _ = j.deliberate(CLAIM, "digest", items, 1 / 3)
+    revised, _ = j.deliberate(CLAIM, "digest", items)
     b = next(e for e in revised if e.producer["identity"] == "b-1")
     assert b.stance == "REFUTES" and b.rationale == "rounding drops cents"
 
@@ -139,7 +139,7 @@ def test_deliberation_cannot_revive_an_excluded_juror():
                          default=Opinion("REFUTES", 0.9, "x")),
     ], author_family="famA")
     first, _ = jury.evaluate(CLAIM, "digest")
-    revised, _abst = jury.deliberate(CLAIM, "digest", first, 1 / 3)
+    revised, _abst = jury.deliberate(CLAIM, "digest", first)
     assert {i.producer["identity"] for i in revised} == {"b1", "c1"}
 
 
