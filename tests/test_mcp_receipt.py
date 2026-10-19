@@ -166,6 +166,29 @@ def test_mcp_json_is_valid_and_publishable():
     assert os.path.exists(_SERVER)
 
 
+def _sdk_present() -> bool:
+    """Hangi MCP SDK jenerasyonu yukluysa o kabul edilir (v1 FastMCP ya da
+    v2 MCPServer — server.py'nin kendisi ikisini de deniyor; testlerin
+    gate'i v2'de de acilmali, yoksa EN degerli real-SDK testleri v2 ile
+    gizlice SKIP olup 'yesil-orman' uretiyor). 2026-10-19 gece turu:
+    pip show mcp = 2.2.0 -> 4 test skip'te idi, simdi v2 ile calisir."""
+    try:
+        import mcp.server.fastmcp  # noqa: F401 - v1
+        return True
+    except ImportError:
+        pass
+    try:
+        import mcp.server.mcpserver  # noqa: F401 - v2
+        return True
+    except ImportError:
+        return False
+
+
+def _skip_if_no_sdk():
+    if not _sdk_present():
+        pytest.skip("MCP SDK yuklu degil (v1 fastmcp ya da v2 mcpserver)")
+
+
 def test_runner_does_not_shadow_the_mcp_sdk():
     """`python mcp/run_server.py` must import the installed MCP SDK, not the
     repo's own mcp/ directory. A launcher that put the repo root on sys.path
@@ -176,7 +199,7 @@ def test_runner_does_not_shadow_the_mcp_sdk():
     # yazar ve assert onu ARADIĞI için yeşil-boyanamaz. SDK opsiyonel bir
     # bağımlılıktır (CI kurulumunda yoktur), bu yüzden _real()'in (L188)
     # yerleşik-deseniyle aynı importorskip ile İNDETERMİNE der.
-    pytest.importorskip("mcp.server.fastmcp")
+    _skip_if_no_sdk()
     import subprocess
     r = subprocess.run([sys.executable, "-c",
                         "import sys, runpy; "
@@ -191,7 +214,7 @@ def test_runner_does_not_shadow_the_mcp_sdk():
 
 # ---- against the REAL SDK ----------------------------------------------
 def _real():
-    pytest.importorskip("mcp.server.fastmcp")
+    _skip_if_no_sdk()
     for k in [k for k in sys.modules if k.startswith("veridict_receipt_mcp")]:
         del sys.modules[k]
     if MCP_DIR not in sys.path:
