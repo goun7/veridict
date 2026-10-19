@@ -94,7 +94,7 @@ def _materialize(cert) -> str:
 
 
 @mcp.tool()
-def issue(achievement: str, actor_identity: str = "",
+def issue(achievement: Optional[str] = None, actor_identity: str = "",
           evidence: Optional[_StrList] = None, workspace: Optional[str] = None,
           issuer_identity: str = "veridict-receipt",
           out: Optional[str] = None) -> str:
@@ -102,6 +102,7 @@ def issue(achievement: str, actor_identity: str = "",
 
     achievement — the falsifiable statement ("deployed api v2 to staging",
                  "paid invoice 1042"). This is what the receipt certifies.
+                 Missing/empty here is a RED (the transport never raises).
     actor_identity — the agent that did the work (recorded, not trusted).
     evidence — the grounds the issuer relied on (recorded; their hash is
                bound by the receipt, their truth is not adjudicated).
@@ -111,6 +112,10 @@ def issue(achievement: str, actor_identity: str = "",
     `veridict verify <receipt.json>`.
     """
     try:
+        if not achievement:
+            return json.dumps({"ok": False, "error":
+                "ReceiptError: achievement is required (the falsifiable "
+                "statement the receipt certifies)"})
         ws = ReceiptWorkspace.resolve(workspace)
         receipt = issue_receipt(
             ws, achievement, actor_identity, evidence=evidence or [],
@@ -130,10 +135,11 @@ def issue(achievement: str, actor_identity: str = "",
 
 
 @mcp.tool()
-def verify(cert, ledger: Optional[str] = None) -> str:
+def verify(cert: Optional[str] = None, ledger: Optional[str] = None) -> str:
     """Verify a receipt — independently, from the receipt alone.
 
-    cert — a path, a JSON string, or the parsed receipt object.
+    cert — a path, a JSON string, or the parsed receipt object. Missing
+           here is a RED (the transport never raises).
     ledger — optional path to the issuer's ledger. Without it, verification
              is standalone (content hash + signature + timestamp) and
              reports revocation as unknown; with it, the chain, the issuance
@@ -143,6 +149,10 @@ def verify(cert, ledger: Optional[str] = None) -> str:
     check that could be run passed.
     """
     try:
+        if not cert:
+            return json.dumps({"ok": False, "valid": False, "error":
+                "ReceiptError: cert is required (a path, a JSON string, "
+                "or the parsed receipt object)"})
         path = _materialize(cert)
         return json.dumps(verify_receipt(path, ledger))
     except (ReceiptError, OSError, json.JSONDecodeError, ValueError) as exc:
@@ -151,7 +161,8 @@ def verify(cert, ledger: Optional[str] = None) -> str:
 
 
 @mcp.tool()
-def revoke(cert_id: str, reason: str = "", workspace: Optional[str] = None,
+def revoke(cert_id: Optional[str] = None, reason: str = "",
+           workspace: Optional[str] = None,
            issuer_identity: str = "veridict-receipt") -> str:
     """Revoke a receipt by appending a receipt.revoked entry.
 
@@ -161,6 +172,9 @@ def revoke(cert_id: str, reason: str = "", workspace: Optional[str] = None,
     receipt invalid.
     """
     try:
+        if not cert_id:
+            return json.dumps({"ok": False, "error":
+                "ReceiptError: cert_id is required (the receipt to revoke)"})
         ws = ReceiptWorkspace.resolve(workspace)
         res = revoke_receipt(ws, cert_id, reason, issuer_identity=issuer_identity)
         return json.dumps({"ok": True, **res})
@@ -170,19 +184,19 @@ def revoke(cert_id: str, reason: str = "", workspace: Optional[str] = None,
 
 @mcp.tool()
 def list(workspace: Optional[str] = None, active_only: bool = False,
-         limit: int = 100) -> str:
+         limit: Optional[int] = None) -> str:
     """List issued receipts, newest first, each with its revocation status.
 
     active_only — omit receipts the issuer has revoked.
-    limit — cap on rows (1..1000).
+    limit — cap on rows (1..1000); the default (unset) is 100.
     """
     try:
+        cap = 100 if limit is None else max(1, min(int(limit), 1000))
         ws = ReceiptWorkspace.resolve(workspace)
-        rows = list_receipts(ws, include_revoked=not active_only,
-                             limit=max(1, min(int(limit), 1000)))
+        rows = list_receipts(ws, include_revoked=not active_only, limit=cap)
         return json.dumps({"ok": True, "workspace": ws.home,
                            "count": len(rows), "receipts": rows})
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, TypeError) as exc:
         return json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
 
 
