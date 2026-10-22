@@ -209,14 +209,31 @@ class TestCanonical:
 
 # ======================================================== _veridict_version ==
 
+def _pyproject_version() -> str:
+    """A1c-2026-10-22: pyproject.toml TEK-KAYNAK ( importlib-degil)."""
+    import re as _re
+    from pathlib import Path as _Path
+
+    pp = _Path(__file__).resolve().parents[1] / "pyproject.toml"
+    satirlar = [ln for ln in pp.read_text(encoding="utf-8").splitlines()
+                if _re.match(r"^version\s*=", ln)]
+    assert len(satirlar) == 1
+    return satirlar[0].split('"')[1]
+
+
 class TestVeridictVersion:
-    """_veridict_version: iki-isimli probe + fallback (BULGU kaynağı)."""
+    """_veridict_version: TEK-KAYNAK pyproject ( A1c-2026-10-22)."""
 
     def test_kurulu_dist_donuyor(self):
         v = _veridict_version()
         assert isinstance(v, str) and v != ""
 
-    def test_birinci_isim_kazanir(self, monkeypatch):
+    def test_kaynak_pyproject_kazanir(self, monkeypatch):
+        """A1c-2026-10-22: kaynak-agacinda-pyproject TEK-GERCEK.
+
+        importlib.metadata arttikca-artar ( monkeypatch), kaynaktan
+        okunan pyproject.version yine-kazanir ( 1.1.0).
+        """
         from importlib.metadata import PackageNotFoundError
 
         def sahte(ad):
@@ -225,9 +242,11 @@ class TestVeridictVersion:
             raise PackageNotFoundError(ad)
 
         monkeypatch.setattr("importlib.metadata.version", sahte)
-        assert _veridict_version() == "1.2.3"
+        assert _veridict_version() == _pyproject_version()
 
-    def test_birinci_yoksa_ikinci(self, monkeypatch):
+    def test_importlib_yalani_gecersiz(self, monkeypatch):
+        """A1c: importlib.metadata-yanlis-deger-verse-bile kaynak-pyproject
+        kazanir ( onceki-tasarimdeki-gelisme-ortami-kusuru)."""
         from importlib.metadata import PackageNotFoundError
 
         def sahte(ad):
@@ -236,16 +255,17 @@ class TestVeridictVersion:
             raise PackageNotFoundError(ad)
 
         monkeypatch.setattr("importlib.metadata.version", sahte)
-        assert _veridict_version() == "9.9.9"
+        assert _veridict_version() == _pyproject_version()
 
-    def test_ikisi_yoksa_fallback(self, monkeypatch):
+    def test_importlib_yoksa_kaynak_kazanir(self, monkeypatch):
+        """A1c: importlib.her-seyi-bulamazsa-bile kaynak-pyproject-version_doner."""
         from importlib.metadata import PackageNotFoundError
 
         def sahte(ad):
             raise PackageNotFoundError(ad)
 
         monkeypatch.setattr("importlib.metadata.version", sahte)
-        assert _veridict_version() == "0.5.0+source"
+        assert _veridict_version() == _pyproject_version()
 
 
 # ========================================================= to_vsa: reddetme =
